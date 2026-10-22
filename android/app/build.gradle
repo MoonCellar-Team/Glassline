@@ -17,6 +17,17 @@ android {
         versionName project.findProperty("medecompVersion") ?: "dev"
     }
 
+    signingConfigs {
+        if (System.getenv("GLASSLINE_ANDROID_KEYSTORE")) {
+            release {
+                storeFile file(System.getenv("GLASSLINE_ANDROID_KEYSTORE"))
+                storePassword System.getenv("GLASSLINE_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("GLASSLINE_ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("GLASSLINE_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     sourceSets {
         main {
             java.srcDirs = ["src/main/java", "${out}/src/${sdl}/android-project/app/src/main/java"]
@@ -28,7 +39,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig System.getenv("GLASSLINE_ANDROID_KEYSTORE") ? signingConfigs.release : signingConfigs.debug
         }
     }
 

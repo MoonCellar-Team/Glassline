@@ -34,8 +34,37 @@ jobs:
           path: build/release/*-windows-x64-*.zip
           if-no-files-found: error
 
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        # The Android SDK with the NDK and the build take about 12 GB; the runner's own SDKs are not used
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+      - uses: astral-sh/setup-uv@v6
+      - name: Release signing key
+        env:
+          KEYSTORE: ${{ secrets.GLASSLINE_ANDROID_KEYSTORE }}
+        run: |
+          test -n "$KEYSTORE" || { echo "no GLASSLINE_ANDROID_KEYSTORE secret: the APK would not be signed with the release key"; exit 1; }
+          printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.keystore"
+      - name: Build
+        env:
+          GLASSLINE_ANDROID_KEYSTORE: ${{ runner.temp }}/release.keystore
+          GLASSLINE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.GLASSLINE_ANDROID_KEYSTORE_PASSWORD }}
+          GLASSLINE_ANDROID_KEY_ALIAS: ${{ secrets.GLASSLINE_ANDROID_KEY_ALIAS }}
+          GLASSLINE_ANDROID_KEY_PASSWORD: ${{ secrets.GLASSLINE_ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 -I tools/android_deps.py --accept-licenses > /dev/null
+          ./build.sh android "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/release/*-android-*.apk
+          if-no-files-found: error
+
   release:
-    needs: [linux, windows]
+    needs: [linux, windows, android]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

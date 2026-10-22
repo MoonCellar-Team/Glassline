@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 — 2026-10-22
+
+- **Android:** the APK is now part of every release — `glassline-android-1.0.1.apk`, Android 9 or newer,
+  ARM. It installs over an earlier Glassline APK from MoonCellar Team and keeps your data.
+- **Updates:** if you run 1.0 as the AppImage or from the Windows zip, the launcher offers this version
+  on start — press **Update**.
+
 ## 1.0 — 2026-10-22
 
 First public release of Glassline — an unofficial port of Mirror's Edge for iPad (2010) to Linux, Windows

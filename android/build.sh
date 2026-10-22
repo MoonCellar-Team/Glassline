@@ -59,7 +59,11 @@ stamp="$(git rev-parse --short HEAD)$(git diff --quiet || echo -dirty)-$(date +%
 mv "$A/medecomp-assets.txt" "$assets/"
 
 echo "== APK"
-gradle -p android --no-daemon -q assembleRelease "-PmedecompOut=$A" "-PmedecompVersion=${NUMBER:-dev}"
+code=1
+if [[ "$NUMBER" =~ ^([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+	code=$((BASH_REMATCH[1] * 10000 + BASH_REMATCH[2] * 100 + ${BASH_REMATCH[4]:-0}))
+fi
+gradle -p android --no-daemon -q assembleRelease "-PmedecompOut=$A" "-PmedecompVersion=${NUMBER:-dev}" "-PmedecompVersionCode=$code"
 apk=$A/$FILE-android${NUMBER:+-$NUMBER}.apk
 cp "$A/gradle-out/app/outputs/apk/release/app-release.apk" "$apk"
 echo "-> $apk ($(du -h "$apk" | cut -f1); $ABIS)"
