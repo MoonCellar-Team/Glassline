@@ -12,7 +12,21 @@ import tarfile
 import time
 import urllib.error
 import urllib.request
-from compression import zstd
+
+try:
+    from compression import zstd
+
+    def unzstd(data):
+        return zstd.decompress(data)
+
+except ImportError:
+    import subprocess
+
+    def unzstd(data):
+        try:
+            return subprocess.run(["zstd", "-dc"], input=data, stdout=subprocess.PIPE, check=True).stdout
+        except FileNotFoundError:
+            sys.exit("пакеты MSYS2 — в .zst: нужен Python 3.14 или утилита zstd (apt install zstd)")
 
 REPO = "https://mirror.msys2.org/mingw/clang64/"
 LLVM_MINGW = "20261006"
@@ -34,7 +48,7 @@ def fetch(url, tries=4):
 
 def read_db(data):
     packages = {}
-    with tarfile.open(fileobj=io.BytesIO(zstd.decompress(data))) as tar:
+    with tarfile.open(fileobj=io.BytesIO(unzstd(data))) as tar:
         for member in tar:
             if not member.name.endswith("/desc"):
                 continue
@@ -109,7 +123,7 @@ def main():
             with open(path, "wb") as f:
                 f.write(data)
             print(f"  {name} {fields['VERSION'][0]}")
-        with tarfile.open(fileobj=io.BytesIO(zstd.decompress(open(path, "rb").read()))) as tar:
+        with tarfile.open(fileobj=io.BytesIO(unzstd(open(path, "rb").read()))) as tar:
             members = [m for m in tar if m.name.startswith("clang64/") and (m.isfile() or m.isdir() or m.issym())]
             tar.extractall(root, members=members, filter="data")
             for m in members:
