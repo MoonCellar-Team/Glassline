@@ -1,0 +1,8 @@
+#pragma once
+// Минимальная замена <new> для freestanding-проверки: размещающий new.
+// В сборке под PC подключается системный <new>.
+
+#include <stddef.h>
+
+inline void* operator new(size_t, void* place) noexcept { return place; }
+inline void* operator new[](size_t, void* place) noexcept { return place; }

@@ -1,0 +1,41 @@
+plugins {
+    id "com.android.application"
+}
+
+def out = file(project.findProperty("medecompOut") ?: "${rootDir}/../build/android")
+def sdl = project.findProperty("medecompSdl") ?: "SDL2-2.30.10"
+
+android {
+    namespace "space.mooncellar.rooftops"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "space.mooncellar.rooftops"
+        minSdk 28
+        targetSdk 35
+        versionCode((project.findProperty("medecompVersionCode") ?: "1") as int)
+        versionName project.findProperty("medecompVersion") ?: "dev"
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ["src/main/java", "${out}/src/${sdl}/android-project/app/src/main/java"]
+            jniLibs.srcDirs = ["${out}/jniLibs"]
+            assets.srcDirs = ["${out}/assets"]
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+layout.buildDirectory = file("${out}/gradle-out/app")

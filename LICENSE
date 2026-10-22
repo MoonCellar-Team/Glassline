@@ -1,0 +1,119 @@
+Glassline Source-Available License, Version 1.0
+
+Copyright (c) 2026 Daniil Stasulevich (alexgrist14) and Sergey Toreev
+(SergeyHist), MoonCellar Team. All rights reserved.
+
+Glassline is an unofficial port of Mirror's Edge (iPad) to PC and Android. Its
+source code (the "Software") is published so that it can be read, studied,
+built and played with your own copy of the game, and improved by way of
+contributions to the original project - the repository in which the copyright
+holders publish the Software. The Software is not free or open source software:
+every right that is not expressly granted below is reserved.
+
+1. What this license covers
+
+   a) This license covers only the work of the copyright holders: the port and
+      its launcher, the build scripts, the port's own texts and images, and
+      the changes and additions the copyright holders made to the game code.
+
+   b) Mirror's Edge, its code, its resources (graphics, models, sound, music,
+      texts, levels) and its name and logo belong to Electronic Arts Inc. and
+      its licensors. The code in src/ and include/ was reconstructed from the
+      game; no right to it, or to anything else of Electronic Arts, is granted
+      by this license or by the copyright holders. No game resources are
+      included in the Software: the Software loads them from a copy of the
+      game that you supply yourself.
+
+   c) Third-party components (port/third_party/ and the libraries the build
+      downloads or bundles) are covered by their own licenses, which are
+      shipped with them.
+
+2. Grant
+
+   Subject to the limitations in section 3 and the conditions in section 4,
+   you are granted a non-exclusive, worldwide, royalty-free permission to:
+
+   a) view, read and study the Software;
+
+   b) build the Software, unmodified or modified, and run what you build on
+      hardware you control, for your own personal, non-commercial use, with a
+      copy of Mirror's Edge (iPad) that you obtained lawfully;
+
+   c) copy the Software and make modified versions of it in order to study it
+      or to develop and test a contribution to the original project; and
+
+   d) submit contributions to the original project, on the terms of section 5.
+
+3. Limitations
+
+   Without written permission of the copyright holders you may not:
+
+   a) distribute, publish, host or otherwise make available to anyone else
+      builds of the Software or modified versions of the Software or of its
+      builds, publicly or privately, for a fee or free of charge, other than by
+      submitting a contribution to the original project;
+
+   b) use the Software, or any part of it, in or as part of any other product,
+      service or work;
+
+   c) use the Software, its builds or any part of them commercially, including
+      selling, renting or leasing them, or charging for access to them;
+
+   d) distribute any resources of the game together with the Software, its
+      builds or modified versions;
+
+   e) sublicense the Software; or
+
+   f) remove, obscure or alter this license, any copyright notice or any
+      attribution contained in the Software.
+
+4. Conditions
+
+   Every copy you make must include this license in full, together with all
+   copyright notices contained in the Software.
+
+5. Contributions
+
+   By submitting a contribution - a pull request, a patch or any other
+   material offered for inclusion in the original project - you grant the
+   copyright holders a perpetual, worldwide, non-exclusive, irrevocable,
+   royalty-free, sublicensable license to use, reproduce, modify, publish,
+   distribute and relicense that contribution as part of the Software, under
+   this or any other license terms. You confirm that you are entitled to grant
+   that license and that the contribution is your own work.
+
+6. Official builds
+
+   Builds published by the copyright holders on the releases page of the
+   original project may be downloaded and run by anyone for personal,
+   non-commercial use with a copy of the game obtained lawfully, on the terms
+   of sections 2 b), 3 and 4.
+
+7. Online services
+
+   This license governs the Software only. Online features of the Software use
+   the MoonCellar service at https://mooncellar.space, which is used under the
+   terms published there.
+
+8. Names
+
+   This license grants no right to use the names "Glassline" or "MoonCellar",
+   their logos and icons, or any other trade mark of the copyright holders, nor
+   the name "Mirror's Edge" or any trade mark of Electronic Arts Inc. The
+   Software is not affiliated with or endorsed by Electronic Arts Inc.
+
+9. Termination
+
+   The permissions granted by this license terminate automatically if you
+   breach any of its terms. They may be reinstated only in writing by the
+   copyright holders.
+
+10. No warranty and no liability
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+   IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.

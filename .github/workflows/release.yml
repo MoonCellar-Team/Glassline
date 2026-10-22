@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ./build.sh linux "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            build/release/*-linux-x64-*.AppImage
+            build/release/*-linux-x64-*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ./build.sh windows "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build/release/*-windows-x64-*.zip
+          if-no-files-found: error
+
+  release:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Sign for the launcher's updater
+        # An ed25519 signature of the sha512sum line of every AppImage and zip (<file>.sig): the launcher checks it
+        # before updating (port/src/platform/update.cpp); the public key is MEDECOMP_UPDATE_KEY in port/include/port/brand.h
+        env:
+          GLASSLINE_UPDATE_KEY: ${{ secrets.GLASSLINE_UPDATE_KEY }}
+        run: |
+          test -n "$GLASSLINE_UPDATE_KEY" || { echo "no GLASSLINE_UPDATE_KEY secret: the release would not be signed"; exit 1; }
+          key=$(mktemp)
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$GLASSLINE_UPDATE_KEY" > "$key"
+          cd dist
+          for f in *.AppImage *.zip; do
+            sha512sum "$f" > "$f.line"
+            openssl pkeyutl -sign -rawin -inkey "$key" -in "$f.line" -out "$f.sig"
+            rm "$f.line"
+          done
+          ls -l
+      - name: Release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            /^## / { if (found) exit; found = ($2 == v) ; next }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "no section for $version in CHANGELOG.md"; exit 1; }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Glassline ${GITHUB_REF_NAME#v}" --notes-file notes.md --verify-tag

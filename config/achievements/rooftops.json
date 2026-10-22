@@ -1,0 +1,497 @@
+{
+ "format": 1,
+ "game": "rooftops",
+ "achievements": [
+  {
+   "key": "star-1",
+   "icon": "star-1.svg",
+   "title": {
+    "en": "First Star",
+    "ru": "Первая звезда"
+   },
+   "description": {
+    "en": "Finish a Speed Run level fast enough for a star.",
+    "ru": "Пройдите уровень забега на время так быстро, чтобы получить звезду."
+   },
+   "trigger": {
+    "index": 0
+   }
+  },
+  {
+   "key": "star-20",
+   "icon": "star-20.svg",
+   "title": {
+    "en": "Star Collector",
+    "ru": "Звездочёт"
+   },
+   "description": {
+    "en": "Collect 20 stars across Speed Run levels.",
+    "ru": "Наберите 20 звёзд на уровнях забега на время."
+   },
+   "progress": {
+    "target": 20,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 1
+   }
+  },
+  {
+   "key": "star-all",
+   "icon": "star-all.svg",
+   "title": {
+    "en": "Full Constellation",
+    "ru": "Созвездие"
+   },
+   "description": {
+    "en": "Collect all 42 Speed Run stars.",
+    "ru": "Соберите все 42 звезды забега на время."
+   },
+   "progress": {
+    "target": 42,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 2
+   }
+  },
+  {
+   "key": "story-complete",
+   "icon": "story-complete.svg",
+   "title": {
+    "en": "Last Rooftop",
+    "ru": "Последняя крыша"
+   },
+   "description": {
+    "en": "Reach the end of the story.",
+    "ru": "Доберитесь до финала сюжета."
+   },
+   "trigger": {
+    "index": 3
+   }
+  },
+  {
+   "key": "bag-1",
+   "icon": "bag-1.svg",
+   "title": {
+    "en": "Special Delivery",
+    "ru": "Находка"
+   },
+   "description": {
+    "en": "Find one of the bags hidden on the rooftops.",
+    "ru": "Найдите одну из сумок, спрятанных на крышах."
+   },
+   "trigger": {
+    "index": 4
+   }
+  },
+  {
+   "key": "bag-20",
+   "icon": "bag-20.svg",
+   "title": {
+    "en": "Bag Hunter",
+    "ru": "Охотник за сумками"
+   },
+   "description": {
+    "en": "Find 20 hidden bags.",
+    "ru": "Найдите 20 спрятанных сумок."
+   },
+   "progress": {
+    "target": 20,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 5
+   }
+  },
+  {
+   "key": "bag-all",
+   "icon": "bag-all.svg",
+   "title": {
+    "en": "Nothing Left Behind",
+    "ru": "Ничего не упущено"
+   },
+   "description": {
+    "en": "Find every hidden bag in the story chapters.",
+    "ru": "Найдите все спрятанные сумки в главах сюжета."
+   },
+   "trigger": {
+    "index": 6
+   }
+  },
+  {
+   "key": "run-distance",
+   "icon": "run-distance.svg",
+   "title": {
+    "en": "Long Distance",
+    "ru": "Длинная дистанция"
+   },
+   "description": {
+    "en": "Cover 10 km on foot.",
+    "ru": "Пробегите в сумме 10 км."
+   },
+   "progress": {
+    "target": 10000,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 7,
+    "metric": "runDist"
+   }
+  },
+  {
+   "key": "wall-run",
+   "icon": "wall-run.svg",
+   "title": {
+    "en": "Wall Walker",
+    "ru": "По стенам"
+   },
+   "description": {
+    "en": "Run 500 m along walls.",
+    "ru": "Пробегите 500 м по стенам."
+   },
+   "progress": {
+    "target": 500,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 8,
+    "metric": "wallRunDist"
+   }
+  },
+  {
+   "key": "climb",
+   "icon": "climb.svg",
+   "title": {
+    "en": "Up and Over",
+    "ru": "Выше крыш"
+   },
+   "description": {
+    "en": "Climb a total of 1,000 m.",
+    "ru": "Поднимитесь в сумме на 1000 м."
+   },
+   "progress": {
+    "target": 1000,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 9,
+    "metric": "climbDist"
+   }
+  },
+  {
+   "key": "zipline-distance",
+   "icon": "zipline-distance.svg",
+   "title": {
+    "en": "Cable Rider",
+    "ru": "По тросу"
+   },
+   "description": {
+    "en": "Travel 1,000 m on ziplines.",
+    "ru": "Проедьте 1000 м по тросам."
+   },
+   "progress": {
+    "target": 1000,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 10,
+    "metric": "ziplineDist"
+   }
+  },
+  {
+   "key": "slide",
+   "icon": "slide.svg",
+   "title": {
+    "en": "Low Profile",
+    "ru": "Пригнись"
+   },
+   "description": {
+    "en": "Slide a total of 500 m.",
+    "ru": "Проскользите в сумме 500 м."
+   },
+   "progress": {
+    "target": 500,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 11,
+    "metric": "slideDist"
+   }
+  },
+  {
+   "key": "balance",
+   "icon": "balance.svg",
+   "title": {
+    "en": "Steady Feet",
+    "ru": "Твёрдый шаг"
+   },
+   "description": {
+    "en": "Walk 200 m across beams and pipes.",
+    "ru": "Пройдите 200 м по балкам и трубам."
+   },
+   "progress": {
+    "target": 200,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 12,
+    "metric": "balanceDist"
+   }
+  },
+  {
+   "key": "fall",
+   "icon": "fall.svg",
+   "title": {
+    "en": "Long Way Down",
+    "ru": "Долгое падение"
+   },
+   "description": {
+    "en": "Drop a total of 1,000 m.",
+    "ru": "Пролетите вниз в сумме 1000 м."
+   },
+   "progress": {
+    "target": 1000,
+    "unit": "m"
+   },
+   "trigger": {
+    "index": 13,
+    "metric": "fallDist"
+   }
+  },
+  {
+   "key": "sprint",
+   "icon": "sprint.svg",
+   "title": {
+    "en": "Full Speed",
+    "ru": "Полный ход"
+   },
+   "description": {
+    "en": "Hold top speed for 10 seconds straight.",
+    "ru": "Держите максимальную скорость 10 секунд подряд."
+   },
+   "trigger": {
+    "index": 14
+   }
+  },
+  {
+   "key": "takedown-1",
+   "icon": "takedown-1.svg",
+   "title": {
+    "en": "First Takedown",
+    "ru": "Первый нокаут"
+   },
+   "description": {
+    "en": "Take down an enemy.",
+    "ru": "Обезвредьте противника."
+   },
+   "trigger": {
+    "index": 15,
+    "metric": "kills"
+   }
+  },
+  {
+   "key": "takedown-100",
+   "icon": "takedown-100.svg",
+   "title": {
+    "en": "Hundred Down",
+    "ru": "Сотня"
+   },
+   "description": {
+    "en": "Take down 100 enemies.",
+    "ru": "Обезвредьте 100 противников."
+   },
+   "progress": {
+    "target": 100,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 16,
+    "metric": "kills"
+   }
+  },
+  {
+   "key": "takedown-rush",
+   "icon": "takedown-rush.svg",
+   "title": {
+    "en": "Whirlwind",
+    "ru": "Вихрь"
+   },
+   "description": {
+    "en": "Take down 10 enemies within 60 seconds on one level.",
+    "ru": "Обезвредьте 10 противников за 60 секунд на одном уровне."
+   },
+   "trigger": {
+    "index": 17
+   }
+  },
+  {
+   "key": "disarm-1",
+   "icon": "disarm-1.svg",
+   "title": {
+    "en": "Hands Off",
+    "ru": "Руки прочь"
+   },
+   "description": {
+    "en": "Take an enemy's weapon.",
+    "ru": "Отберите оружие у противника."
+   },
+   "trigger": {
+    "index": 18,
+    "metric": "disarms"
+   }
+  },
+  {
+   "key": "disarm-20",
+   "icon": "disarm-20.svg",
+   "title": {
+    "en": "Armory",
+    "ru": "Арсенал"
+   },
+   "description": {
+    "en": "Take weapons from 20 enemies.",
+    "ru": "Отберите оружие у 20 противников."
+   },
+   "progress": {
+    "target": 20,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 19,
+    "metric": "disarms"
+   }
+  },
+  {
+   "key": "rival-1",
+   "icon": "rival-1.svg",
+   "title": {
+    "en": "Caught You",
+    "ru": "Попался"
+   },
+   "description": {
+    "en": "Take down a rival runner.",
+    "ru": "Обезвредьте соперника-бегуна."
+   },
+   "trigger": {
+    "index": 20,
+    "metric": "rivalKills"
+   }
+  },
+  {
+   "key": "rival-10",
+   "icon": "rival-10.svg",
+   "title": {
+    "en": "Top Runner",
+    "ru": "Лучший бегун"
+   },
+   "description": {
+    "en": "Take down 10 rival runners.",
+    "ru": "Обезвредьте 10 соперников-бегунов."
+   },
+   "progress": {
+    "target": 10,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 21,
+    "metric": "rivalKills"
+   }
+  },
+  {
+   "key": "ledge-1",
+   "icon": "ledge-1.svg",
+   "title": {
+    "en": "Over the Edge",
+    "ru": "За край"
+   },
+   "description": {
+    "en": "Knock an enemy off a ledge.",
+    "ru": "Сбросьте противника с уступа."
+   },
+   "trigger": {
+    "index": 22,
+    "metric": "enemyFalls"
+   }
+  },
+  {
+   "key": "ledge-10",
+   "icon": "ledge-10.svg",
+   "title": {
+    "en": "Gravity Wins",
+    "ru": "Гравитация побеждает"
+   },
+   "description": {
+    "en": "Knock 10 enemies off ledges.",
+    "ru": "Сбросьте с уступов 10 противников."
+   },
+   "progress": {
+    "target": 10,
+    "unit": "count"
+   },
+   "trigger": {
+    "index": 23,
+    "metric": "enemyFalls"
+   }
+  },
+  {
+   "key": "double-takedown",
+   "icon": "double-takedown.svg",
+   "title": {
+    "en": "Two for One",
+    "ru": "Двое за раз"
+   },
+   "description": {
+    "en": "Take down two enemies with a single attack.",
+    "ru": "Обезвредьте двоих противников одной атакой."
+   },
+   "trigger": {
+    "index": 24
+   }
+  },
+  {
+   "key": "zipline-takedown",
+   "icon": "zipline-takedown.svg",
+   "title": {
+    "en": "Air Mail",
+    "ru": "Воздушная почта"
+   },
+   "description": {
+    "en": "Let go of a zipline and take down an enemy before you land.",
+    "ru": "Отпустите трос и обезвредьте противника ещё до приземления."
+   },
+   "trigger": {
+    "index": 25
+   }
+  },
+  {
+   "key": "graffiti-1",
+   "icon": "graffiti-1.svg",
+   "title": {
+    "en": "Tagged",
+    "ru": "Метка на стене"
+   },
+   "description": {
+    "en": "Spot the hidden graffiti in chapter 3-2.",
+    "ru": "Найдите спрятанное граффити в главе 3-2."
+   },
+   "trigger": {
+    "index": 26
+   }
+  },
+  {
+   "key": "graffiti-radio",
+   "icon": "graffiti-radio.svg",
+   "title": {
+    "en": "On the Air",
+    "ru": "В эфире"
+   },
+   "description": {
+    "en": "Spot the hidden radio graffiti in chapter 1-2.",
+    "ru": "Найдите спрятанное граффити с радиоволной в главе 1-2."
+   },
+   "trigger": {
+    "index": 27
+   }
+  }
+ ]
+}

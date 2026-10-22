@@ -1,0 +1,5 @@
+libopenal-dev
+libavformat-dev
+libavcodec-dev
+libswresample-dev
+libavutil-dev

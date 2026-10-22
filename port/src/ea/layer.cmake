@@ -1,0 +1,3 @@
+if(CMAKE_DL_LIBS)
+    list(APPEND MEDECOMP_LINK_FLAGS -l${CMAKE_DL_LIBS})
+endif()

@@ -1,0 +1,5 @@
+list(APPEND MEDECOMP_INCLUDE_DIRS ${CMAKE_CURRENT_LIST_DIR}/../../third_party/GameNetworkingSockets/include)
+if(CMAKE_DL_LIBS)
+    list(APPEND MEDECOMP_LINK_FLAGS -l${CMAKE_DL_LIBS})
+endif()
+include(${CMAKE_CURRENT_LIST_DIR}/gns.cmake)

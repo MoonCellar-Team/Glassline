@@ -1,0 +1,14 @@
+#pragma once
+// Минимальная замена <algorithm> для freestanding-проверки: только используемое.
+
+namespace std {
+
+template <class T> const T& max(const T& a, const T& b);
+template <class T> const T& min(const T& a, const T& b);
+template <class Iterator, class T> Iterator find(Iterator first, Iterator last, const T& value);
+template <class InputIterator, class Function>
+Function for_each(InputIterator first, InputIterator last, Function f);
+template <class ForwardIterator, class Predicate>
+ForwardIterator remove_if(ForwardIterator first, ForwardIterator last, Predicate pred);
+
+}

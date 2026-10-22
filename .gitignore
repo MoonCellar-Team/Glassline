@@ -1,0 +1,7 @@
+# Build output
+/build/
+__pycache__/
+android/.gradle/
+android/local.properties
+# Written by the export that produced this tree
+/.public-export

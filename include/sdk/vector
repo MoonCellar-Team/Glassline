@@ -1,0 +1,4 @@
+#pragma once
+// Для #include <vector>: объявление в vector.h.
+
+#include "vector.h"

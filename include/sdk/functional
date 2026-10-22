@@ -1,0 +1,55 @@
+#pragma once
+// Минимальная замена <functional> для freestanding-проверки: только используемое.
+
+namespace std {
+
+template <class Arg1, class Arg2, class Result>
+struct binary_function {
+    typedef Arg1 first_argument_type;
+    typedef Arg2 second_argument_type;
+    typedef Result result_type;
+};
+
+// Метод с одним аргументом как функтор f(object, arg)
+template <class R, class T, class A>
+class mem_fun1_t : public binary_function<T*, A, R> {
+public:
+    explicit mem_fun1_t(R (T::*method)(A));
+    R operator()(T* object, A arg) const;
+
+private:
+    R (T::*m_method)(A);
+};
+
+template <class R, class T, class A>
+mem_fun1_t<R, T, A> mem_fun(R (T::*method)(A));
+
+template <class Op>
+class binder1st {
+public:
+    binder1st(const Op& op, const typename Op::first_argument_type& value);
+    typename Op::result_type operator()(const typename Op::second_argument_type& arg) const;
+
+protected:
+    Op op;
+    typename Op::first_argument_type value;
+};
+
+template <class Op, class T>
+binder1st<Op> bind1st(const Op& op, const T& value);
+
+template <class Op>
+class binder2nd {
+public:
+    binder2nd(const Op& op, const typename Op::second_argument_type& value);
+    typename Op::result_type operator()(const typename Op::first_argument_type& arg) const;
+
+protected:
+    Op op;
+    typename Op::second_argument_type value;
+};
+
+template <class Op, class T>
+binder2nd<Op> bind2nd(const Op& op, const T& value);
+
+}  // namespace std

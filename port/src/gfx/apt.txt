@@ -1,0 +1,5 @@
+libsdl2-dev
+zlib1g-dev
+libcairo2-dev
+libfreetype-dev
+libfontconfig-dev

@@ -1,0 +1,39 @@
+#pragma once
+// Минимальное объявление std::map из libstdc++ (GCC 4.2) — только для
+// проверки синтаксиса. Размер как у настоящего на armv7: 0x18
+// (компаратор, узел-заголовок красно-чёрного дерева, число элементов).
+
+namespace std {
+
+template <class A, class B>
+struct pair {
+    A first;
+    B second;
+};
+
+template <class K, class V>
+class map {
+public:
+    typedef pair<const K, V> value_type;
+    class iterator {
+    public:
+        value_type* operator->() const;
+        bool operator!=(const iterator& other) const;
+
+    private:
+        void* _M_node;
+    };
+
+    iterator begin();
+    iterator end();
+    void erase(iterator it);
+    V& operator[](const K& key);
+    map();
+    ~map();
+    unsigned size() const;
+
+private:
+    int _M_impl[6];
+};
+
+}  // namespace std

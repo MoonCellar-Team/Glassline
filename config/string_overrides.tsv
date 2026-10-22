@@ -1,0 +1,1017 @@
+1	0x0804	en	PAUSE|Press {pause}.||RUNNING|Press {left} or {right} to run.|Press to stop, or press the opposite way to turn without stopping.||SLIDING|Press {down} while running to slide.|Press {up} while sliding to get back up.||JUMPING|Press {up} to jump.||ROLLING|Press {down} before you land to roll. A bad landing slows Faith down.||WALL RUN|Press {up} in front of an orange sign to wall run.||WALL CLIMB|Jump at a wall while running to climb it.|Press {up} during a wall climb to wall jump.||BOOST JUMP|Press {up} on a ramp to boost jump.||HIGH JUMP|When Faith climbs an edge, press {up} to high jump.||SWINGING|Press {left} or {right} to change direction.|Press {up} to jump off, only on the way forward.|Press {down} to drop.||LEDGE SCALE|Press {up} to climb onto a platform directly above Faith.|She keeps those presses while she climbs.||ZIPLINES|Press {up} to grab a line, from the right direction.|If you see sparks, {tilt} to go faster.|Press {down} to let go cleanly, or she lands badly and slows down.||RAMP SLIDE|Faith slides down slopes on her own.|If you see smoke, {tilt} to go faster.||BALANCING|Jump over short beams. They slow her down.|On a long beam, {tilt} to keep her steady. If she falls, press {up} to get back on.||RUNNER VISION|Things turn red when she approaches them the right way to finish the level.||COMBAT|Police and helicopters shoot when they see her. Keep moving.|If an enemy lines up with her, time slows so you can take them down or get past.|Press {down} to slide and knock them down for a moment.|While jumping, press the way she is moving for a flying kick.|Press {down} when dropping on an enemy to roll into them.|Next to an enemy, press the way she is running to disarm them.|If she is knocked down trying to run past, press {up} to get up and knock the attacker down.||CHECKPOINTS|Dishes, cameras and pump switches are checkpoints. If she is hurt, she restarts at the last one.||BADGES|Bags, advanced moves and speedrun times earn badges.|Badges unlock concept art. Reach a checkpoint or finish the level to keep the bags.||HINTS|Look for shortcuts.|Jump just before a wall run, then press {up} to go further.|Press {up} to leave a wall run and cover more ground.|Drop onto a line from above, facing the right way.|While sliding down a wall, press away from it to run as soon as she lands cleanly.|A high jump off a climb reaches high places.
+1	0x0804	fr	PAUSE|Appuie sur {pause}.||COURSE|Appuie {left} ou {right} pour courir.|Appuie pour t'arrêter, ou dans l'autre sens pour faire demi-tour sans t'arrêter.||AU SOL|Appuie {down} en courant pour passer au ras du sol.|Appuie {up} pour te relever.||SAUT|Appuie {up} pour sauter.||ROULADE|Appuie {down} avant l'impact pour rouler. Une mauvaise réception ralentit Faith.||COURSE MURALE|Appuie {up} devant un signe orange pour courir sur le mur.||ESCALADE|Saute vers un mur en courant pour l'escalader.|Appuie {up} pendant l'escalade pour sauter plus loin.||SAUT LONG|Appuie {up} sur une rampe pour un saut plus long.||SAUT HAUT|Quand Faith franchit un rebord, appuie {up} pour sauter plus haut.||BALANÇOIRE|Appuie {left} ou {right} pour changer de sens.|Appuie {up} pour lâcher, seulement vers l'avant.|Appuie {down} pour tomber.||REBORD|Appuie {up} pour monter sur une plate-forme juste au-dessus de Faith.|Elle garde ces appuis pendant qu'elle monte.||TYROLIENNE|Appuie {up} pour saisir un câble, dans le bon sens.|Si tu vois des étincelles, {tilt} pour aller plus vite.|Appuie {down} pour lâcher proprement, sinon elle se réceptionne mal et ralentit.||PENTE|Faith descend les pentes toute seule.|Si tu vois de la fumée, {tilt} pour aller plus vite.||ÉQUILIBRE|Saute par-dessus les poutres courtes. Elles la ralentissent.|Sur une longue poutre, {tilt} pour la stabiliser. Si elle tombe, appuie {up} pour remonter.||SENS URBAIN|Les objets deviennent rouges si elle les aborde du bon côté pour finir le niveau.||COMBAT|La police et les hélicoptères tirent dès qu'ils la voient. Continue d'avancer.|Si un ennemi est dans sa ligne, le temps ralentit : tu peux l'assommer ou l'éviter.|Appuie {down} pour passer au ras du sol et les renverser un instant.|En sautant, appuie dans son sens de course pour un coup de pied.|Appuie {down} en tombant sur un ennemi pour rouler sur lui.|Tout près d'un ennemi, appuie dans son sens de course pour le désarmer.|Si on la renverse quand elle veut passer, appuie {up} pour te relever et renverser l'attaquant.||POINTS DE CONTRÔLE|Antennes, caméras et vannes sont des points de contrôle. Si elle est blessée, elle repart du dernier.||BADGES|Les sacs, les figures et les temps du mode chrono donnent des badges.|Les badges ouvrent des illustrations. Passe un point de contrôle ou finis le niveau pour garder les sacs.||ASTUCES|Cherche des raccourcis.|Saute juste avant une course murale, puis appuie {up} pour aller plus loin.|Appuie {up} pour quitter un mur et gagner de la distance.|Tombe sur un câble d'en haut, dans le bon sens.|En descendant un mur, appuie vers l'extérieur pour courir dès une réception propre.|Un saut haut depuis une escalade atteint les endroits élevés.
+1	0x0804	it	PAUSA|Premi {pause}.||CORSA|Premi {left} o {right} per correre.|Premi per fermarti, o dalla parte opposta per invertire senza fermarti.||A TERRA|Premi {down} mentre corri per abbassarti.|Premi {up} per rialzarti.||SALTO|Premi {up} per saltare.||ROTOLATA|Premi {down} prima dell'impatto per rotolare. Un atterraggio storto rallenta Faith.||CORSA SUL MURO|Premi {up} davanti a un segno arancione per correre sul muro.||ARRAMPICATA|Salta verso un muro mentre corri per scalarlo.|Premi {up} durante la scalata per saltare via.||SALTO LUNGO|Premi {up} su una rampa per un salto più lungo.||SALTO ALTO|Quando Faith supera un bordo, premi {up} per saltare più in alto.||PENDOLO|Premi {left} o {right} per cambiare direzione.|Premi {up} per staccarti, solo nel verso in avanti.|Premi {down} per mollare.||SPORGENZA|Premi {up} per salire su una piattaforma proprio sopra Faith.|Tiene questi comandi mentre sale.||CORDA|Premi {up} per afferrare una corda, dal verso giusto.|Se vedi scintille, {tilt} per andare più veloce.|Premi {down} per lasciare pulito, altrimenti atterra male e rallenta.||PENDENZA|Faith scende le pendenze da sola.|Se vedi fumo, {tilt} per andare più veloce.||EQUILIBRIO|Salta le travi corte. La rallentano.|Su una trave lunga, {tilt} per tenerla in equilibrio. Se cade, premi {up} per risalire.||VISTA RUNNER|Le cose diventano rosse se le affronta dal lato giusto per finire il livello.||COMBATTIMENTO|Polizia ed elicotteri sparano quando la vedono. Non fermarti.|Se un nemico è in linea con lei, il tempo rallenta: puoi abbatterlo o evitarlo.|Premi {down} per abbassarti e buttarli giù per un momento.|Nel salto, premi nel suo verso per un calcio in volo.|Premi {down} cadendo su un nemico per rotolargli addosso.|Accanto a un nemico, premi nel suo verso di corsa per disarmarlo.|Se la buttano giù mentre prova a passare, premi {up} per rialzarti e buttare giù chi l'ha colpita.||CHECKPOINT|Antenne, telecamere e valvole sono checkpoint. Se si fa male, riparte dall'ultimo.||TROFEI|Valigie, mosse avanzate e tempi della crono danno trofei.|I trofei sbloccano i bozzetti. Raggiungi un checkpoint o finisci il livello per tenere le valigie.||CONSIGLI|Cerca scorciatoie.|Salta appena prima di una corsa sul muro, poi premi {up} per andare più lontano.|Premi {up} per lasciare il muro e guadagnare distanza.|Cadi su una corda dall'alto, nel verso giusto.|Scendendo da un muro, premi verso l'esterno per correre appena atterra bene.|Un salto alto da una scalata raggiunge i punti in alto.
+1	0x0804	de	PAUSE|Drück {pause}.||RENNEN|Drück {left} oder {right}, um zu rennen.|Drück, um anzuhalten, oder in die Gegenrichtung, um ohne Halt zu wenden.||RUTSCHEN|Drück beim Rennen {down}, um zu rutschen.|Drück {up}, um wieder hochzukommen.||SPRUNG|Drück {up}, um zu springen.||ABROLLEN|Drück vor dem Aufkommen {down}, um abzurollen. Eine harte Landung bremst Faith.||WANDLAUF|Drück vor einem orangefarbenen Zeichen {up}, um die Wand entlangzurennen.||WAND|Spring im Lauf gegen eine Wand, um sie hochzukommen.|Drück beim Hochklettern {up}, um abzuspringen.||WEITSPRUNG|Drück auf einer Rampe {up} für einen weiteren Sprung.||HOHER SPRUNG|Wenn Faith eine Kante erklettert, drück {up} für einen hohen Sprung.||SCHWINGEN|Drück {left} oder {right}, um die Richtung zu wechseln.|Drück {up}, um abzuspringen, nur auf dem Weg nach vorn.|Drück {down}, um loszulassen.||VORSATZ|Drück {up}, um auf eine Plattform direkt über Faith zu klettern.|Sie merkt sich diese Tasten, während sie klettert.||SEIL|Drück {up}, um ein Seil zu greifen, aus der richtigen Richtung.|Siehst du Funken, {tilt}, um schneller zu werden.|Drück {down}, um sauber loszulassen, sonst landet sie hart und wird langsamer.||HANG|Faith rutscht Hänge von allein hinunter.|Siehst du Rauch, {tilt}, um schneller zu werden.||BALANCE|Spring über kurze Balken. Sie bremsen sie.|Auf einem langen Balken {tilt}, damit sie die Balance hält. Fällt sie, drück {up}, um wieder hinaufzukommen.||RUNNER VISION|Dinge werden rot, wenn sie sie von der richtigen Seite angeht, um das Level zu schaffen.||KAMPF|Polizei und Helikopter schießen, sobald sie sie sehen. Bleib in Bewegung.|Steht ein Gegner in ihrer Linie, wird die Zeit kurz langsam: du kannst ihn ausschalten oder ausweichen.|Drück {down}, um zu rutschen und sie kurz umzuwerfen.|Im Sprung drück in ihre Laufrichtung für einen Flugtritt.|Drück {down}, wenn du auf einen Gegner fällst, um in ihn hineinzurollen.|Direkt neben einem Gegner drück in ihre Laufrichtung, um ihn zu entwaffnen.|Wirft man sie um, wenn sie vorbeilaufen will, drück {up}, um aufzustehen und den Angreifer umzuwerfen.||KONTROLLPUNKTE|Schüsseln, Kameras und Pumpen sind Kontrollpunkte. Wird sie verletzt, startet sie beim letzten neu.||ABZEICHEN|Taschen, anspruchsvolle Züge und Zeitlauf-Zeiten geben Abzeichen.|Abzeichen schalten Konzeptbilder frei. Erreiche einen Kontrollpunkt oder schaff das Level, um die Taschen zu behalten.||HINWEISE|Such nach Abkürzungen.|Spring kurz vor einem Wandlauf und drück dann {up}, um weiter zu kommen.|Drück {up}, um die Wand zu verlassen und mehr Weite zu schaffen.|Fall von oben auf ein Seil, in die richtige Richtung.|Rutschst du eine Wand hinunter, drück von ihr weg, um nach einer sauberen Landung sofort zu rennen.|Ein hoher Sprung aus dem Klettern erreicht hohe Stellen.
+1	0x0804	es_ES	PAUSA|Pulsa {pause}.||CARRERA|Pulsa {left} o {right} para correr.|Pulsa para parar, o hacia el lado contrario para girar sin parar.||AL SUELO|Pulsa {down} al correr para ir al suelo.|Pulsa {up} para levantarte.||SALTO|Pulsa {up} para saltar.||RODADA|Pulsa {down} antes de caer para rodar. Una mala caída frena a Faith.||CARRERA POR EL MURO|Pulsa {up} ante un letrero naranja para correr por el muro.||ESCALADA|Salta hacia un muro en carrera para treparlo.|Pulsa {up} al trepar para saltar.||SALTO LARGO|Pulsa {up} en una rampa para un salto más largo.||SALTO ALTO|Cuando Faith supera un borde, pulsa {up} para saltar más alto.||BALANCEO|Pulsa {left} o {right} para cambiar de sentido.|Pulsa {up} para soltarte, solo hacia delante.|Pulsa {down} para caer.||CORNISA|Pulsa {up} para subir a una plataforma justo encima de Faith.|Guarda esas pulsaciones mientras sube.||TIROLINA|Pulsa {up} para coger un cable, en la dirección correcta.|Si ves chispas, {tilt} para ir más rápido.|Pulsa {down} para soltar bien, o cae mal y se frena.||PENDIENTE|Faith baja las pendientes sola.|Si ves humo, {tilt} para ir más rápido.||EQUILIBRIO|Salta las vigas cortas. La frenan.|En una viga larga, {tilt} para mantenerla. Si se cae, pulsa {up} para volver.||VISIÓN RUNNER|Las cosas se ponen rojas si las aborda por el lado correcto para acabar el nivel.||COMBATE|La policía y los helicópteros disparan al verla. No pares.|Si un enemigo queda en su línea, el tiempo se frena un momento: puedes derribarlo o esquivarlo.|Pulsa {down} para ir al suelo y derribarlos un momento.|Al saltar, pulsa en su sentido para una patada en el aire.|Pulsa {down} al caer sobre un enemigo para rodar contra él.|Junto a un enemigo, pulsa en su sentido de carrera para desarmarlo.|Si la derriban al intentar pasar, pulsa {up} para levantarte y derribar al atacante.||PUNTOS DE CONTROL|Antenas, cámaras y válvulas son puntos de control. Si resulta herida, vuelve al último.||PLACAS|Maletines, movimientos avanzados y tiempos del modo contrarreloj dan placas.|Las placas abren arte conceptual. Llega a un punto de control o acaba el nivel para guardar los maletines.||PISTAS|Busca atajos.|Salta justo antes de una carrera por el muro y luego pulsa {up} para llegar más lejos.|Pulsa {up} para salir del muro y ganar distancia.|Cae sobre un cable desde arriba, en la dirección correcta.|Al bajar por un muro, pulsa hacia fuera para correr en cuanto caiga bien.|Un salto alto desde una trepa llega a los sitios altos.
+1	0x0804	ja	ポーズ|{pause}を押します。||走る|{left}か{right}を押すと走ります。|押すと止まり、逆方向を押すと止まらずに折り返します。||低く|走りながら{down}を押すと身を低くします。|{up}を押すと起き上がります。||ジャンプ|{up}を押すとジャンプします。||ロール|着地の前に{down}を押すと転がります。着地に失敗すると減速します。||ウォールラン|オレンジの標識の前で{up}を押すと壁を走ります。||壁|走りながら壁に跳ぶと登ります。|登っているあいだに{up}を押すと跳びます。||ブースト|坂の上で{up}を押すと遠くへ跳びます。||ハイジャンプ|縁を越えるときに{up}を押すと高く跳びます。||スイング|{left}か{right}を押すと向きが変わります。|前へ振れているときだけ、{up}を押すと離れます。|{down}を押すと落ちます。||段差|真上の足場へ{up}を押すと登ります。|登っているあいだの入力は覚えています。||ジップライン|正しい向きから{up}を押すとロープをつかみます。|火花が出たら{tilt}と加速します。|{down}を押すときれいに離れます。押さないと着地に失敗して減速します。||坂|坂はひとりで下ります。|煙が出たら{tilt}と加速します。||バランス|短い梁は跳び越します。速度が落ちます。|長い梁では{tilt}バランスを取ります。落ちたら{up}を押して戻ります。||ランナービジョン|ゴールへ正しい向きで近づくと、対象が赤くなります。||戦闘|警察とヘリは見つけると撃ってきます。動き続けます。|敵が正面にいると時間が少し遅くなり、倒すか避けられます。|{down}を押して身を低くすると、しばらく敵を倒せます。|ジャンプ中に進行方向を押すと飛び蹴りになります。|敵の上に落ちるとき{down}を押すと、転がりながら当たります。|敵のすぐ横で進行方向を押すと武器を奪います。|追い越そうとして倒されたら、{up}を押して起き上がり、相手を倒します。||チェックポイント|レーダー、カメラ、ポンプがチェックポイントです。倒されると最後の地点からやり直します。||バッジ|バッグ、高度な動き、タイムアタックの記録でバッジを得ます。|バッジでコンセプトアートが開きます。チェックポイントかゴールでバッグが記録されます。||ヒント|近道を探します。|ウォールランの直前に跳び、{up}を押すとさらに遠くへ行けます。|{up}を押すと壁から離れて距離が伸びます。|上から、正しい向きでロープに落ちます。|壁を下りながら外向きを押すと、きれいに着地したあとすぐ走れます。|登りながらの高いジャンプは高い場所に届きます。
+1	0x0804	ko	일시정지|{pause}을 누르세요.||달리기|{left}이나 {right}을 눌러 달리세요.|눌러 멈추거나, 반대쪽을 눌러 멈추지 않고 돌아서세요.||낮게|달리며 {down}을 눌러 몸을 낮추세요.|{up}을 눌러 일어나세요.||점프|{up}을 눌러 점프하세요.||구르기|착지 전에 {down}을 눌러 구르세요. 착지를 망치면 느려집니다.||벽 달리기|주황색 표지 앞에서 {up}을 눌러 벽을 달리세요.||벽 오르기|달리며 벽을 향해 뛰어 오르세요.|오르는 중에 {up}을 눌러 뛰어내리세요.||멀리 뛰기|경사로에서 {up}을 눌러 더 멀리 뛰세요.||높이 뛰기|가장자리를 넘을 때 {up}을 눌러 더 높이 뛰세요.||스윙|{left}이나 {right}을 눌러 방향을 바꾸세요.|앞으로 나가는 중에만 {up}을 눌러 놓으세요.|{down}을 눌러 떨어지세요.||턱|바로 위의 발판으로 {up}을 눌러 오르세요.|오르는 동안의 입력은 기억합니다.||짚라인|올바른 방향에서 {up}을 눌러 줄을 잡으세요.|불꽃이 보이면 {tilt} 더 빨라지세요.|{down}을 눌러 깔끔히 놓으세요. 그렇지 않으면 착지가 나빠 느려집니다.||비탈|비탈은 알아서 내려갑니다.|연기가 보이면 {tilt} 더 빨라지세요.||균형|짧은 빔은 뛰어넘으세요. 속도가 떨어집니다.|긴 빔에서는 {tilt} 균형을 잡으세요. 떨어지면 {up}을 눌러 다시 오르세요.||러너비전|레벨 끝에 맞는 방향으로 다가가면 대상이 빨갛게 됩니다.||전투|경찰과 헬기는 보면 쏩니다. 계속 움직이세요.|적이 정면에 있으면 시간이 잠시 느려져, 쓰러뜨리거나 피할 수 있습니다.|{down}을 눌러 몸을 낮추면 적을 잠시 쓰러뜨립니다.|점프 중 진행 방향을 누르면 날아차기입니다.|적 위로 떨어질 때 아래를 누르면 굴러 맞춥니다.|적 바로 옆에서 진행 방향을 누르면 무기를 뺏습니다.|지나가려다 넘어지면 {up}을 눌러 일어나며 공격한 쪽을 쓰러뜨리세요.||체크포인트|레이더, 카메라, 펌프가 체크포인트입니다. 다치면 마지막 지점에서 다시 시작합니다.||배지|가방, 고급 동작, 타임어택 기록으로 배지를 얻습니다.|배지로 콘셉트 아트가 열립니다. 체크포인트나 골에서 가방이 기록됩니다.||힌트|지름길을 찾으세요.|벽 달리기 직전에 뛴 다음 {up}을 눌러 더 멀리 가세요.|{up}을 눌러 벽에서 벗어나 거리를 늘리세요.|위에서, 올바른 방향으로 줄에 떨어지세요.|벽을 내려가며 바깥쪽을 누르면, 착지가 좋을 때 바로 달립니다.|오르며 하는 높은 점프는 높은 곳에 닿습니다.
+1	0x0804	zh_CN	暂停|按{pause}。||奔跑|按{left}或{right}奔跑。|按一下停下，或按反方向不停步地转身。||低姿|奔跑时按{down}可以伏低身体。|按{up}可以起身。||跳跃|按{up}可以跳。||翻滚|落地前按{down}可以翻滚。落地失败会变慢。||跑墙|在橙色标志前按{up}，可以沿墙奔跑。||爬墙|奔跑中朝墙跳可以爬上去。|往上爬时按{up}可以跳开。||远跳|在坡上按{up}可以跳得更远。||高跳|翻过边缘时按{up}可以跳得更高。||摆荡|按{left}或{right}可以改变方向。|只有向前摆时，按{up}才能离开。|按{down}可以落下。||台沿|按{up}可以爬上菲丝正上方的平台。|往上爬时的按键会被记住。||索道|从正确方向按{up}可以抓住绳索。|看到火花时{tilt}可以加速。|按{down}可以干净地放开，否则落地失败并变慢。||斜坡|斜坡会自己往下滑。|看到烟雾时{tilt}可以加速。||平衡|短梁要跳过去，否则会变慢。|长梁上{tilt}保持平衡。掉下去就按{up}回到梁上。||奔跑者视觉|从能通向终点的方向靠近时，目标会变红。||战斗|警察和直升机会在看见她时开枪。保持移动。|敌人在正前方时时间会变慢，可以打倒或躲开。|按{down}伏低身体，可以暂时打倒敌人。|跳跃时按她前进的方向可以飞踢。|落向敌人时按{down}，可以翻滚撞上。|贴着敌人时按她奔跑的方向可以缴械。|想冲过去却被撞倒时，按{up}可以起身并打倒对方。||检查点|雷达、摄像头和泵阀是检查点。受伤后从最后经过的地方重新开始。||徽章|包裹、高难度动作和计时成绩可以获得徽章。|徽章解锁原画。到达检查点或完成关卡后，包裹才会被记下。||提示|找近路。|跑墙之前先跳，再按{up}可以更远。|按{up}可以离开墙面并增加距离。|从上方、朝正确方向落到绳索上。|沿墙下落时按向外侧，落地干净就能马上跑。|爬上去时的高跳能够到高处。
+1	0x0812	en	Loading … Scroll to read
+1	0x0812	fr	Chargement … Fais défiler le texte
+1	0x0812	it	Caricamento … Leggi il resto del testo
+1	0x0812	de	Laden … Text weiterlesen
+1	0x0812	es_ES	Cargando … Sigue leyendo el texto
+1	0x0812	ja	読み込み中 … テキストを読み進めてください
+1	0x0812	ko	불러오는 중 … 글을 이어서 읽으세요
+1	0x0812	zh_CN	载入中 … 继续阅读文字
+1	0x0813	en	Press any button
+1	0x0813	fr	Appuie sur une touche
+1	0x0813	it	Premi un tasto
+1	0x0813	de	Beliebige Taste
+1	0x0813	es_ES	Pulsa un botón
+1	0x0813	ja	ボタンを押してください
+1	0x0813	ko	아무 버튼이나 누르세요
+1	0x0813	zh_CN	按任意键
+1	0x0843	en	Press {up} to jump.
+1	0x0843	fr	Appuie {up} pour sauter.
+1	0x0843	it	Premi {up} per saltare.
+1	0x0843	de	Drück {up}, um zu springen.
+1	0x0843	es_ES	Pulsa {up} para saltar.
+1	0x0843	ja	{up}を押すとジャンプします。
+1	0x0843	ko	{up}을 눌러 점프하세요.
+1	0x0843	zh_CN	按{up}可以跳。
+1	0x0844	en	Press {left} or {right} to run.
+1	0x0844	fr	Appuie {left} ou {right} pour courir.
+1	0x0844	it	Premi {left} o {right} per correre.
+1	0x0844	de	Drück {left} oder {right}, um zu rennen.
+1	0x0844	es_ES	Pulsa {left} o {right} para correr.
+1	0x0844	ja	{left}か{right}を押すと走ります。
+1	0x0844	ko	{left}이나 {right}을 눌러 달리세요.
+1	0x0844	zh_CN	按{left}或{right}奔跑。
+1	0x0845	en	Press {down} while running to slide.
+1	0x0845	fr	Appuie {down} en courant pour passer au ras du sol.
+1	0x0845	it	Premi {down} mentre corri per abbassarti.
+1	0x0845	de	Drück beim Rennen {down}, um zu rutschen.
+1	0x0845	es_ES	Pulsa {down} al correr para ir al suelo.
+1	0x0845	ja	走りながら{down}を押すと身を低くします。
+1	0x0845	ko	달리며 {down}을 눌러 몸을 낮추세요.
+1	0x0845	zh_CN	奔跑时按{down}可以伏低身体。
+1	0x0846	en	Press {up} while sliding to get back up.
+1	0x0846	fr	Appuie {up} pour te relever.
+1	0x0846	it	Premi {up} per rialzarti.
+1	0x0846	de	Drück {up}, um wieder hochzukommen.
+1	0x0846	es_ES	Pulsa {up} para levantarte.
+1	0x0846	ja	{up}を押すと起き上がります。
+1	0x0846	ko	{up}을 눌러 일어나세요.
+1	0x0846	zh_CN	按{up}可以起身。
+1	0x0847	en	Press {down} before you land to roll.
+1	0x0847	fr	Appuie {down} avant l'impact pour rouler.
+1	0x0847	it	Premi {down} prima dell'impatto per rotolare.
+1	0x0847	de	Drück vor dem Aufkommen {down}, um abzurollen.
+1	0x0847	es_ES	Pulsa {down} antes de caer para rodar.
+1	0x0847	ja	着地の前に{down}を押すと転がります。
+1	0x0847	ko	착지 전에 {down}을 눌러 구르세요.
+1	0x0847	zh_CN	落地前按{down}可以翻滚。
+1	0x0848	en	Don't forget to press {down} before you land, so Faith rolls back into a run.
+1	0x0848	it	Non dimenticare di premere {down} prima dell'impatto, così Faith riparte di corsa.
+1	0x0848	de	Drück vor dem Aufkommen {down}, damit Faith wieder in den Lauf rollt.
+1	0x0848	es_ES	No olvides pulsar {down} antes de caer, para que Faith siga corriendo.
+1	0x0848	ja	着地の前に{down}を押すと、転がりながらすぐ走り出せます。
+1	0x0848	ko	착지 전에 {down}을 눌러야 구르며 바로 달릴 수 있습니다.
+1	0x0848	zh_CN	落地前别忘了按{down}，这样可以翻滚着继续跑。
+1	0x0849	en	Press {up} to grab a zipline.
+1	0x0849	fr	Appuie {up} pour saisir un câble.
+1	0x0849	it	Premi {up} per afferrare la corda.
+1	0x0849	de	Drück {up}, um ein Seil zu greifen.
+1	0x0849	es_ES	Pulsa {up} para coger un cable.
+1	0x0849	ja	{up}を押すとロープをつかみます。
+1	0x0849	ko	{up}을 눌러 줄을 잡으세요.
+1	0x0849	zh_CN	按{up}可以抓住绳索。
+1	0x084a	en	If you see sparks, {tilt} to streamline Faith and go faster!
+1	0x084a	fr	Si tu vois des étincelles, {tilt} pour aller plus vite !
+1	0x084a	it	Se vedi scintille, {tilt} per andare più veloce!
+1	0x084a	de	Siehst du Funken, {tilt}, um schneller zu werden!
+1	0x084a	es_ES	Si ves chispas, {tilt} para ir más rápido.
+1	0x084a	ja	火花が出たら{tilt}と加速します。
+1	0x084a	ko	불꽃이 보이면 {tilt} 더 빨라지세요.
+1	0x084a	zh_CN	看到火花时{tilt}可以加速。
+1	0x084b	en	If you see smoke, {tilt} to streamline Faith and go faster!
+1	0x084b	fr	Si tu vois de la fumée, {tilt} pour aller plus vite !
+1	0x084b	it	Se vedi fumo, {tilt} per andare più veloce!
+1	0x084b	de	Siehst du Rauch, {tilt}, um schneller zu werden!
+1	0x084b	es_ES	Si ves humo, {tilt} para ir más rápido.
+1	0x084b	ja	煙が出たら{tilt}と加速します。
+1	0x084b	ko	연기가 보이면 {tilt} 더 빨라지세요.
+1	0x084b	zh_CN	看到烟雾时{tilt}可以加速。
+1	0x084c	en	Press {down} to leave a zipline cleanly.
+1	0x084c	fr	Appuie {down} pour lâcher le câble proprement.
+1	0x084c	it	Premi {down} per lasciare la corda con ordine.
+1	0x084c	de	Drück {down}, um das Seil sauber loszulassen.
+1	0x084c	es_ES	Pulsa {down} para soltar el cable bien.
+1	0x084c	ja	{down}を押すとロープをきれいに離れます。
+1	0x084c	ko	{down}을 눌러 줄을 깔끔히 놓으세요.
+1	0x084c	zh_CN	按{down}可以干净地离开绳索。
+1	0x084d	en	Press {down} to drop.
+1	0x084d	fr	Appuie {down} pour tomber.
+1	0x084d	it	Premi {down} per mollare.
+1	0x084d	de	Drück {down}, um loszulassen.
+1	0x084d	es_ES	Pulsa {down} para caer.
+1	0x084d	ja	{down}を押すと落ちます。
+1	0x084d	ko	{down}을 눌러 떨어지세요.
+1	0x084d	zh_CN	按{down}可以落下。
+1	0x084e	en	Press {up} in front of an orange sign to wall run.
+1	0x084e	fr	Appuie {up} devant un signe orange pour courir sur le mur.
+1	0x084e	it	Premi {up} davanti a un segno arancione per correre sul muro.
+1	0x084e	de	Drück vor einem orangefarbenen Zeichen {up}, um die Wand entlangzurennen.
+1	0x084e	es_ES	Pulsa {up} ante un letrero naranja para correr por el muro.
+1	0x084e	ja	オレンジの標識の前で{up}を押すと壁を走ります。
+1	0x084e	ko	주황색 표지 앞에서 {up}을 눌러 벽을 달리세요.
+1	0x084e	zh_CN	在橙色标志前按{up}，可以沿墙奔跑。
+1	0x084f	en	Press {up} to leave a wall run and go further.
+1	0x084f	fr	Appuie {up} pour quitter le mur et aller plus loin.
+1	0x084f	it	Premi {up} per lasciare il muro e andare più lontano.
+1	0x084f	de	Drück {up}, um die Wand zu verlassen und weiter zu kommen.
+1	0x084f	es_ES	Pulsa {up} para salir del muro y llegar más lejos.
+1	0x084f	ja	{up}を押すと壁から離れてさらに遠くへ行けます。
+1	0x084f	ko	{up}을 눌러 벽에서 벗어나 더 멀리 가세요.
+1	0x084f	zh_CN	按{up}可以离开墙面并跳得更远。
+1	0x0850	en	Jump just before a wall run, then press {up} to go further.
+1	0x0850	fr	Saute juste avant la course murale, puis appuie {up} pour aller plus loin.
+1	0x0850	it	Salta appena prima della corsa sul muro, poi premi {up} per andare più lontano.
+1	0x0850	de	Spring kurz vor dem Wandlauf und drück dann {up}, um weiter zu kommen.
+1	0x0850	es_ES	Salta justo antes de la carrera por el muro y luego pulsa {up} para llegar más lejos.
+1	0x0850	ja	ウォールランの直前に跳び、{up}を押すとさらに遠くへ行けます。
+1	0x0850	ko	벽 달리기 직전에 뛴 다음 {up}을 눌러 더 멀리 가세요.
+1	0x0850	zh_CN	跑墙之前先跳，再按{up}可以更远。
+1	0x0852	en	Press {up} during a wall climb to wall jump.
+1	0x0852	fr	Appuie {up} pendant l'escalade pour sauter.
+1	0x0852	it	Premi {up} durante la scalata per saltare via.
+1	0x0852	de	Drück beim Hochklettern {up}, um abzuspringen.
+1	0x0852	es_ES	Pulsa {up} al trepar para saltar.
+1	0x0852	ja	登っているあいだに{up}を押すと跳びます。
+1	0x0852	ko	오르는 중에 {up}을 눌러 뛰어내리세요.
+1	0x0852	zh_CN	往上爬时按{up}可以跳开。
+1	0x0853	en	Press {up} to climb onto a platform directly above Faith.
+1	0x0853	fr	Appuie {up} pour monter sur une plate-forme juste au-dessus de Faith.
+1	0x0853	it	Premi {up} per salire su una piattaforma proprio sopra Faith.
+1	0x0853	de	Drück {up}, um auf eine Plattform direkt über Faith zu klettern.
+1	0x0853	es_ES	Pulsa {up} para subir a una plataforma justo encima de Faith.
+1	0x0853	ja	真上の足場へ{up}を押すと登ります。
+1	0x0853	ko	바로 위의 발판으로 {up}을 눌러 오르세요.
+1	0x0853	zh_CN	按{up}可以爬上菲丝正上方的平台。
+1	0x0854	ja	登り始めたあとは、{up}を押し続ける必要はありません。
+1	0x0855	en	If you see smoke, {tilt} to streamline Faith and go faster!
+1	0x0855	fr	Si tu vois de la fumée, {tilt} pour aller plus vite !
+1	0x0855	it	Se vedi fumo, {tilt} per andare più veloce!
+1	0x0855	de	Siehst du Rauch, {tilt}, um schneller zu werden!
+1	0x0855	es_ES	Si ves humo, {tilt} para ir más rápido.
+1	0x0855	ja	煙が出たら{tilt}と加速します。
+1	0x0855	ko	연기가 보이면 {tilt} 더 빨라지세요.
+1	0x0855	zh_CN	看到烟雾时{tilt}可以加速。
+1	0x0857	en	On a long beam, {tilt} to keep Faith steady. If she falls, press {up} to get back on.
+1	0x0857	fr	Sur une longue poutre, {tilt} pour stabiliser Faith. Si elle tombe, appuie {up} pour remonter.
+1	0x0857	it	Su una trave lunga, {tilt} per tenere Faith in equilibrio. Se cade, premi {up} per risalire.
+1	0x0857	de	Auf einem langen Balken {tilt}, damit Faith die Balance hält. Fällt sie, drück {up}, um wieder hinaufzukommen.
+1	0x0857	es_ES	En una viga larga, {tilt} para mantener a Faith. Si se cae, pulsa {up} para volver.
+1	0x0857	ja	長い梁では{tilt}バランスを取ります。落ちたら{up}を押して戻ります。
+1	0x0857	ko	긴 빔에서는 {tilt} 균형을 잡으세요. 떨어지면 {up}을 눌러 다시 오르세요.
+1	0x0857	zh_CN	长梁上{tilt}保持平衡。掉下去就按{up}回到梁上。
+1	0x0858	en	Press {left} or {right} to change direction on a swing. Press {up} to jump off, only on the way forward.
+1	0x0858	fr	Appuie {left} ou {right} pour changer de sens. Appuie {up} pour lâcher, seulement vers l'avant.
+1	0x0858	it	Premi {left} o {right} per cambiare direzione. Premi {up} per staccarti, solo nel verso in avanti.
+1	0x0858	de	Drück {left} oder {right}, um die Richtung zu wechseln. Drück {up}, um abzuspringen, nur auf dem Weg nach vorn.
+1	0x0858	es_ES	Pulsa {left} o {right} para cambiar de sentido. Pulsa {up} para soltarte, solo hacia delante.
+1	0x0858	ja	{left}か{right}を押すと向きが変わります。前へ振れているときだけ、{up}を押すと離れます。
+1	0x0858	ko	{left}이나 {right}을 눌러 방향을 바꾸세요. 앞으로 나가는 중에만 {up}을 눌러 놓으세요.
+1	0x0858	zh_CN	按{left}或{right}可以改变方向。只有向前摆时，按{up}才能离开。
+1	0x0859	en	Press {up} while hanging to pull up. Press to jump away.
+1	0x0859	fr	Appuie {up} pour te hisser. Appuie pour sauter.
+1	0x0859	it	Premi {up} mentre sei appeso per tirarti su. Premi per saltare via.
+1	0x0859	de	Drück {up}, um dich hochzuziehen. Drück, um wegzuspringen.
+1	0x0859	es_ES	Pulsa {up} para subirte. Pulsa para saltar.
+1	0x0859	ja	ぶら下がり中に{up}を押すと上がります。押すと跳びます。
+1	0x0859	ko	매달린 채 {up}을 눌러 올라가세요. 누르면 뛰어내립니다.
+1	0x0859	zh_CN	悬挂时按{up}可以爬上去。再按一下可以跳开。
+1	0x085a	ja	坂の上で{up}を押すと、遠くへ跳びます。
+1	0x085a	zh_CN	菲丝在跳板上时，按{up}方向可以远跳。
+1	0x085b	en	Press {up} while climbing an edge to high jump.
+1	0x085b	fr	Appuie {up} en franchissant un rebord pour sauter plus haut.
+1	0x085b	it	Premi {up} mentre superi un bordo per saltare più in alto.
+1	0x085b	de	Drück {up}, während Faith eine Kante erklettert, für einen hohen Sprung.
+1	0x085b	es_ES	Pulsa {up} al superar un borde para saltar más alto.
+1	0x085b	ja	縁を越えるときに{up}を押すと高く跳びます。
+1	0x085b	ko	가장자리를 넘을 때 {up}을 눌러 더 높이 뛰세요.
+1	0x085b	zh_CN	翻过边缘时按{up}可以跳得更高。
+1	0x085c	en	Go back, climb the boxes, then press {up} while climbing the edge to high jump.
+1	0x085c	fr	Reviens, monte sur les caisses, puis appuie {up} en franchissant le rebord pour sauter plus haut.
+1	0x085c	it	Torna indietro, sali sulle casse, poi premi {up} mentre superi il bordo per saltare più in alto.
+1	0x085c	de	Geh zurück, kletter auf die Kisten und drück {up}, während Faith die Kante erklettert, für einen hohen Sprung.
+1	0x085c	es_ES	Vuelve, sube a las cajas y pulsa {up} al superar el borde para saltar más alto.
+1	0x085c	ja	戻って箱を登り、縁を越えるときに{up}を押すと高く跳びます。
+1	0x085c	ko	돌아가 상자를 오른 다음, 가장자리를 넘을 때 {up}을 눌러 더 높이 뛰세요.
+1	0x085c	zh_CN	退回去爬上箱子，翻过边缘时按{up}可以跳得更高。
+1	0x085d	en	Press to stop. Press the opposite way to turn without stopping. Use {pause} to pause.
+1	0x085d	fr	Appuie pour t'arrêter. Appuie dans l'autre sens pour faire demi-tour sans t'arrêter. {pause} met en pause.
+1	0x085d	it	Premi per fermarti. Premi dalla parte opposta per invertire senza fermarti. {pause} mette in pausa.
+1	0x085d	de	Drück, um anzuhalten. Drück in die Gegenrichtung, um ohne Halt zu wenden. {pause} hält an.
+1	0x085d	es_ES	Pulsa para parar. Pulsa hacia el lado contrario para girar sin parar. {pause} detiene el juego.
+1	0x085d	ja	押すと止まります。逆方向を押すと止まらずに折り返します。ポーズは{pause}です。
+1	0x085d	ko	눌러 멈추세요. 반대쪽을 눌러 멈추지 않고 돌아서세요. 일시정지는 {pause}입니다.
+1	0x085d	zh_CN	按一下停下。按反方向可以不停步地转身。暂停用{pause}。
+1	0x085e	en	Press the opposite way to turn without stopping.
+1	0x085e	fr	Appuie dans l'autre sens pour faire demi-tour sans t'arrêter.
+1	0x085e	it	Premi dalla parte opposta per invertire senza fermarti.
+1	0x085e	de	Drück in die Gegenrichtung, um ohne Halt zu wenden.
+1	0x085e	es_ES	Pulsa hacia el lado contrario para girar sin parar.
+1	0x085e	ja	逆方向を押すと止まらずに折り返します。
+1	0x085e	ko	반대쪽을 눌러 멈추지 않고 돌아서세요.
+1	0x085e	zh_CN	按反方向可以不停步地转身。
+1	0x0869	en	Press {up} again quickly to wall run on orange surfaces.
+1	0x0869	fr	Appuie encore vite {up} pour courir sur les surfaces orange.
+1	0x0869	it	Premi di nuovo {up}, in fretta, per correre sulle superfici arancioni.
+1	0x0869	de	Drück schnell noch einmal {up}, um auf orangefarbenen Flächen die Wand entlangzurennen.
+1	0x0869	es_ES	Pulsa otra vez {up}, deprisa, para correr por las superficies naranjas.
+1	0x0869	ja	すぐにまた{up}を押すと、オレンジの面を走ります。
+1	0x0869	ko	곧바로 위를 다시 눌러 주황색 표면을 달리세요.
+1	0x0869	zh_CN	马上再按{up}，可以在橙色表面上跑。
+1	0x086a	en	Jump, then press {left} or {right} for a flying kick that knocks enemies down for a moment.
+1	0x086a	fr	Saute, puis appuie {left} ou {right} pour un coup de pied qui les renverse un instant.
+1	0x086a	it	Salta, poi premi {left} o {right} per un calcio che li butta giù per un momento.
+1	0x086a	de	Spring und drück dann {left} oder {right} für einen Flugtritt, der Gegner kurz umwirft.
+1	0x086a	es_ES	Salta y luego pulsa {left} o {right} para una patada que los derriba un momento.
+1	0x086a	ja	跳んでから{left}か{right}を押すと飛び蹴りになり、しばらく敵を倒せます。
+1	0x086a	ko	뛴 다음 {left}이나 {right}을 누르면 날아차기로 적을 잠시 쓰러뜨립니다.
+1	0x086a	zh_CN	先跳，再按{left}或{right}可以飞踢，暂时打倒敌人。
+1	0x086b	en	Next to an enemy, press the way Faith is running to disarm them.
+1	0x086b	fr	Tout près d'un ennemi, appuie dans son sens de course pour le désarmer.
+1	0x086b	it	Accanto a un nemico, premi nel suo verso di corsa per disarmarlo.
+1	0x086b	de	Direkt neben einem Gegner drück in Faiths Laufrichtung, um ihn zu entwaffnen.
+1	0x086b	es_ES	Junto a un enemigo, pulsa en el sentido en que corre Faith para desarmarlo.
+1	0x086b	ja	敵のすぐ横で進行方向を押すと武器を奪います。
+1	0x086b	ko	적 바로 옆에서 진행 방향을 누르면 무기를 뺏습니다.
+1	0x086b	zh_CN	贴着敌人时按她奔跑的方向可以缴械。
+1	0x086c	en	Enemies knock Faith down if she tries to run past. Press {down} to slide and knock them down for a moment.
+1	0x086c	fr	Les ennemis la renversent si elle veut passer. Appuie {down} pour passer au ras du sol et les renverser un instant.
+1	0x086c	it	I nemici la buttano giù se prova a passare. Premi {down} per abbassarti e buttarli giù per un momento.
+1	0x086c	de	Gegner werfen Faith um, wenn sie vorbeilaufen will. Drück {down}, um zu rutschen und sie kurz umzuwerfen.
+1	0x086c	es_ES	Los enemigos derriban a Faith si intenta pasar. Pulsa {down} para ir al suelo y derribarlos un momento.
+1	0x086c	ja	追い越そうとすると敵に倒されます。{down}を押して身を低くすると、しばらく倒せます。
+1	0x086c	ko	지나가려 하면 적이 넘어뜨립니다. {down}을 눌러 몸을 낮추면 잠시 쓰러뜨릴 수 있습니다.
+1	0x086c	zh_CN	想冲过去会被撞倒。按{down}伏低身体，可以暂时打倒他们。
+1	0x086d	en	Press {down} when dropping on an enemy to roll into them.
+1	0x086d	fr	Appuie {down} en tombant sur un ennemi pour rouler sur lui.
+1	0x086d	it	Premi {down} cadendo su un nemico per rotolargli addosso.
+1	0x086d	de	Drück {down}, wenn du auf einen Gegner fällst, um in ihn hineinzurollen.
+1	0x086d	es_ES	Pulsa {down} al caer sobre un enemigo para rodar contra él.
+1	0x086d	ja	敵の上に落ちるとき{down}を押すと、転がりながら当たります。
+1	0x086d	ko	적 위로 떨어질 때 아래를 누르면 굴러 맞춥니다.
+1	0x086d	zh_CN	落向敌人时按{down}，可以翻滚撞上。
+1	0x096b	en	Choose a ranking to race that player's ghost.
+1	0x096b	fr	Choisis un classement pour courir contre le fantôme de ce joueur.
+1	0x096b	it	Scegli una posizione per correre contro il fantasma di quel giocatore.
+1	0x096b	de	Wähle eine Platzierung, um gegen den Geist dieses Spielers zu laufen.
+1	0x096b	es_ES	Elige una posición para correr contra el fantasma de ese jugador.
+1	0x096b	ja	順位を選ぶと、そのプレイヤーのゴーストと走ります。
+1	0x096b	ko	순위를 고르면 그 플레이어의 고스트와 달립니다.
+1	0x096b	zh_CN	选择一个名次，与那名玩家的幽灵一起跑。
+1	0x0977	en	There is not enough space to save the game. Free some memory so your progress can be saved.
+1	0x0977	fr	Il n'y a pas assez d'espace pour sauvegarder la partie. Libère de la mémoire pour enregistrer ta progression.
+1	0x0977	it	Non c'è abbastanza spazio per salvare la partita. Libera memoria per registrare i progressi.
+1	0x0977	de	Es ist nicht genug Platz da, um das Spiel zu speichern. Gib Speicher frei, damit der Fortschritt gespeichert wird.
+1	0x0977	es_ES	No hay espacio suficiente para guardar la partida. Libera memoria para que se guarde el progreso.
+1	0x0977	ko	게임을 저장할 공간이 부족합니다. 진행을 저장하려면 공간을 비우세요.
+1	0x0977	zh_CN	没有足够的空间来保存游戏。请腾出一些空间，以便记下进度。
+1	0x0980	en	CREATE GAME
+1	0x0980	fr	CRÉER UNE PARTIE
+1	0x0980	it	CREA PARTITA
+1	0x0980	de	SPIEL ERSTELLEN
+1	0x0980	es_ES	CREAR PARTIDA
+1	0x0980	ja	ゲームを作成
+1	0x0980	ko	게임 만들기
+1	0x0980	zh_CN	创建游戏
+1	0x0981	en	JOIN GAME
+1	0x0981	fr	REJOINDRE
+1	0x0981	it	UNISCITI
+1	0x0981	de	BEITRETEN
+1	0x0981	es_ES	UNIRSE
+1	0x0981	ja	参加する
+1	0x0981	ko	참가하기
+1	0x0981	zh_CN	加入游戏
+1	0x0982	en	CHOOSE LEVEL
+1	0x0982	fr	CHOISIR LE NIVEAU
+1	0x0982	it	SCEGLI LIVELLO
+1	0x0982	de	LEVEL WÄHLEN
+1	0x0982	es_ES	ELEGIR NIVEL
+1	0x0982	ja	レベルを選ぶ
+1	0x0982	ko	레벨 선택
+1	0x0982	zh_CN	选择关卡
+1	0x0983	en	Race a friend over the internet. Create a game and give your friend its code, or join your friend's game with their code.
+1	0x0983	fr	Affronte un ami par Internet. Crée une partie et donne son code à ton ami, ou rejoins sa partie avec son code.
+1	0x0983	it	Sfida un amico via Internet. Crea una partita e dai il codice al tuo amico, oppure unisciti alla sua partita con il suo codice.
+1	0x0983	de	Tritt über das Internet gegen einen Freund an. Erstelle ein Spiel und gib deinem Freund den Code, oder tritt mit seinem Code seinem Spiel bei.
+1	0x0983	es_ES	Compite con un amigo por Internet. Crea una partida y dale el código a tu amigo, o únete a su partida con su código.
+1	0x0983	ja	インターネットで友だちと競争しよう。ゲームを作成してコードを友だちに伝えるか、友だちのコードでそのゲームに参加しよう。
+1	0x0983	ko	인터넷으로 친구와 경주하세요. 게임을 만들어 친구에게 코드를 알려 주거나, 친구의 코드로 친구 게임에 참가하세요.
+1	0x0983	zh_CN	通过互联网与好友竞速。创建游戏并把代码告诉好友，或用好友的代码加入他的游戏。
+1	0x0984	en	Game code
+1	0x0984	fr	Code de la partie
+1	0x0984	it	Codice della partita
+1	0x0984	de	Spielcode
+1	0x0984	es_ES	Código de la partida
+1	0x0984	ja	ゲームコード
+1	0x0984	ko	게임 코드
+1	0x0984	zh_CN	游戏代码
+1	0x0985	en	Give this code to your friend and wait for them to join.
+1	0x0985	fr	Donne ce code à ton ami et attends qu'il te rejoigne.
+1	0x0985	it	Dai questo codice al tuo amico e aspetta che si unisca.
+1	0x0985	de	Gib deinem Freund diesen Code und warte, bis er beitritt.
+1	0x0985	es_ES	Dale este código a tu amigo y espera a que se una.
+1	0x0985	ja	このコードを友だちに伝えて、参加を待とう。
+1	0x0985	ko	이 코드를 친구에게 알려 주고 참가를 기다리세요.
+1	0x0985	zh_CN	把这个代码告诉好友，等待他加入。
+1	0x0986	en	Enter your friend's game code
+1	0x0986	fr	Saisis le code de la partie de ton ami
+1	0x0986	it	Inserisci il codice della partita del tuo amico
+1	0x0986	de	Gib den Spielcode deines Freundes ein
+1	0x0986	es_ES	Escribe el código de la partida de tu amigo
+1	0x0986	ja	友だちのゲームコードを入力
+1	0x0986	ko	친구의 게임 코드를 입력하세요
+1	0x0986	zh_CN	输入好友的游戏代码
+1	0x0987	en	Connecting…
+1	0x0987	fr	Connexion…
+1	0x0987	it	Connessione…
+1	0x0987	de	Verbindung wird hergestellt…
+1	0x0987	es_ES	Conectando…
+1	0x0987	ja	接続中…
+1	0x0987	ko	연결 중…
+1	0x0987	zh_CN	正在连接…
+1	0x0988	en	Opponent: {name}
+1	0x0988	fr	Adversaire : {name}
+1	0x0988	it	Avversario: {name}
+1	0x0988	de	Gegner: {name}
+1	0x0988	es_ES	Rival: {name}
+1	0x0988	ja	対戦相手: {name}
+1	0x0988	ko	상대: {name}
+1	0x0988	zh_CN	对手：{name}
+1	0x0989	en	Choose a level: your friend will start it with you.
+1	0x0989	fr	Choisis un niveau : ton ami le lancera avec toi.
+1	0x0989	it	Scegli un livello: il tuo amico lo inizierà con te.
+1	0x0989	de	Wähle ein Level: Dein Freund startet es mit dir.
+1	0x0989	es_ES	Elige un nivel: tu amigo lo empezará contigo.
+1	0x0989	ja	レベルを選ぼう。友だちも一緒にスタートする。
+1	0x0989	ko	레벨을 고르세요. 친구도 함께 시작합니다.
+1	0x0989	zh_CN	选择关卡：好友会和你一起开始。
+1	0x098a	en	Your friend is choosing a level…
+1	0x098a	fr	Ton ami choisit un niveau…
+1	0x098a	it	Il tuo amico sta scegliendo un livello…
+1	0x098a	de	Dein Freund wählt ein Level…
+1	0x098a	es_ES	Tu amigo está eligiendo un nivel…
+1	0x098a	ja	友だちがレベルを選んでいます…
+1	0x098a	ko	친구가 레벨을 고르는 중…
+1	0x098a	zh_CN	好友正在选择关卡…
+1	0x098b	en	Could not connect to your friend.
+1	0x098b	fr	Impossible de se connecter à ton ami.
+1	0x098b	it	Impossibile connettersi al tuo amico.
+1	0x098b	de	Keine Verbindung zu deinem Freund.
+1	0x098b	es_ES	No se pudo conectar con tu amigo.
+1	0x098b	ja	友だちに接続できませんでした。
+1	0x098b	ko	친구와 연결할 수 없습니다.
+1	0x098b	zh_CN	无法连接到好友。
+1	0x098c	en	Waiting for {name}…
+1	0x098c	fr	En attente de {name}…
+1	0x098c	it	In attesa di {name}…
+1	0x098c	de	Warten auf {name}…
+1	0x098c	es_ES	Esperando a {name}…
+1	0x098c	ja	{name}を待っています…
+1	0x098c	ko	{name} 기다리는 중…
+1	0x098c	zh_CN	正在等待 {name}…
+1	0x098d	en	{name} finished: {time}
+1	0x098d	fr	{name} a fini : {time}
+1	0x098d	it	{name} è arrivato: {time}
+1	0x098d	de	{name} ist im Ziel: {time}
+1	0x098d	es_ES	{name} ha llegado: {time}
+1	0x098d	ja	{name}がゴール: {time}
+1	0x098d	ko	{name} 완주: {time}
+1	0x098d	zh_CN	{name} 已到达终点：{time}
+1	0x098e	en	YOU WIN!
+1	0x098e	fr	VICTOIRE !
+1	0x098e	it	HAI VINTO!
+1	0x098e	de	DU GEWINNST!
+1	0x098e	es_ES	¡HAS GANADO!
+1	0x098e	ja	あなたの勝ち！
+1	0x098e	ko	승리!
+1	0x098e	zh_CN	你赢了！
+1	0x098f	en	{name} WINS!
+1	0x098f	fr	{name} GAGNE !
+1	0x098f	it	VINCE {name}!
+1	0x098f	de	{name} GEWINNT!
+1	0x098f	es_ES	¡GANA {name}!
+1	0x098f	ja	{name}の勝ち！
+1	0x098f	ko	{name} 승리!
+1	0x098f	zh_CN	{name} 赢了！
+1	0x0990	en	DRAW!
+1	0x0990	fr	ÉGALITÉ !
+1	0x0990	it	PAREGGIO!
+1	0x0990	de	UNENTSCHIEDEN!
+1	0x0990	es_ES	¡EMPATE!
+1	0x0990	ja	引き分け！
+1	0x0990	ko	무승부!
+1	0x0990	zh_CN	平局！
+1	0x0991	en	{name} is still running…
+1	0x0991	fr	{name} court encore…
+1	0x0991	it	{name} sta ancora correndo…
+1	0x0991	de	{name} läuft noch…
+1	0x0991	es_ES	{name} sigue corriendo…
+1	0x0991	ja	{name}はまだ走っています…
+1	0x0991	ko	{name} 아직 달리는 중…
+1	0x0991	zh_CN	{name} 还在跑…
+1	0x0992	en	{name} left the race
+1	0x0992	fr	{name} a quitté la course
+1	0x0992	it	{name} ha lasciato la gara
+1	0x0992	de	{name} hat das Rennen verlassen
+1	0x0992	es_ES	{name} ha abandonado la carrera
+1	0x0992	ja	{name}がレースから抜けました
+1	0x0992	ko	{name} 레이스에서 나감
+1	0x0992	zh_CN	{name} 已退出比赛
+1	0x0993	en	Online play needs the GameNetworkingSockets network library, and it was not found.
+1	0x0993	fr	Le jeu en ligne nécessite la bibliothèque réseau GameNetworkingSockets, introuvable.
+1	0x0993	it	Il gioco online richiede la libreria di rete GameNetworkingSockets, che non è stata trovata.
+1	0x0993	de	Für das Online-Spiel wird die Netzwerkbibliothek GameNetworkingSockets benötigt, sie wurde nicht gefunden.
+1	0x0993	es_ES	El juego en línea necesita la biblioteca de red GameNetworkingSockets y no se ha encontrado.
+1	0x0993	ja	オンラインプレイにはネットワークライブラリ GameNetworkingSockets が必要ですが、見つかりませんでした。
+1	0x0993	ko	온라인 플레이에는 네트워크 라이브러리 GameNetworkingSockets가 필요하지만 찾을 수 없습니다.
+1	0x0993	zh_CN	在线游戏需要网络库 GameNetworkingSockets，但未找到。
+1	0x0994	en	This version of the network library can't connect players directly. Update GameNetworkingSockets.
+1	0x0994	fr	Cette version de la bibliothèque réseau ne peut pas relier les joueurs directement. Mets à jour GameNetworkingSockets.
+1	0x0994	it	Questa versione della libreria di rete non può collegare direttamente i giocatori. Aggiorna GameNetworkingSockets.
+1	0x0994	de	Diese Version der Netzwerkbibliothek kann Spieler nicht direkt verbinden. Aktualisiere GameNetworkingSockets.
+1	0x0994	es_ES	Esta versión de la biblioteca de red no puede conectar a los jugadores directamente. Actualiza GameNetworkingSockets.
+1	0x0994	ja	このバージョンのネットワークライブラリはプレイヤー同士を直接つなげません。GameNetworkingSockets を更新してください。
+1	0x0994	ko	이 버전의 네트워크 라이브러리는 플레이어를 직접 연결할 수 없습니다. GameNetworkingSockets를 업데이트하세요.
+1	0x0994	zh_CN	此版本的网络库无法直接连接玩家。请更新 GameNetworkingSockets。
+1	0x0995	en	Could not start online play.
+1	0x0995	fr	Impossible de lancer le jeu en ligne.
+1	0x0995	it	Impossibile avviare il gioco online.
+1	0x0995	de	Das Online-Spiel konnte nicht gestartet werden.
+1	0x0995	es_ES	No se pudo iniciar el juego en línea.
+1	0x0995	ja	オンラインプレイを開始できませんでした。
+1	0x0995	ko	온라인 플레이를 시작할 수 없습니다.
+1	0x0995	zh_CN	无法启动在线游戏。
+1	0x0996	en	Can't reach the game server. Check your internet connection.
+1	0x0996	fr	Impossible de joindre le serveur de jeu. Vérifie ta connexion Internet.
+1	0x0996	it	Impossibile raggiungere il server di gioco. Controlla la connessione a Internet.
+1	0x0996	de	Der Spielserver ist nicht erreichbar. Prüfe deine Internetverbindung.
+1	0x0996	es_ES	No se puede acceder al servidor del juego. Comprueba tu conexión a Internet.
+1	0x0996	ja	ゲームサーバーに接続できません。インターネット接続を確認してください。
+1	0x0996	ko	게임 서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.
+1	0x0996	zh_CN	无法连接游戏服务器。请检查网络连接。
+1	0x0997	en	Lost connection to the game server.
+1	0x0997	fr	Connexion au serveur de jeu perdue.
+1	0x0997	it	Connessione al server di gioco persa.
+1	0x0997	de	Verbindung zum Spielserver verloren.
+1	0x0997	es_ES	Se ha perdido la conexión con el servidor del juego.
+1	0x0997	ja	ゲームサーバーとの接続が切れました。
+1	0x0997	ko	게임 서버와의 연결이 끊겼습니다.
+1	0x0997	zh_CN	与游戏服务器的连接已断开。
+1	0x0998	en	No game with this code. Check it with your friend.
+1	0x0998	fr	Aucune partie avec ce code. Vérifie-le avec ton ami.
+1	0x0998	it	Nessuna partita con questo codice. Controllalo con il tuo amico.
+1	0x0998	de	Kein Spiel mit diesem Code. Prüfe ihn mit deinem Freund.
+1	0x0998	es_ES	No hay ninguna partida con este código. Compruébalo con tu amigo.
+1	0x0998	ja	このコードのゲームはありません。友だちに確認してください。
+1	0x0998	ko	이 코드의 게임이 없습니다. 친구에게 확인하세요.
+1	0x0998	zh_CN	没有使用此代码的游戏。请与好友核对。
+1	0x0999	en	This game already has two players.
+1	0x0999	fr	Cette partie a déjà deux joueurs.
+1	0x0999	it	Questa partita ha già due giocatori.
+1	0x0999	de	Dieses Spiel hat bereits zwei Spieler.
+1	0x0999	es_ES	Esta partida ya tiene dos jugadores.
+1	0x0999	ja	このゲームはすでに2人います。
+1	0x0999	ko	이 게임에는 이미 두 명이 있습니다.
+1	0x0999	zh_CN	该游戏已有两名玩家。
+1	0x099a	en	Your friend closed the game.
+1	0x099a	fr	Ton ami a fermé la partie.
+1	0x099a	it	Il tuo amico ha chiuso la partita.
+1	0x099a	de	Dein Freund hat das Spiel geschlossen.
+1	0x099a	es_ES	Tu amigo ha cerrado la partida.
+1	0x099a	ja	友だちがゲームを閉じました。
+1	0x099a	ko	친구가 게임을 닫았습니다.
+1	0x099a	zh_CN	好友已关闭游戏。
+1	0x099b	en	Couldn't find a way to connect to your friend's computer.
+1	0x099b	fr	Impossible de trouver un chemin vers l'ordinateur de ton ami.
+1	0x099b	it	Impossibile trovare un modo per collegarsi al computer del tuo amico.
+1	0x099b	de	Es wurde kein Weg zum Computer deines Freundes gefunden.
+1	0x099b	es_ES	No se encontró forma de conectar con el ordenador de tu amigo.
+1	0x099b	ja	友だちのコンピューターにつながる経路が見つかりませんでした。
+1	0x099b	ko	친구의 컴퓨터에 연결할 경로를 찾지 못했습니다.
+1	0x099b	zh_CN	找不到连接到好友电脑的途径。
+1	0x099c	en	Your friend has disconnected.
+1	0x099c	fr	Ton ami s'est déconnecté.
+1	0x099c	it	Il tuo amico si è disconnesso.
+1	0x099c	de	Dein Freund hat die Verbindung getrennt.
+1	0x099c	es_ES	Tu amigo se ha desconectado.
+1	0x099c	ja	友だちとの接続が切れました。
+1	0x099c	ko	친구의 연결이 끊어졌습니다.
+1	0x099c	zh_CN	好友已断开连接。
+1	0x099d	en	{name} decides what's next…
+1	0x099d	fr	{name} choisit la suite…
+1	0x099d	it	{name} decide cosa fare…
+1	0x099d	de	{name} entscheidet, wie es weitergeht…
+1	0x099d	es_ES	{name} decide qué hacer…
+1	0x099d	ja	{name}が次を決めます…
+1	0x099d	ko	{name}이(가) 다음을 정합니다…
+1	0x099d	zh_CN	{name} 决定接下来做什么…
+1	0x099e	en	PLAYER LEVELS
+1	0x099e	fr	NIVEAUX DES JOUEURS
+1	0x099e	it	LIVELLI DEI GIOCATORI
+1	0x099e	de	SPIELER-LEVEL
+1	0x099e	es_ES	NIVELES DE JUGADORES
+1	0x099e	ja	プレイヤーのレベル
+1	0x099e	ko	플레이어 레벨
+1	0x099e	zh_CN	玩家关卡
+1	0x099f	en	LEVEL EDITOR
+1	0x099f	fr	ÉDITEUR DE NIVEAUX
+1	0x099f	it	EDITOR DI LIVELLI
+1	0x099f	de	LEVEL-EDITOR
+1	0x099f	es_ES	EDITOR DE NIVELES
+1	0x099f	ja	レベルエディター
+1	0x099f	ko	레벨 에디터
+1	0x099f	zh_CN	关卡编辑器
+1	0x09a0	en	EDIT
+1	0x09a0	fr	MODIFIER
+1	0x09a0	it	MODIFICA
+1	0x09a0	de	BEARBEITEN
+1	0x09a0	es_ES	EDITAR
+1	0x09a0	ja	編集
+1	0x09a0	ko	편집
+1	0x09a0	zh_CN	编辑
+1	0x09a1	en	DELETE
+1	0x09a1	fr	SUPPRIMER
+1	0x09a1	it	ELIMINA
+1	0x09a1	de	LÖSCHEN
+1	0x09a1	es_ES	BORRAR
+1	0x09a1	ja	削除
+1	0x09a1	ko	삭제
+1	0x09a1	zh_CN	删除
+1	0x09a2	en	No levels yet. Make one in the level editor.
+1	0x09a2	fr	Aucun niveau pour l'instant. Crée-en un dans l'éditeur de niveaux.
+1	0x09a2	it	Ancora nessun livello. Creane uno nell'editor di livelli.
+1	0x09a2	de	Noch keine Level. Bau eins im Level-Editor.
+1	0x09a2	es_ES	Aún no hay niveles. Crea uno en el editor de niveles.
+1	0x09a2	ja	まだレベルがありません。レベルエディターで作りましょう。
+1	0x09a2	ko	아직 레벨이 없습니다. 레벨 에디터에서 만들어 보세요.
+1	0x09a2	zh_CN	还没有关卡。在关卡编辑器里做一个吧。
+1	0x09a3	en	Press DELETE again to delete this level.
+1	0x09a3	fr	Appuie encore sur SUPPRIMER pour supprimer ce niveau.
+1	0x09a3	it	Premi di nuovo ELIMINA per eliminare questo livello.
+1	0x09a3	de	Drück noch einmal LÖSCHEN, um das Level zu löschen.
+1	0x09a3	es_ES	Pulsa BORRAR otra vez para borrar este nivel.
+1	0x09a3	ja	もう一度「削除」を押すとこのレベルを削除します。
+1	0x09a3	ko	이 레벨을 삭제하려면 삭제를 한 번 더 누르세요.
+1	0x09a3	zh_CN	再按一次删除即可删除此关卡。
+1	0x09a4	en	This level can't be loaded: its file is broken.
+1	0x09a4	fr	Ce niveau ne peut pas être chargé : son fichier est abîmé.
+1	0x09a4	it	Impossibile caricare il livello: il file è danneggiato.
+1	0x09a4	de	Dieses Level lässt sich nicht laden: die Datei ist beschädigt.
+1	0x09a4	es_ES	No se puede cargar este nivel: su archivo está dañado.
+1	0x09a4	ja	このレベルは読み込めません。ファイルが壊れています。
+1	0x09a4	ko	이 레벨을 불러올 수 없습니다. 파일이 손상되었습니다.
+1	0x09a4	zh_CN	无法载入此关卡：文件已损坏。
+1	0x09a5	en	ONLINE
+1	0x09a5	fr	EN LIGNE
+1	0x09a5	it	ONLINE
+1	0x09a5	de	ONLINE
+1	0x09a5	es_ES	EN LÍNEA
+1	0x09a5	ja	オンライン
+1	0x09a5	ko	온라인
+1	0x09a5	zh_CN	在线
+1	0x09a6	en	MY LEVELS
+1	0x09a6	fr	MES NIVEAUX
+1	0x09a6	it	I MIEI LIVELLI
+1	0x09a6	de	MEINE LEVEL
+1	0x09a6	es_ES	MIS NIVELES
+1	0x09a6	ja	自分のレベル
+1	0x09a6	ko	내 레벨
+1	0x09a6	zh_CN	我的关卡
+1	0x09a7	en	UPLOAD
+1	0x09a7	fr	PUBLIER
+1	0x09a7	it	PUBBLICA
+1	0x09a7	de	HOCHLADEN
+1	0x09a7	es_ES	PUBLICAR
+1	0x09a7	ja	アップロード
+1	0x09a7	ko	업로드
+1	0x09a7	zh_CN	上传
+1	0x09a8	en	RATE
+1	0x09a8	fr	NOTER
+1	0x09a8	it	VOTA
+1	0x09a8	de	BEWERTEN
+1	0x09a8	es_ES	VALORAR
+1	0x09a8	ja	評価
+1	0x09a8	ko	평가
+1	0x09a8	zh_CN	评分
+1	0x09a9	en	REPORT
+1	0x09a9	fr	SIGNALER
+1	0x09a9	it	SEGNALA
+1	0x09a9	de	MELDEN
+1	0x09a9	es_ES	DENUNCIAR
+1	0x09a9	ja	報告
+1	0x09a9	ko	신고
+1	0x09a9	zh_CN	举报
+1	0x09aa	en	SORT
+1	0x09aa	fr	TRIER
+1	0x09aa	it	ORDINA
+1	0x09aa	de	SORTIEREN
+1	0x09aa	es_ES	ORDENAR
+1	0x09aa	ja	並べ替え
+1	0x09aa	ko	정렬
+1	0x09aa	zh_CN	排序
+1	0x09ab	en	SEARCH
+1	0x09ab	fr	RECHERCHER
+1	0x09ab	it	CERCA
+1	0x09ab	de	SUCHEN
+1	0x09ab	es_ES	BUSCAR
+1	0x09ab	ja	検索
+1	0x09ab	ko	검색
+1	0x09ab	zh_CN	搜索
+1	0x09ac	en	ONLINE — NEWEST
+1	0x09ac	fr	EN LIGNE — LES PLUS RÉCENTS
+1	0x09ac	it	ONLINE — I PIÙ RECENTI
+1	0x09ac	de	ONLINE — NEUESTE
+1	0x09ac	es_ES	EN LÍNEA — MÁS RECIENTES
+1	0x09ac	ja	オンライン — 新着順
+1	0x09ac	ko	온라인 — 최신순
+1	0x09ac	zh_CN	在线 — 最新
+1	0x09ad	en	ONLINE — BEST RATED
+1	0x09ad	fr	EN LIGNE — LES MIEUX NOTÉS
+1	0x09ad	it	ONLINE — I PIÙ VOTATI
+1	0x09ad	de	ONLINE — BESTE BEWERTUNG
+1	0x09ad	es_ES	EN LÍNEA — MEJOR VALORADOS
+1	0x09ad	ja	オンライン — 高評価順
+1	0x09ad	ko	온라인 — 평점순
+1	0x09ad	zh_CN	在线 — 评分最高
+1	0x09ae	en	Loading…
+1	0x09ae	fr	Chargement…
+1	0x09ae	it	Caricamento…
+1	0x09ae	de	Laden…
+1	0x09ae	es_ES	Cargando…
+1	0x09ae	ja	読み込み中…
+1	0x09ae	ko	불러오는 중…
+1	0x09ae	zh_CN	加载中…
+1	0x09af	en	Can't reach the level server.
+1	0x09af	fr	Impossible de joindre le serveur des niveaux.
+1	0x09af	it	Impossibile raggiungere il server dei livelli.
+1	0x09af	de	Der Level-Server ist nicht erreichbar.
+1	0x09af	es_ES	No se puede conectar con el servidor de niveles.
+1	0x09af	ja	レベルサーバーに接続できません。
+1	0x09af	ko	레벨 서버에 연결할 수 없습니다.
+1	0x09af	zh_CN	无法连接关卡服务器。
+1	0x09b0	en	Uploaded.
+1	0x09b0	fr	Publié.
+1	0x09b0	it	Pubblicato.
+1	0x09b0	de	Hochgeladen.
+1	0x09b0	es_ES	Publicado.
+1	0x09b0	ja	アップロードしました。
+1	0x09b0	ko	업로드했습니다.
+1	0x09b0	zh_CN	已上传。
+1	0x09b1	en	Sign in to MoonCellar in the launcher first.
+1	0x09b1	fr	Connecte-toi d'abord à MoonCellar dans le lanceur.
+1	0x09b1	it	Accedi prima a MoonCellar nel launcher.
+1	0x09b1	de	Melde dich zuerst im Launcher bei MoonCellar an.
+1	0x09b1	es_ES	Inicia sesión en MoonCellar en el lanzador primero.
+1	0x09b1	ja	先にランチャーでMoonCellarにサインインしてください。
+1	0x09b1	ko	먼저 런처에서 MoonCellar에 로그인하세요.
+1	0x09b1	zh_CN	请先在启动器中登录 MoonCellar。
+1	0x09b2	en	Only levels made from scratch in the editor can be uploaded.
+1	0x09b2	fr	Seuls les niveaux créés de zéro dans l'éditeur peuvent être publiés.
+1	0x09b2	it	Si possono pubblicare solo i livelli creati da zero nell'editor.
+1	0x09b2	de	Nur im Editor neu gebaute Level lassen sich hochladen.
+1	0x09b2	es_ES	Solo se pueden publicar niveles creados desde cero en el editor.
+1	0x09b2	ja	アップロードできるのはエディターで一から作ったレベルだけです。
+1	0x09b2	ko	에디터에서 처음부터 만든 레벨만 업로드할 수 있습니다.
+1	0x09b2	zh_CN	只能上传在编辑器里从零制作的关卡。
+1	0x09b3	en	Thanks for rating!
+1	0x09b3	fr	Merci pour ta note !
+1	0x09b3	it	Grazie per il voto!
+1	0x09b3	de	Danke für die Bewertung!
+1	0x09b3	es_ES	¡Gracias por valorar!
+1	0x09b3	ja	評価ありがとうございます！
+1	0x09b3	ko	평가해 주셔서 감사합니다!
+1	0x09b3	zh_CN	感谢评分！
+1	0x09b4	en	Press REPORT again to report this level.
+1	0x09b4	fr	Appuie encore sur SIGNALER pour signaler ce niveau.
+1	0x09b4	it	Premi di nuovo SEGNALA per segnalare questo livello.
+1	0x09b4	de	Drück noch einmal MELDEN, um das Level zu melden.
+1	0x09b4	es_ES	Pulsa DENUNCIAR otra vez para denunciar este nivel.
+1	0x09b4	ja	もう一度「報告」を押すとこのレベルを報告します。
+1	0x09b4	ko	이 레벨을 신고하려면 신고를 한 번 더 누르세요.
+1	0x09b4	zh_CN	再按一次举报即可举报此关卡。
+1	0x09b5	en	Reported. Thank you.
+1	0x09b5	fr	Signalé. Merci.
+1	0x09b5	it	Segnalato. Grazie.
+1	0x09b5	de	Gemeldet. Danke.
+1	0x09b5	es_ES	Denunciado. Gracias.
+1	0x09b5	ja	報告しました。ありがとうございます。
+1	0x09b5	ko	신고했습니다. 감사합니다.
+1	0x09b5	zh_CN	已举报，谢谢。
+1	0x09b6	en	No levels found.
+1	0x09b6	fr	Aucun niveau trouvé.
+1	0x09b6	it	Nessun livello trovato.
+1	0x09b6	de	Keine Level gefunden.
+1	0x09b6	es_ES	No se encontraron niveles.
+1	0x09b6	ja	レベルが見つかりません。
+1	0x09b6	ko	레벨을 찾을 수 없습니다.
+1	0x09b6	zh_CN	没有找到关卡。
+1	0x09b7	en	Type a search, then press Enter.
+1	0x09b7	fr	Tape ta recherche, puis appuie sur Entrée.
+1	0x09b7	it	Scrivi la ricerca, poi premi Invio.
+1	0x09b7	de	Suchbegriff eingeben, dann Enter drücken.
+1	0x09b7	es_ES	Escribe la búsqueda y pulsa Intro.
+1	0x09b7	ja	検索語を入力してEnterを押してください。
+1	0x09b7	ko	검색어를 입력하고 Enter를 누르세요.
+1	0x09b7	zh_CN	输入搜索内容，然后按回车。
+1	0x09b8	en	BEST
+1	0x09b8	fr	MEILLEUR
+1	0x09b8	it	MIGLIORE
+1	0x09b8	de	BESTZEIT
+1	0x09b8	es_ES	MEJOR
+1	0x09b8	ja	ベスト
+1	0x09b8	ko	최고 기록
+1	0x09b8	zh_CN	最佳
+1	0x09b9	en	RATING
+1	0x09b9	fr	NOTE
+1	0x09b9	it	VOTO
+1	0x09b9	de	BEWERTUNG
+1	0x09b9	es_ES	VALORACIÓN
+1	0x09b9	ja	評価
+1	0x09b9	ko	평점
+1	0x09b9	zh_CN	评分
+1	0x09ba	en	You can't connect: you and your friend have different versions of the game.
+1	0x09ba	fr	Connexion impossible : ton ami et toi n'avez pas la même version du jeu.
+1	0x09ba	it	Impossibile connettersi: tu e il tuo amico avete versioni diverse del gioco.
+1	0x09ba	de	Verbindung nicht möglich: Du und dein Freund habt unterschiedliche Spielversionen.
+1	0x09ba	es_ES	No puedes conectarte: tu amigo y tú tenéis versiones distintas del juego.
+1	0x09ba	ja	接続できません：あなたと友だちのゲームのバージョンが違います。
+1	0x09ba	ko	연결할 수 없습니다: 나와 친구의 게임 버전이 다릅니다.
+1	0x09ba	zh_CN	无法连接：你和好友的游戏版本不同。
+1	0x09bb	en	YOU
+1	0x09bb	fr	TOI
+1	0x09bb	it	TU
+1	0x09bb	de	DU
+1	0x09bb	es_ES	TÚ
+1	0x09bb	ja	あなた
+1	0x09bb	ko	나
+1	0x09bb	zh_CN	你
+1	0x09bc	en	SPLITSCREEN
+1	0x09bc	fr	ÉCRAN PARTAGÉ
+1	0x09bc	it	SCHERMO DIVISO
+1	0x09bc	de	GETEILTER BILDSCHIRM
+1	0x09bc	es_ES	PANTALLA DIVIDIDA
+1	0x09bc	ja	画面分割
+1	0x09bc	ko	화면 분할
+1	0x09bc	zh_CN	分屏
+1	0x09bd	en	QUIT GAME
+1	0x09bd	fr	QUITTER LE JEU
+1	0x09bd	it	ESCI DAL GIOCO
+1	0x09bd	de	SPIEL BEENDEN
+1	0x09bd	es_ES	SALIR DEL JUEGO
+1	0x09bd	ja	ゲーム終了
+1	0x09bd	ko	게임 종료
+1	0x09bd	zh_CN	退出游戏
+1	0x09be	en	{name} restarted
+1	0x09be	fr	{name} a recommencé
+1	0x09be	it	{name} ha ricominciato
+1	0x09be	de	{name} hat neu gestartet
+1	0x09be	es_ES	{name} ha vuelto a empezar
+1	0x09be	ja	{name}がやり直しました
+1	0x09be	ko	{name} 님이 다시 시작했습니다
+1	0x09be	zh_CN	{name} 重新开始了
+1	0x09bf	en	UNPUBLISH
+1	0x09bf	fr	RETIRER
+1	0x09bf	it	RITIRA
+1	0x09bf	de	ZURÜCKZIEHEN
+1	0x09bf	es_ES	RETIRAR
+1	0x09bf	ja	公開停止
+1	0x09bf	ko	게시 취소
+1	0x09bf	zh_CN	取消发布
+1	0x09c0	en	Press DELETE again to remove this level from the server.
+1	0x09c0	fr	Appuie encore sur DELETE pour retirer ce niveau du serveur.
+1	0x09c0	it	Premi di nuovo DELETE per togliere questo livello dal server.
+1	0x09c0	de	Drück noch einmal DELETE, um dieses Level vom Server zu entfernen.
+1	0x09c0	es_ES	Pulsa DELETE otra vez para quitar este nivel del servidor.
+1	0x09c0	ja	もう一度DELETEを押すと、このレベルをサーバーから削除します。
+1	0x09c0	ko	DELETE를 한 번 더 누르면 이 레벨이 서버에서 삭제됩니다.
+1	0x09c0	zh_CN	再按一次DELETE，即可从服务器删除此关卡。
+1	0x09c1	en	Press UNPUBLISH again to take this level off the server. It stays in My levels.
+1	0x09c1	fr	Appuie encore sur RETIRER pour retirer ce niveau du serveur. Il reste dans tes niveaux.
+1	0x09c1	it	Premi di nuovo RITIRA per togliere questo livello dal server. Resta nei tuoi livelli.
+1	0x09c1	de	Drück noch einmal ZURÜCKZIEHEN, um dieses Level vom Server zu nehmen. Es bleibt bei deinen Levels.
+1	0x09c1	es_ES	Pulsa RETIRAR otra vez para quitar este nivel del servidor. Seguirá en tus niveles.
+1	0x09c1	ja	もう一度「公開停止」を押すと、このレベルをサーバーから取り下げます。自分のレベルには残ります。
+1	0x09c1	ko	게시 취소를 한 번 더 누르면 이 레벨이 서버에서 내려갑니다. 내 레벨에는 남습니다.
+1	0x09c1	zh_CN	再按一次“取消发布”，即可从服务器撤下此关卡。它仍保留在我的关卡中。
+1	0x09c2	en	Removed from the server.
+1	0x09c2	fr	Retiré du serveur.
+1	0x09c2	it	Tolto dal server.
+1	0x09c2	de	Vom Server entfernt.
+1	0x09c2	es_ES	Quitado del servidor.
+1	0x09c2	ja	サーバーから削除しました。
+1	0x09c2	ko	서버에서 삭제했습니다.
+1	0x09c2	zh_CN	已从服务器删除。
+1	0x09c3	en	LEVEL
+1	0x09c3	fr	NIVEAU
+1	0x09c3	it	LIVELLO
+1	0x09c3	de	LEVEL
+1	0x09c3	es_ES	NIVEL
+1	0x09c3	ja	レベル
+1	0x09c3	ko	레벨
+1	0x09c3	zh_CN	关卡
+1	0x09c4	en	AUTHOR
+1	0x09c4	fr	AUTEUR
+1	0x09c4	it	AUTORE
+1	0x09c4	de	AUTOR
+1	0x09c4	es_ES	AUTOR
+1	0x09c4	ja	作者
+1	0x09c4	ko	만든 이
+1	0x09c4	zh_CN	作者
+1	0x09c5	en	SAVED
+1	0x09c5	fr	ENREGISTRÉ
+1	0x09c5	it	SALVATO
+1	0x09c5	de	GESPEICHERT
+1	0x09c5	es_ES	GUARDADO
+1	0x09c5	ja	保存済み
+1	0x09c5	ko	저장됨
+1	0x09c5	zh_CN	已保存
+1	0x09c6	en	LAUNCHER
+1	0x09c6	fr	LANCEUR
+1	0x09c6	it	LAUNCHER
+1	0x09c6	de	LAUNCHER
+1	0x09c6	es_ES	LANZADOR
+1	0x09c6	ja	ランチャー
+1	0x09c6	ko	런처
+1	0x09c6	zh_CN	启动器
+1	0x09c7	en	MODE
+1	0x09c7	fr	MODE
+1	0x09c7	it	MODALITÀ
+1	0x09c7	de	MODUS
+1	0x09c7	es_ES	MODO
+1	0x09c7	ja	モード
+1	0x09c7	ko	모드
+1	0x09c7	zh_CN	模式
+1	0x09c8	en	ALL MODES
+1	0x09c8	fr	TOUS LES MODES
+1	0x09c8	it	TUTTE LE MODALITÀ
+1	0x09c8	de	ALLE MODI
+1	0x09c8	es_ES	TODOS LOS MODOS
+1	0x09c8	ja	すべてのモード
+1	0x09c8	ko	모든 모드
+1	0x09c8	zh_CN	全部模式
+1	0x09c9	en	Getting the level map…
+1	0x09c9	fr	Réception de la carte du niveau…
+1	0x09c9	it	Ricezione della mappa del livello…
+1	0x09c9	de	Levelkarte wird empfangen…
+1	0x09c9	es_ES	Recibiendo el mapa del nivel…
+1	0x09c9	ja	レベルのマップを受信中…
+1	0x09c9	ko	레벨 맵 받는 중…
+1	0x09c9	zh_CN	正在接收关卡地图…
+1	0x09ca	en	Couldn't get your friend's level map.
+1	0x09ca	fr	Impossible de recevoir la carte du niveau de ton ami.
+1	0x09ca	it	Impossibile ricevere la mappa del livello del tuo amico.
+1	0x09ca	de	Die Levelkarte deines Freundes kam nicht an.
+1	0x09ca	es_ES	No se pudo recibir el mapa del nivel de tu amigo.
+1	0x09ca	ja	友だちのレベルのマップを受信できませんでした。
+1	0x09ca	ko	친구의 레벨 맵을 받지 못했습니다.
+1	0x09ca	zh_CN	未能接收好友的关卡地图。
+1	0x09cb	en	{name} is getting the level map…
+1	0x09cb	fr	{name} reçoit la carte du niveau…
+1	0x09cb	it	{name} sta ricevendo la mappa del livello…
+1	0x09cb	de	{name} empfängt die Levelkarte…
+1	0x09cb	es_ES	{name} está recibiendo el mapa del nivel…
+1	0x09cb	ja	{name}がレベルのマップを受信中…
+1	0x09cb	ko	{name} 님이 레벨 맵을 받는 중…
+1	0x09cb	zh_CN	{name} 正在接收关卡地图…
+1	0x09cc	en	{name} didn't get the level map — starting alone
+1	0x09cc	fr	La carte du niveau n'est pas arrivée chez {name} — départ en solo
+1	0x09cc	it	La mappa del livello non è arrivata a {name}: si parte da soli
+1	0x09cc	de	{name} hat die Levelkarte nicht erhalten – Start ohne Mitspieler
+1	0x09cc	es_ES	El mapa del nivel no le llegó a {name}: empiezas solo
+1	0x09cc	ja	{name}にレベルのマップが届きませんでした。ひとりで始めます
+1	0x09cc	ko	{name} 님에게 레벨 맵이 전달되지 않았습니다. 혼자 시작합니다
+1	0x09cc	zh_CN	{name} 未能收到关卡地图，将独自开始
+1	0x09cd	en	Bag Hunt
+1	0x09cd	fr	Chasse aux sacs
+1	0x09cd	it	Caccia alle valigie
+1	0x09cd	de	Kofferjagd
+1	0x09cd	es_ES	Caza de maletines
+1	0x09cd	ja	バッグハント
+1	0x09cd	ko	가방 사냥
+1	0x09cd	zh_CN	包裹搜寻
+1	0x09ce	en	Best
+1	0x09ce	fr	Record
+1	0x09ce	it	Record
+1	0x09ce	de	Rekord
+1	0x09ce	es_ES	Récord
+1	0x09ce	ja	ベスト
+1	0x09ce	ko	최고 기록
+1	0x09ce	zh_CN	最佳
+1	0x09cf	en	Select
+1	0x09cf	fr	Choisir
+1	0x09cf	it	Scegli
+1	0x09cf	de	Auswahl
+1	0x09cf	es_ES	Elegir
+1	0x09cf	ja	選択
+1	0x09cf	ko	선택
+1	0x09cf	zh_CN	选择
+1	0x09d0	en	{name} joined
+1	0x09d0	fr	{name} a rejoint la partie
+1	0x09d0	it	{name} si è unito
+1	0x09d0	de	{name} ist beigetreten
+1	0x09d0	es_ES	{name} se ha unido
+1	0x09d0	ja	{name}が参加しました
+1	0x09d0	ko	{name} 님이 참가했습니다
+1	0x09d0	zh_CN	{name} 已加入
+1	0x09d1	en	{name} left the game
+1	0x09d1	fr	{name} a quitté la partie
+1	0x09d1	it	{name} ha lasciato la partita
+1	0x09d1	de	{name} hat das Spiel verlassen
+1	0x09d1	es_ES	{name} ha salido de la partida
+1	0x09d1	ja	{name}がゲームを終了しました
+1	0x09d1	ko	{name} 님이 게임을 나갔습니다
+1	0x09d1	zh_CN	{name} 已离开游戏
+1	0x09d2	en	Lost connection to {name}
+1	0x09d2	fr	Connexion avec {name} perdue
+1	0x09d2	it	Connessione con {name} persa
+1	0x09d2	de	Verbindung zu {name} verloren
+1	0x09d2	es_ES	Se perdió la conexión con {name}
+1	0x09d2	ja	{name}との接続が切れました
+1	0x09d2	ko	{name} 님과의 연결이 끊어졌습니다
+1	0x09d2	zh_CN	与 {name} 的连接已断开
+1	0x09d3	en	Room {code} is open — waiting for your friend
+1	0x09d3	fr	Salle {code} ouverte — en attente de votre ami
+1	0x09d3	it	Stanza {code} aperta — in attesa del tuo amico
+1	0x09d3	de	Raum {code} ist offen — warte auf deinen Freund
+1	0x09d3	es_ES	Sala {code} abierta: esperando a tu amigo
+1	0x09d3	ja	ルーム {code} を作成しました — フレンドを待っています
+1	0x09d3	ko	방 {code}이(가) 열렸습니다 — 친구를 기다리는 중
+1	0x09d3	zh_CN	房间 {code} 已开启——等待好友加入
+1	0x09d4	en	{name} is ready to start
+1	0x09d4	fr	{name} est prêt à partir
+1	0x09d4	it	{name} è pronto a partire
+1	0x09d4	de	{name} ist startbereit
+1	0x09d4	es_ES	{name} está listo para empezar
+1	0x09d4	ja	{name}はスタートの準備ができました
+1	0x09d4	ko	{name} 님이 출발 준비를 마쳤습니다
+1	0x09d4	zh_CN	{name} 已准备好出发
+1	0x09d5	en	{name} is back in the menu
+1	0x09d5	fr	{name} est revenu au menu
+1	0x09d5	it	{name} è tornato al menu
+1	0x09d5	de	{name} ist zurück im Menü
+1	0x09d5	es_ES	{name} ha vuelto al menú
+1	0x09d5	ja	{name}がメニューに戻りました
+1	0x09d5	ko	{name} 님이 메뉴로 돌아갔습니다
+1	0x09d5	zh_CN	{name} 已返回菜单
+1	0x09d6	en	{name} started another level — joining
+1	0x09d6	fr	{name} a lancé un autre niveau — on le rejoint
+1	0x09d6	it	{name} ha avviato un altro livello — ti unisci
+1	0x09d6	de	{name} hat ein anderes Level gestartet — du folgst
+1	0x09d6	es_ES	{name} ha empezado otro nivel: te unes
+1	0x09d6	ja	{name}が別のレベルを始めました — 合流します
+1	0x09d6	ko	{name} 님이 다른 레벨을 시작했습니다 — 따라갑니다
+1	0x09d6	zh_CN	{name} 开始了另一个关卡——正在加入
+1	0x09d7	en	{name} didn't make it to the start — starting alone
+1	0x09d7	fr	{name} n'est pas arrivé au départ — départ en solo
+1	0x09d7	it	{name} non è arrivato al via — parti da solo
+1	0x09d7	de	{name} ist nicht zum Start gekommen — du startest allein
+1	0x09d7	es_ES	{name} no llegó a la salida: empiezas solo
+1	0x09d7	ja	{name}がスタートに来ませんでした — ひとりで始めます
+1	0x09d7	ko	{name} 님이 출발선에 오지 않았습니다 — 혼자 시작합니다
+1	0x09d7	zh_CN	{name} 没有到达起点——独自开始
+1	0x09d8	en	Couldn't open this challenge.
+1	0x09d8	fr	Impossible d'ouvrir ce défi.
+1	0x09d8	it	Impossibile aprire questa sfida.
+1	0x09d8	de	Diese Herausforderung lässt sich nicht öffnen.
+1	0x09d8	es_ES	No se ha podido abrir este desafío.
+1	0x09d8	ja	このチャレンジを開けませんでした。
+1	0x09d8	ko	이 도전을 열 수 없습니다.
+1	0x09d8	zh_CN	无法打开此挑战。
+1	0x09d9	en	This level is no longer on the server, so the challenge can't be played.
+1	0x09d9	fr	Ce niveau n'est plus sur le serveur : le défi ne peut pas être joué.
+1	0x09d9	it	Questo livello non è più sul server: la sfida non si può giocare.
+1	0x09d9	de	Dieses Level ist nicht mehr auf dem Server – die Herausforderung kann nicht gespielt werden.
+1	0x09d9	es_ES	Este nivel ya no está en el servidor: el desafío no se puede jugar.
+1	0x09d9	ja	このレベルはサーバーから削除されたため、チャレンジをプレイできません。
+1	0x09d9	ko	이 레벨은 서버에서 삭제되어 도전을 플레이할 수 없습니다.
+1	0x09d9	zh_CN	此关卡已不在服务器上，无法进行挑战。
+1	0x09da	en	The level has been updated since this challenge was sent, so the challenge can't be played.
+1	0x09da	fr	Le niveau a été mis à jour depuis l'envoi de ce défi : il ne peut pas être joué.
+1	0x09da	it	Il livello è stato aggiornato dopo l'invio della sfida: non si può giocare.
+1	0x09da	de	Das Level wurde aktualisiert, seit die Herausforderung gesendet wurde – sie kann nicht gespielt werden.
+1	0x09da	es_ES	El nivel se ha actualizado desde que se envió el desafío: no se puede jugar.
+1	0x09da	ja	チャレンジが送られた後にレベルが更新されたため、プレイできません。
+1	0x09da	ko	도전을 보낸 뒤 레벨이 업데이트되어 플레이할 수 없습니다.
+1	0x09da	zh_CN	发出挑战后关卡已更新，无法进行此挑战。
+1	0x09db	en	Couldn't download the challenge level. Check your connection.
+1	0x09db	fr	Impossible de télécharger le niveau du défi. Vérifiez la connexion.
+1	0x09db	it	Impossibile scaricare il livello della sfida. Controlla la connessione.
+1	0x09db	de	Das Level der Herausforderung konnte nicht geladen werden. Prüfe die Verbindung.
+1	0x09db	es_ES	No se ha podido descargar el nivel del desafío. Comprueba la conexión.
+1	0x09db	ja	チャレンジのレベルをダウンロードできませんでした。接続を確認してください。
+1	0x09db	ko	도전 레벨을 내려받지 못했습니다. 연결을 확인하세요.
+1	0x09db	zh_CN	无法下载挑战关卡。请检查网络连接。
+1	0x09dc	en	Uploaded from another account: sign in with it to update or unpublish.
+1	0x09dc	fr	Publié depuis un autre compte : connecte-toi avec celui-ci pour le mettre à jour ou le retirer.
+1	0x09dc	it	Pubblicato da un altro account: accedi con quello per aggiornarlo o ritirarlo.
+1	0x09dc	de	Von einem anderen Konto hochgeladen: melde dich damit an, um es zu aktualisieren oder zurückzuziehen.
+1	0x09dc	es_ES	Publicado desde otra cuenta: inicia sesión con ella para actualizarlo o retirarlo.
+1	0x09dc	ja	別のアカウントからアップロードされています。更新や公開停止はそのアカウントでサインインしてください。
+1	0x09dc	ko	다른 계정에서 업로드한 레벨입니다. 업데이트하거나 게시를 취소하려면 그 계정으로 로그인하세요.
+1	0x09dc	zh_CN	由另一个账号上传：请登录该账号来更新或取消发布。

@@ -1,0 +1,35 @@
+FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:1e7b8460ad8fb3fb0fbe1cd818845159ac896b4fd17452d56e892c291f3b97a8
+
+RUN dnf install -y clang lld gperf perl-IPC-Cmd perl-Time-Piece \
+        libX11-devel libXext-devel libXrandr-devel libXcursor-devel libXi-devel libXfixes-devel \
+        libXinerama-devel libXScrnSaver-devel libXxf86vm-devel libxkbcommon-devel \
+        wayland-devel wayland-protocols-devel libglvnd-devel mesa-libgbm-devel libdrm-devel \
+        pulseaudio-libs-devel alsa-lib-devel dbus-devel systemd-devel \
+    && dnf clean all
+RUN /opt/python/cp312-cp312/bin/pip install --no-cache-dir meson==1.6.1 ninja==1.11.1.3 \
+    && ln -s /opt/python/cp312-cp312/bin/meson /opt/python/cp312-cp312/bin/ninja /usr/local/bin/
+
+COPY deps.sh /usr/local/bin/medecomp-deps
+RUN bash /usr/local/bin/medecomp-deps zlib && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps libpng && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps freetype && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps expat && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps fontconfig && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps pixman && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps cairo && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps sdl2 && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps openal && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps curl && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps qrencode && rm -rf /tmp/deps
+RUN bash /usr/local/bin/medecomp-deps rpath
+
+RUN dnf install -y liberation-sans-fonts && dnf clean all
+
+RUN mkdir -p /opt/appimage && cd /opt/appimage \
+    && curl -sSfL --retry 5 -o appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
+    && curl -sSfL --retry 5 -o runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64 \
+    && echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool.AppImage" | sha256sum -c --quiet - \
+    && echo "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64" | sha256sum -c --quiet - \
+    && chmod +x appimagetool.AppImage && ./appimagetool.AppImage --appimage-extract > /dev/null \
+    && mv squashfs-root appimagetool && rm appimagetool.AppImage \
+    && ln -s /opt/appimage/appimagetool/AppRun /usr/local/bin/appimagetool

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=@NAME@
+GenericName=PC port for Mirror's Edge (iPad)
+GenericName[ru]=PC-порт для Mirror's Edge (iPad)
+Comment=Unofficial port by MoonCellar Team; needs your own copy of the game
+Comment[ru]=Неофициальный порт от MoonCellar Team; нужна своя копия игры
+Exec=@EXEC@
+Icon=space.mooncellar.rooftops
+StartupWMClass=space.mooncellar.rooftops
+Categories=Game;ActionGame;
+Terminal=false

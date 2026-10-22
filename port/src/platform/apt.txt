@@ -1,0 +1,4 @@
+libsdl2-dev
+zlib1g-dev
+libgles-dev
+libfontconfig-dev

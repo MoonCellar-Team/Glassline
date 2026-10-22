@@ -1,0 +1,25 @@
+#pragma once
+// Минимальное объявление std::string из libstdc++ (GCC 4.2) — только для
+// проверки синтаксиса: объект — один указатель на общий буфер.
+
+namespace std {
+
+class string {
+public:
+    string();
+    string(const char* s);
+    string(const string& other);
+    ~string();
+    string& operator=(const string& other);
+    string& operator=(const char* s);
+    const char* c_str() const;
+    unsigned length() const;
+    string substr(unsigned pos, unsigned n) const;
+
+private:
+    char* _M_p;
+};
+
+bool operator==(const string& a, const string& b);
+
+}  // namespace std

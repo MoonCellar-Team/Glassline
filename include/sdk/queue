@@ -1,0 +1,30 @@
+#pragma once
+// Минимальное объявление std::queue из libstdc++ (GCC 4.2).
+// Внутри — std::deque: 40 байт (0x28) на armv7.
+
+namespace std {
+
+template <class T>
+class queue {
+public:
+    queue();
+    ~queue();
+    void push(const T& value);
+    void pop();
+    T& front();
+    unsigned size() const;
+
+private:
+    void* _M_map;
+    unsigned _M_mapSize;
+    void* _M_startCur;
+    void* _M_startFirst;
+    void* _M_startLast;
+    void* _M_startNode;
+    void* _M_finishCur;
+    void* _M_finishFirst;
+    void* _M_finishLast;
+    void* _M_finishNode;
+};
+
+}  // namespace std

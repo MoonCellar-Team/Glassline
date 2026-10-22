@@ -1,0 +1,5 @@
+medecomp_pkg(sdl2)
+medecomp_pkg(zlib)
+medecomp_pkg(cairo)
+medecomp_pkg(freetype2)
+medecomp_pkg(fontconfig)
