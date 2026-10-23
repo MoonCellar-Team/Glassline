@@ -36,15 +36,6 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Texture replacement by hash; HD textures can be generated on your own PC (Real-ESRGAN on the GPU)
   and stay on your machine. F12 saves a screenshot.
 
-**Controls**
-- Keyboard and gamepad everywhere, menus included; mouse and touchscreen work as touches.
-- Separate rebinding for keyboard and gamepad in the launcher, stick dead zone.
-- Tutorial hints show the keys or buttons of the device you are using instead of swipes and
-  "tilt the device".
-- Text (names, challenge comments, room codes) is typed straight into the game.
-- Steam Deck: add the AppImage as a non-Steam game and play in Game Mode; fullscreen, Steam Input
-  and the on-screen keyboard work, and the launcher is fully usable with the buttons.
-
 **Network play**
 - Online one-on-one in both of the original's two-player modes: **Race** (a time trial against each
   other) and **Rivals** (collect bags on a shared map in 2, 3 or 5 minutes); takedowns between
@@ -57,28 +48,6 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - The original split-screen mode is on PC too (second gamepad; halves top and bottom, full width), and
   player-made levels can be played together: the other player receives the level automatically. PC and
   Android play together.
-
-**Online services instead of EA (MoonCellar)**
-- Sign in to a MoonCellar account from the launcher with a code or QR code confirmed on
-  mooncellar.space; no password is typed into the game. Without an account the game works offline.
-- Global leaderboards per level with downloadable ghosts; challenges to MoonCellar friends with your
-  time and ghost.
-- Cloud saves: progress, achievements, ghosts, options, your skins and levels; on a conflict you
-  choose which copy to keep, the other is backed up.
-- 28 achievements with their own texts and icons, a launcher tab with progress, and your profile on
-  mooncellar.space.
-- EA-only menu items (More Games, Origin, Facebook, usage data) are removed; no telemetry.
-
-**Launcher**
-- Tabs: Game, Display, Controls, Sound, Account, Heroine, Levels, Achievements; English or Russian.
-- Choose your game copy with Browse…, drag and drop or a path, or download it from your own HTTPS
-  link. The copy is checked at once: green — fine, yellow — a warning, red — what is wrong.
-- Game language, window size, and on Linux Wayland or X11. Works with a gamepad and with touch.
-- In the game's main menu: INFO → LAUNCHER and QUIT GAME.
-- Updates itself: at start the launcher checks for a new release and shows what's new; **Update**
-  downloads the AppImage or the Windows zip, checks its signature and restarts on the new version. Your
-  game copy, saves and settings stay. Other installs (the `.tar.gz` folder, Android) get a link to the
-  release page. Switch it off on the Game tab ("Check for updates") or with `--no-update`.
 
 **Heroine skins**
 - Faith's look with previews (lighting variants, the ghost, the rival runner, the boss).
@@ -94,13 +63,6 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   its own leaderboard. Levels hold only the layout: models and textures come from each player's copy.
 - **[Level editor guide](docs/editor/README.md)** — every panel and tool, how to add each object, and
   step-by-step examples (a building, a billboard to run on, a wall run, swing bars, checkpoint dishes).
-
-**Languages and audio**
-- All 8 languages of the game (English, French, Italian, German, Spanish, Japanese, Korean,
-  Chinese), selectable in the launcher; texts about tapping, swiping and the iPad are replaced with
-  neutral ones, and the port's new menus are translated into all 8.
-- Master volume, headphone surround (HRTF), your own music folder (MP3, OGG, Opus, FLAC, WAV, M4A…)
-  instead of the soundtrack, like iPod music on the iPad.
 
 **Android**
 - Phones and tablets with Android 9 or newer; your .ipa is picked with the system file picker.
