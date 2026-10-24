@@ -20,6 +20,7 @@ enum {
     AL_ORIENTATION = 0x100F,
     AL_SOURCE_STATE = 0x1010,
     AL_PLAYING = 0x1012,
+    AL_PAUSED = 0x1013,
     AL_STOPPED = 0x1014,
     AL_SOURCE_RELATIVE = 0x202,
     AL_REFERENCE_DISTANCE = 0x1020,
@@ -52,6 +53,10 @@ int alGetError();
 
 void (*alcMacOSXMixerOutputRate)(double rate);
 extern void (*alBufferDataStatic)(unsigned int buffer, int format, const void* data, int size, int freq);
+
+#ifdef MEDECOMP_PORT
+void medecomp_audio_silent(unsigned int source, int state);
+#endif
 
 }
 
@@ -228,6 +233,21 @@ void PlayerIPhoneOpenAL::stop() {
 }
 
 void PlayerIPhoneOpenAL::update(bool) {
+#ifdef MEDECOMP_PORT
+    if (getState() == STARTED) {
+        AudioLock lock;
+        int state = 0;
+        if (m_source != 0)
+            alGetSourcei(m_source, AL_SOURCE_STATE, &state);
+        if (getState() == STARTED && state != AL_PLAYING && state != AL_PAUSED && state != AL_STOPPED) {
+            medecomp_audio_silent(m_source, state);
+            if (m_source != 0)
+                alSourceStop(m_source);
+            stateTransition(REALIZED);
+            return;
+        }
+    }
+#endif
     if (getState() != STARTED || m_source == 0)
         return;
     int state;

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <string>
 
 #include "../ea/json.h"
@@ -103,6 +104,15 @@ bool signalPoll(SignalReceived* out) {
     }
     return false;
 }
+
+void signalPingFrame() {
+    static std::chrono::steady_clock::time_point last;
+    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    if (!s_socket.isOpen() || now - last < std::chrono::seconds(2)) return;
+    if (s_socket.ping()) last = now;
+}
+
+int signalPing() { return s_socket.isOpen() ? s_socket.rttMs() : -1; }
 
 void signalClose() {
     if (s_socket.isOpen()) s_socket.send("{\"type\":\"leave\"}");

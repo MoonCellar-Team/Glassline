@@ -101,6 +101,12 @@ public:
     void updateMenuPaused(int dt);
     void deinitMenuPaused();
     void resumeMenuPaused();
+#ifdef MEDECOMP_PORT
+    bool isMenuOverGame();
+    int getStateBehindMenu();
+    void closeMenuOverGame();
+    void updateBehindMenu(int dt);
+#endif
     void initGameOptions();
     void updateGameOptions(int dt);
     void renderGameOptions(midp::Graphics* g);

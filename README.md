@@ -5,7 +5,7 @@
 <h1 align="center">Glassline</h1>
 
 <p align="center">An unofficial port of <b>Mirror's Edge (iPad, 2010)</b> to PC and Android, by MoonCellar Team.<br>
-<a href="README.ru.md">Русская версия</a></p>
+<a href="#how-to-play"><b>Download and install</b></a> · <a href="README.ru.md">Русская версия</a></p>
 
 > Glassline is an unofficial port by MoonCellar Team. Mirror's Edge is a trademark of Electronic Arts
 > Inc.; this project is not affiliated with or endorsed by Electronic Arts. Game assets are loaded
@@ -18,9 +18,21 @@ OpenAL and FFmpeg, adds a launcher, network play and MoonCellar online services 
 which are long gone. **No game files are included**: you need your own copy of the iPad version.
 Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](https://github.com/MoonCellar-Team/Glassline).
 
+<p align="center">
+  <img src="docs/screenshots/rooftop-jump.jpg" width="100%" alt="A jump between rooftops">
+</p>
+<p align="center">
+  <img src="docs/screenshots/rooftops-day.jpg" width="49%" alt="Rooftops in the daytime">
+  <img src="docs/screenshots/cranes-sunset.jpg" width="49%" alt="Cranes at sunset">
+  <img src="docs/screenshots/night-chase.jpg" width="49%" alt="A night chase with a helicopter">
+  <img src="docs/screenshots/tunnel.jpg" width="49%" alt="A tunnel">
+</p>
+
 ## Features compared with the iPad original
 
-**Graphics and display**
+<details>
+<summary><b>Graphics and display</b></summary>
+
 - Any resolution and aspect ratio: the 3D view fills 16:9, 16:10 and ultrawide screens up to 21:9
   with a corrected field of view; menus and HUD stay 4:3 in the centre, never stretched.
 - Rendering at your screen's resolution (tested at 1440p and 4K) with sharp text, or at 75 % / 50 %
@@ -36,7 +48,11 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Texture replacement by hash; HD textures can be generated on your own PC (Real-ESRGAN on the GPU)
   and stay on your machine. F12 saves a screenshot.
 
-**Controls**
+</details>
+
+<details>
+<summary><b>Controls</b></summary>
+
 - Keyboard and gamepad everywhere, menus included; mouse and touchscreen work as touches.
 - Separate rebinding for keyboard and gamepad in the launcher, stick dead zone.
 - Tutorial hints show the keys or buttons of the device you are using instead of swipes and
@@ -45,7 +61,11 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Steam Deck: add the AppImage as a non-Steam game and play in Game Mode; fullscreen, Steam Input
   and the on-screen keyboard work, and the launcher is fully usable with the buttons.
 
-**Network play**
+</details>
+
+<details>
+<summary><b>Network play</b></summary>
+
 - Online one-on-one in both of the original's two-player modes: **Race** (a time trial against each
   other) and **Rivals** (collect bags on a shared map in 2, 3 or 5 minutes); takedowns between
   players can be switched on or off.
@@ -61,7 +81,11 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   player-made levels can be played together: the other player receives the level automatically. PC and
   Android play together.
 
-**Online services instead of EA (MoonCellar)**
+</details>
+
+<details>
+<summary><b>Online services instead of EA (MoonCellar)</b></summary>
+
 - Sign in to a MoonCellar account from the launcher with a code or QR code confirmed on
   mooncellar.space; no password is typed into the game. Without an account the game works offline.
 - Global leaderboards per level with downloadable ghosts; challenges to MoonCellar friends with your
@@ -73,7 +97,11 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   mooncellar.space.
 - EA-only menu items (More Games, Origin, Facebook, usage data) are removed; no telemetry.
 
-**Launcher**
+</details>
+
+<details>
+<summary><b>Launcher</b></summary>
+
 - Tabs: Game, Display, Controls, Sound, Account, Heroine, Levels, Achievements; English or Russian.
 - Choose your game copy with Browse…, drag and drop or a path, or download it from your own HTTPS
   link. The copy is checked at once: green — fine, yellow — a warning, red — what is wrong.
@@ -84,12 +112,22 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   game copy, saves and settings stay. Other installs (the `.tar.gz` folder, Android) get a link to the
   release page. Switch it off on the Game tab ("Check for updates") or with `--no-update`.
 
-**Heroine skins**
+<img src="docs/screenshots/launcher.png" alt="The launcher, Game tab">
+
+</details>
+
+<details>
+<summary><b>Heroine skins</b></summary>
+
 - Faith's look with previews (lighting variants, the ghost, the rival runner, the boss).
 - Your own texture skins made from a template of your copy, and your own 3D models (glTF, GLB, VRM)
   with automatic rigging for Mixamo, Unity and VRM skeletons; all game animations work.
 
-**Player levels and level editor**
+</details>
+
+<details>
+<summary><b>Player levels and level editor</b></summary>
+
 - A side-view level editor: blocks and ramps to run on, scenery pieces from the game's palette (in
   groups, mirrored if needed, set in depth with a top view), bags, checkpoints with their turning dish,
   ziplines, swing bars, music, start and finish. A block can be a wall-run, balance-beam or long-jump
@@ -111,7 +149,11 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - **[Level editor guide](docs/editor/README.md)** — every panel and tool, how to add each object, and
   step-by-step examples (a building, a billboard to run on, a wall run, swing bars, checkpoint dishes).
 
-**Languages and audio**
+</details>
+
+<details>
+<summary><b>Languages and audio</b></summary>
+
 - All 8 languages of the game (English, French, Italian, German, Spanish, Japanese, Korean,
   Chinese), selectable in the launcher; texts about tapping, swiping and the iPad are replaced with
   neutral ones, and the port's new menus are translated into all 8.
@@ -120,12 +162,18 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Master volume, headphone surround (HRTF), your own music folder (MP3, OGG, Opus, FLAC, WAV, M4A…)
   instead of the soundtrack, like iPod music on the iPad.
 
-**Android**
+</details>
+
+<details>
+<summary><b>Android</b></summary>
+
 - Phones and tablets with Android 9 or newer, always in landscape; your .ipa is picked with the system
   file picker and copied into the app. Exported levels and the Blender skin template go to
   Download/MoonCellar.
 - Touch controls as on the iPad, tilt with the accelerometer, gamepads; the same launcher,
   multiplayer (with PC players too, or two on one tablet) and a touch level editor.
+
+</details>
 
 ## Known limitations
 
@@ -219,7 +267,7 @@ The code: `src/` and `include/` — the game, reconstructed from the iPad execut
 port: platform layers in `port/src/` (iOS frameworks, graphics, audio, network, online services,
 launcher, level editor) and third-party code in `port/third_party/`; `android/` — the Android app.
 
-## How it was made
+## AI Disclosure
 
 AI helped with the development: [Claude Code](https://claude.com/claude-code) (Claude, by Anthropic)
 decompiled the game function by function from its ARM assembly and helped write the port and its tools.

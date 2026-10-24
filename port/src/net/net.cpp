@@ -224,6 +224,10 @@ bool load() {
                                      : k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All);
         if (relayOnly) log("ICE — только через ретранслятор (MEDECOMP_ICE=relay)");
         s_api.setConfigInt(utils, k_ESteamNetworkingConfig_SendBufferSize, 20 << 20);
+        if (const char* lag = getenv("MEDECOMP_NET_TEST_LAG")) {
+            s_api.setConfigInt(utils, k_ESteamNetworkingConfig_FakePacketLag_Send, atoi(lag));
+            log("проверка: задержка отправки %s мс (MEDECOMP_NET_TEST_LAG)", lag);
+        }
         const char* level = getenv("MEDECOMP_NET_LOG");
         s_gnsStderr = level && atoi(level) >= 3;
         auto debugOutput = reinterpret_cast<decltype(&SteamAPI_ISteamNetworkingUtils_SetDebugOutputFunction)>(

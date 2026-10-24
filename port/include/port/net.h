@@ -99,6 +99,8 @@ bool signalJoin(const std::string& code, uint16_t port);
 bool signalSend(const std::string& data);
 bool signalPoll(SignalReceived* out);
 void signalClose();
+void signalPingFrame();
+int signalPing();
 
 enum class SessionState {
     Idle,
@@ -133,6 +135,7 @@ struct SessionInfo {
     std::string code, peerName;
     SessionError error;
     int ping;
+    int serverPing;
 };
 
 const uint8_t kLobbyMessage = 0x20;
@@ -171,6 +174,7 @@ void raceUserRestart();
 void raceUserQuit();
 bool raceTogether();
 bool raceIsHost();
+bool raceNoPause();
 bool raceHostChooses();
 void raceChooseNext();
 bool takeChooseNext();
@@ -195,6 +199,7 @@ void enemyAimBegin(GameObjectPolice* cop);
 void enemyAimEnd();
 GameObject* enemyBullet(MEdgeMap* map, float x, float y, float z, const MathVector& velocity);
 void renderRace(midp::Graphics* g);
+void renderRivalsNote(midp::Graphics* g, int centerX, int baselineY);
 void renderRaceResult(midp::Graphics* g, int labelX, int timeX, int rowY, int centerX, int headlineY);
 
 int selfTest(bool hostMode, const std::string& argument);

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -26,6 +27,15 @@ using DeviceCall = int (*)(void*);
 using GetIntegerv = void (*)(void*, int, int, int*);
 
 const int kAlcHrtfSoft = 0x1992;
+const int kAlcMonoSources = 0x1010;
+const int kAlcStereoSources = 0x1011;
+const int kAlcFrequency = 0x1007;
+const int kAlcFormatChannelsSoft = 0x1990;
+const int kAlcFormatTypeSoft = 0x1991;
+const int kAlcStereoSoft = 0x1501;
+const int kAlcFloatSoft = 0x1406;
+
+const int kSources = 1024;
 
 template <class F>
 F next(const char* name) {
@@ -35,6 +45,19 @@ F next(const char* name) {
 std::mutex s_mu;
 std::vector<void*> s_devices;
 bool s_paused;
+int s_loopRate;
+std::vector<void*> s_loopDevices;
+
+std::mutex s_sourcesMu;
+std::map<void*, int> s_sources;
+
+void* currentContext() {
+    using GetContext = void* (*)();
+    static GetContext thread = next<GetContext>("alcGetThreadContext");
+    static GetContext current = next<GetContext>("alcGetCurrentContext");
+    void* context = thread ? thread() : nullptr;
+    return context ? context : (current ? current() : nullptr);
+}
 
 void setDevicePaused(void* device, bool paused) {
     GetProc getProc = next<GetProc>("alcGetProcAddress");
@@ -63,6 +86,18 @@ extern "C" void* alGetProcAddress(const char* name) {
 }
 
 extern "C" void* alcOpenDevice(const char* name) {
+    if (s_loopRate) {
+        GetProc getProc = next<GetProc>("alcGetProcAddress");
+        OpenDevice open = getProc ? reinterpret_cast<OpenDevice>(getProc(nullptr, "alcLoopbackOpenDeviceSOFT")) : nullptr;
+        void* device = open ? open(nullptr) : nullptr;
+        if (!device) {
+            fprintf(stderr, "medecomp: звук: loopback OpenAL (ALC_SOFT_loopback) не открыть — тишина\n");
+            return nullptr;
+        }
+        std::lock_guard<std::mutex> lock(s_mu);
+        s_loopDevices.push_back(device);
+        return device;
+    }
     void* device = next<OpenDevice>("alcOpenDevice")(name);
     if (device) {
         std::lock_guard<std::mutex> lock(s_mu);
@@ -72,10 +107,65 @@ extern "C" void* alcOpenDevice(const char* name) {
     return device;
 }
 
+extern "C" void alGenSources(int n, unsigned* ids) {
+    using GenSources = void (*)(int, unsigned*);
+    static GenSources gen = next<GenSources>("alGenSources");
+    for (int i = 0; i < n; i++) ids[i] = 0;
+    gen(n, ids);
+    int made = 0;
+    for (int i = 0; i < n; i++) made += ids[i] != 0;
+    void* context = currentContext();
+    std::lock_guard<std::mutex> lock(s_sourcesMu);
+    int& count = s_sources[context];
+    int before = count;
+    count += made;
+    if (made < n) {
+        static bool told;
+        if (!told) fprintf(stderr, "medecomp: OpenAL не дал источник (%s, у контекста их %d)\n",
+                           context ? "предел контекста" : "нет текущего контекста", count);
+        told = true;
+        port::audio::log("звук: OpenAL не дал источник — %s, у контекста их %d",
+                         context ? "предел контекста" : "нет текущего контекста", count);
+    } else if (count / 64 != before / 64) {
+        port::audio::log("звук: источников у контекста — %d", count);
+    }
+}
+
+extern "C" void alSourcePlay(unsigned source) {
+    using SourcePlay = void (*)(unsigned);
+    static SourcePlay play = next<SourcePlay>("alSourcePlay");
+    if (!currentContext()) port::audio::log("звук: alSourcePlay(%u) без текущего контекста", source);
+    play(source);
+}
+
+extern "C" void medecomp_audio_silent(unsigned source, int state) {
+    const char* why = source == 0 ? "без источника" : state == 0x1011 ? "источник не запущен" : "источник не отвечает";
+    static bool told;
+    if (!told) fprintf(stderr, "medecomp: звук: копия события молчала (%s) — освобождена\n", why);
+    told = true;
+    port::audio::log("звук: копия события молчала (%s, источник %u) — освобождена", why, source);
+}
+
+extern "C" void alDeleteSources(int n, const unsigned* ids) {
+    using DeleteSources = void (*)(int, const unsigned*);
+    static DeleteSources del = next<DeleteSources>("alDeleteSources");
+    del(n, ids);
+    std::lock_guard<std::mutex> lock(s_sourcesMu);
+    s_sources[currentContext()] -= n;
+}
+
+extern "C" void alcDestroyContext(void* context) {
+    using DestroyContext = void (*)(void*);
+    next<DestroyContext>("alcDestroyContext")(context);
+    std::lock_guard<std::mutex> lock(s_sourcesMu);
+    s_sources.erase(context);
+}
+
 extern "C" int alcCloseDevice(void* device) {
     {
         std::lock_guard<std::mutex> lock(s_mu);
         s_devices.erase(std::remove(s_devices.begin(), s_devices.end(), device), s_devices.end());
+        s_loopDevices.erase(std::remove(s_loopDevices.begin(), s_loopDevices.end(), device), s_loopDevices.end());
     }
     return next<CloseDevice>("alcCloseDevice")(device);
 }
@@ -83,10 +173,26 @@ extern "C" int alcCloseDevice(void* device) {
 extern "C" void* alcCreateContext(void* device, const int* attrs) {
     std::string hrtf = port::platform::settings::get("hrtf", "auto");
     std::vector<int> list;
+    bool sources = false;
+    bool loopback;
+    {
+        std::lock_guard<std::mutex> lock(s_mu);
+        loopback = std::find(s_loopDevices.begin(), s_loopDevices.end(), device) != s_loopDevices.end();
+    }
     for (int i = 0; attrs && attrs[i] != 0; i += 2) {
         if (attrs[i] == kAlcHrtfSoft) continue;
+        if (loopback && attrs[i] == kAlcFrequency) continue;
+        sources = sources || attrs[i] == kAlcMonoSources;
         list.push_back(attrs[i]);
         list.push_back(attrs[i + 1]);
+    }
+    if (loopback) {
+        const int format[] = {kAlcFormatChannelsSoft, kAlcStereoSoft, kAlcFormatTypeSoft, kAlcFloatSoft, kAlcFrequency, s_loopRate};
+        list.insert(list.end(), format, format + 6);
+    }
+    if (!sources) {
+        list.push_back(kAlcMonoSources);
+        list.push_back(kSources);
     }
     if (hrtf == "on" || hrtf == "off") {
         list.push_back(kAlcHrtfSoft);
@@ -110,16 +216,40 @@ extern "C" void* alcCreateContext(void* device, const int* attrs) {
         }
     }
     if (context && port::audio::logOn()) {
-        int status = -1;
-        if (GetIntegerv get = next<GetIntegerv>("alcGetIntegerv")) get(device, kAlcHrtfSoft, 1, &status);
-        port::audio::log("звук: контекст OpenAL, объёмный звук (HRTF) %s — настройка «%s», общая громкость %d %%",
-                         status == 1 ? "включён" : "выключен", hrtf.c_str(), int(volume * 100 + 0.5f));
+        int status = -1, mono = 0, stereo = 0;
+        if (GetIntegerv get = next<GetIntegerv>("alcGetIntegerv")) {
+            get(device, kAlcHrtfSoft, 1, &status);
+            get(device, kAlcMonoSources, 1, &mono);
+            get(device, kAlcStereoSources, 1, &stereo);
+        }
+        port::audio::log("звук: контекст OpenAL, объёмный звук (HRTF) %s — настройка «%s», общая громкость %d %%, "
+                         "источников до %d",
+                         status == 1 ? "включён" : "выключен", hrtf.c_str(), int(volume * 100 + 0.5f), mono + stereo);
     }
     return context;
 }
 
 namespace port {
 namespace audio {
+
+void useLoopback(int rate) { s_loopRate = rate; }
+
+void renderLoopback(float* out, int frames) {
+    using Render = void (*)(void*, void*, int);
+    static Render render = [] {
+        GetProc getProc = next<GetProc>("alcGetProcAddress");
+        return getProc ? reinterpret_cast<Render>(getProc(nullptr, "alcRenderSamplesSOFT")) : nullptr;
+    }();
+    static std::vector<float> one;
+    std::fill(out, out + 2 * frames, 0.0f);
+    if (!render) return;
+    one.resize(size_t(2) * frames);
+    std::lock_guard<std::mutex> lock(s_mu);
+    for (void* device : s_loopDevices) {
+        render(device, one.data(), frames);
+        for (int i = 0; i < 2 * frames; i++) out[i] += one[i];
+    }
+}
 
 void setSessionActive(bool active) {
     std::lock_guard<std::mutex> lock(s_mu);

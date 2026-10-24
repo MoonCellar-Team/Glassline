@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include <atomic>
+
 #include "game/PhotoPicker.h"
 #include "platform/PhotoPickerImpl.h"
 #include "port/objc.h"
@@ -23,7 +25,7 @@ const Class kAccelerometer = {
     {"iPhoneAccelerometer", port::objc::destroyAs<AccelerometerObject>, nullptr}, &NSObjectClass, {}};
 
 AccelerometerObject* s_delegate;
-float s_tilt;
+std::atomic<float> s_tilt{0.0f};
 
 AccelerometerObject::AccelerometerObject() : Object(&kAccelerometer) {}
 AccelerometerObject::~AccelerometerObject() {
@@ -90,11 +92,15 @@ namespace platform {
 
 void setTilt(float tilt) { s_tilt = tilt < -1 ? -1 : tilt > 1 ? 1 : tilt; }
 
-void runAccelerometer() {
+float tilt() { return s_tilt; }
+
+void accelerate(float tilt) {
     if (!s_delegate || !s_delegate->owner) return;
-    float a = s_tilt * float(M_PI / 2);
+    float a = tilt * float(M_PI / 2);
     s_delegate->owner->accelerate(0.0f, -sinf(a), -cosf(a));
 }
+
+void runAccelerometer() { accelerate(s_tilt); }
 
 }
 }

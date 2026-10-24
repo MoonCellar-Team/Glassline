@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "capture.h"
 #include "input.h"
 #include "turn.h"
 
@@ -50,40 +51,33 @@ int tapCount(int x, int y) {
     return s_lastTap.count;
 }
 
+void deliver(int kind, int x, int y, int px, int py, int tap) {
+    if (capture::active())
+        capture::postPointer(kind, x, y, px, py, tap);
+    else
+        pointerCall(kind, x, y, px, py, tap);
+}
+
 void touchBegan(long long id, int x, int y) {
     if (s_touches.count(id)) return;
-    midp::Runtime* rt = runtime();
-    const midp::Runtime::PointerState* first = rt->getPointerStatus(0);
-    const midp::Runtime::PointerState* second = rt->getPointerStatus(1);
-    int pointer = !first->m_down ? 0 : !second->m_down ? 1 : 2;
     s_touches[id] = {x, y};
-    rt->pointerPressed(x, y, pointer, tapCount(x, y));
+    deliver(kPointerPressed, x, y, x, y, tapCount(x, y));
 }
 
 void touchMoved(long long id, int x, int y) {
     auto it = s_touches.find(id);
     if (it == s_touches.end()) return;
-    midp::Runtime* rt = runtime();
-    const midp::Runtime::PointerState* first = rt->getPointerStatus(0);
-    const midp::Runtime::PointerState* second = rt->getPointerStatus(1);
     int px = it->second.x, py = it->second.y;
-    int pointer = first->m_down && pointerAt(first, px, py) ? 0 : second->m_down && pointerAt(second, px, py) ? 1 : 2;
     it->second = {x, y};
-    rt->pointerDragged(x, y, pointer);
+    deliver(kPointerDragged, x, y, px, py, 0);
 }
 
 void touchEnded(long long id, int x, int y) {
     auto it = s_touches.find(id);
     if (it == s_touches.end()) return;
-    midp::Runtime* rt = runtime();
-    const midp::Runtime::PointerState* first = rt->getPointerStatus(0);
-    const midp::Runtime::PointerState* second = rt->getPointerStatus(1);
     int px = it->second.x, py = it->second.y;
     s_touches.erase(it);
-    int pointer = first->m_down && (pointerAt(first, px, py) || pointerAt(first, x, y))     ? 0
-                  : second->m_down && (pointerAt(second, px, py) || pointerAt(second, x, y)) ? 1
-                                                                                             : 2;
-    rt->pointerReleased(x, y, pointer);
+    deliver(kPointerReleased, x, y, px, py, 0);
 }
 
 void touchEnded(long long id) {
@@ -556,12 +550,41 @@ void runStep(const std::string& action) {
 
 }
 
+int pointerCall(int kind, int x, int y, int px, int py, int tap) {
+    midp::Runtime* rt = runtime();
+    const midp::Runtime::PointerState* first = rt->getPointerStatus(0);
+    const midp::Runtime::PointerState* second = rt->getPointerStatus(1);
+    int pointer;
+    if (kind == kPointerPressed) {
+        pointer = !first->m_down ? 0 : !second->m_down ? 1 : 2;
+    } else if (kind == kPointerDragged) {
+        pointer = first->m_down && pointerAt(first, px, py) ? 0 : second->m_down && pointerAt(second, px, py) ? 1 : 2;
+    } else {
+        pointer = first->m_down && (pointerAt(first, px, py) || pointerAt(first, x, y))     ? 0
+                  : second->m_down && (pointerAt(second, px, py) || pointerAt(second, x, y)) ? 1
+                                                                                             : 2;
+    }
+    pointerApply(kind, x, y, pointer, tap);
+    return pointer;
+}
+
+void pointerApply(int kind, int x, int y, int pointer, int tap) {
+    midp::Runtime* rt = runtime();
+    if (kind == kPointerPressed)
+        rt->pointerPressed(x, y, pointer, tap);
+    else if (kind == kPointerDragged)
+        rt->pointerDragged(x, y, pointer);
+    else
+        rt->pointerReleased(x, y, pointer);
+}
+
 bool takeScriptFinish() { return s_scriptFinish.exchange(false); }
 
 int takeScriptAchievement() { return s_scriptAchievement.exchange(-1); }
 
 bool inputEvent(const SDL_Event& e) {
     int x, y;
+    if (capture::replaying() && e.type != SDL_CONTROLLERDEVICEADDED && e.type != SDL_CONTROLLERDEVICEREMOVED) return true;
     switch (e.type) {
     case SDL_MOUSEBUTTONDOWN:
         if (e.button.which == SDL_TOUCH_MOUSEID || e.button.button != SDL_BUTTON_LEFT) return true;
@@ -694,6 +717,7 @@ void inputUpdate() {
         s_script.erase(s_script.begin());
         runStep(action);
     }
+    if (capture::replaying()) return;
     float dt = s_lastUpdate ? (now - s_lastUpdate) / 1000.0f : 0;
     s_lastUpdate = now;
     if (dt > 0.1f) dt = 0.1f;

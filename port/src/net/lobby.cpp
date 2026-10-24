@@ -57,6 +57,10 @@ const int TEXT_MODE_RACE = 0x941, TEXT_MODE_TIMED = 0x942;
 const int TEXT_TIME_2MIN = 0x94e, TEXT_TIME_3MIN = 0x94f, TEXT_TIME_5MIN = 0x950;
 const int TEXT_GETTING_MAP = 0x9c9;
 const int TEXT_MAP_FAILED = 0x9ca;
+const int TEXT_SERVER_PING = 0x9dd;
+const int TEXT_PEER_PING = 0x9de;
+const int PING_ABOVE_FRAME_BOTTOM = 16;
+const int ANCHOR_BOTTOM_CENTER = 0x22;
 
 const int FONT_BODY = 2;
 const int FONT_CODE = 0x1c;
@@ -87,6 +91,17 @@ std::string mapTransferText() {
     if (!raceGettingLevel(&percent, &failed)) return std::string();
     if (failed) return gameText(TEXT_MAP_FAILED);
     return gameText(TEXT_GETTING_MAP) + (percent >= 0 ? " " + std::to_string(percent) + "%" : std::string());
+}
+
+std::string pingText(const SessionInfo& info) {
+    std::string text;
+    if (info.serverPing >= 0) text = replaced(gameText(TEXT_SERVER_PING), "{ms}", std::to_string(info.serverPing));
+    if (info.ping >= 0) {
+        std::string peer = replaced(replaced(gameText(TEXT_PEER_PING), "{name}", info.peerName.empty() ? "?" : info.peerName),
+                                    "{ms}", std::to_string(info.ping));
+        text += (text.empty() ? "" : "     ") + peer;
+    }
+    return text;
 }
 
 int errorText(SessionError error) {
@@ -198,6 +213,14 @@ public:
             y += text->getLineHeight(FONT_CODE) + 24;
         }
         m_wrapped.draw(g, centerX, y, ANCHOR_TOP_CENTER);
+        std::string ping = m_entering ? std::string() : pingText(sessionInfo());
+        if (ping != m_pingShown) {
+            m_pingShown = ping;
+            m_ping = ping.empty() ? nullptr : fromUtf8(ping);
+        }
+        if (m_ping)
+            text->drawString(g, m_ping, FONT_BODY, centerX, m_height - FRAME_BOTTOM - PING_ABOVE_FRAME_BOTTOM,
+                             ANCHOR_BOTTOM_CENTER);
         Window::render(g, originY, originX);
     }
 
@@ -384,9 +407,9 @@ private:
     std::string m_typed;
     int m_caretMs = 0;
     SessionState m_state = SessionState::Idle;
-    std::string m_lastCode, m_lastPeer, m_lastChoice;
+    std::string m_lastCode, m_lastPeer, m_lastChoice, m_pingShown;
     SessionError m_lastError = SessionError::None;
-    midp::ReferenceCountedPointer<midp::String> m_codeLabel, m_code, m_message;
+    midp::ReferenceCountedPointer<midp::String> m_codeLabel, m_code, m_message, m_ping;
     WrappedString m_wrapped;
 };
 

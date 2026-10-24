@@ -17,6 +17,22 @@ extern "C" int medecomp_solo_bags(void);
 extern "C" midp::StringBuffer* medecomp_solo_bags_best_text(const Level* level, int timeLimit);
 extern "C" midp::String* medecomp_player_level_title(void);
 static const int BEST_DY = 60;
+static const int TEXT_RESTART = 0x8fd;
+static const int TEXT_SELECT = 0x9cf;
+static const int NET_BUTTON_GAP = 16;
+static const int NOTE_ABOVE_BUTTONS = 14;
+static GameUI::EndOfLevelResults* s_netOwner;
+static GameUI::Button* s_netButtons[2];
+
+static void clearNetButtons() {
+    for (int i = 0; i < 2; i++) {
+        if (s_netButtons[i] != NULL) {
+            midp::DECREF(s_netButtons[i]);
+            s_netButtons[i] = NULL;
+        }
+    }
+    s_netOwner = NULL;
+}
 #endif
 
 static const int QUAD_MESH = 121;
@@ -62,18 +78,62 @@ EndOfLevelResults::EndOfLevelResults(SceneGame* scene, GameScreen* screen)
     if (AppEngine::getLevelData()->getGameMode() == LevelData::GAME_MODE_MULTIPLAYER_TIMED) {
         m_quad.set(width - EDGE_MARGIN, EDGE_MARGIN, QUAD_ANCHOR);
     }
+#ifdef MEDECOMP_PORT
+    clearNetButtons();
+    if (port::net::rivalsNetwork() && scene->numGameScreens() == 1 && port::net::raceIsHost()) {
+        s_netOwner = this;
+        int right = m_button.m_x;
+        for (int i = 1; i >= 0; i--) {
+            GameUI::Button* b = new Button(Button::QUAD_GROUP, Button::QUAD_MESH, i == 0 ? TEXT_RESTART : TEXT_SELECT);
+            midp::INCREF(b);
+            right -= NET_BUTTON_GAP + b->getWidth();
+            b->setTopLeft(right, m_button.m_y);
+            s_netButtons[i] = b;
+        }
+    }
+#endif
 }
 
+#ifdef MEDECOMP_PORT
+Button* EndOfLevelResults::netButton(int index) {
+    return s_netOwner == this && index >= 0 && index < 2 ? s_netButtons[index] : NULL;
+}
+#endif
+
 int EndOfLevelResults::pointerReleased(int pressX, int pressY, int x, int y, GameScreen* screen) {
+#ifdef MEDECOMP_PORT
+    for (int i = 0; i < 2; i++) {
+        Button* b = netButton(i);
+        if (b != NULL && b->pointerReleased(pressX, pressY, x, y, m_screen)) {
+            m_scene->setExitState(i == 0 ? SceneGame::STATE_RESTART_LEVEL : SceneGame::STATE_NEXT_LEVEL);
+            m_scene->stateTransition(SceneGame::STATE_EXIT_FADE);
+            return 0;
+        }
+    }
+#endif
     return m_button.pointerReleased(pressX, pressY, x, y, m_screen) ? 1 : 0;
 }
 
 void EndOfLevelResults::pointerDragged(int pressX, int pressY, int x, int y) {
     m_button.pointerDragged(pressX, pressY, x, y);
+#ifdef MEDECOMP_PORT
+    for (int i = 0; i < 2; i++) {
+        if (netButton(i) != NULL) {
+            netButton(i)->pointerDragged(pressX, pressY, x, y);
+        }
+    }
+#endif
 }
 
 void EndOfLevelResults::pointerPressed(int x, int y) {
     m_button.pointerPressed(x, y);
+#ifdef MEDECOMP_PORT
+    for (int i = 0; i < 2; i++) {
+        if (netButton(i) != NULL) {
+            netButton(i)->pointerPressed(x, y);
+        }
+    }
+#endif
 }
 
 void EndOfLevelResults::render2D(midp::Graphics* g) {
@@ -159,6 +219,16 @@ void EndOfLevelResults::render2D(midp::Graphics* g) {
 #endif
     text->drawString(g, nameId, FONT_NAME, nameX, SUB_POS, ANCHOR_SUB);
     m_button.render2D(g);
+#ifdef MEDECOMP_PORT
+    for (int i = 0; i < 2; i++) {
+        if (netButton(i) != NULL) {
+            netButton(i)->render2D(g);
+        }
+    }
+    if (port::net::rivalsNetwork() && m_scene->numGameScreens() == 1) {
+        port::net::renderRivalsNote(g, width >> 1, m_button.m_y - NOTE_ABOVE_BUTTONS);
+    }
+#endif
 }
 
 void EndOfLevelResults::render3D(m3g::Graphics3D* g3d) {
@@ -178,9 +248,22 @@ void EndOfLevelResults::render3D(m3g::Graphics3D* g3d) {
         quads.setGroupVisible(QUAD_GROUP, false);
     }
     m_button.render3D(g3d);
+#ifdef MEDECOMP_PORT
+    for (int i = 0; i < 2; i++) {
+        if (netButton(i) != NULL) {
+            netButton(i)->render3D(g3d);
+        }
+    }
+#endif
     m_quad.render3D(g3d, quads);
 }
 
-EndOfLevelResults::~EndOfLevelResults() {}
+EndOfLevelResults::~EndOfLevelResults() {
+#ifdef MEDECOMP_PORT
+    if (s_netOwner == this) {
+        clearNetButtons();
+    }
+#endif
+}
 
 }

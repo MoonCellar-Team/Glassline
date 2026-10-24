@@ -651,6 +651,9 @@ bool GameObjectPlayer::checkWallrun() {
 
 void GameObjectPlayer::playerFail() {
     GameScreen* screen = AppEngine::getCanvas()->getSceneGame()->getGameScreen(m_playerIndex);
+#ifdef MEDECOMP_PORT
+    AppEngine::getCanvas()->getSceneGame()->closeMenuOverGame();
+#endif
     int screenState = screen->getState();
     if (screenState == GameScreen::SCREEN_DEATH_FADE || screenState == GameScreen::SCREEN_MENU_MAIN) {
         return;

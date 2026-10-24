@@ -253,11 +253,14 @@ void RuntimeIPhone::suspendAudio() {
     if (m_audioSuspended)
         return;
     AudioSessionSetActive(0);
+#ifndef MEDECOMP_PORT
     void* context = PlayerIPhoneOpenAL::getSharedContext();
     if (context) {
         alcMakeContextCurrent(0);
         alcSuspendContext(context);
     }
+#else
+#endif
     m_audioSuspended = true;
     m_otherAudio = 0;
     puts("RuntimeIPhone::suspendAudio done");

@@ -1142,3 +1142,21 @@
 1	0x09dc	ko	다른 계정에서 업로드한 레벨입니다. 업데이트하거나 게시를 취소하려면 그 계정으로 로그인하세요.
 1	0x09dc	zh_CN	由另一个账号上传：请登录该账号来更新或取消发布。
 1	0x09dc	ru	Опубликован с другого аккаунта: войдите в него, чтобы обновить или снять уровень.
+1	0x09dd	en	Server ping: {ms} ms
+1	0x09dd	fr	Ping du serveur : {ms} ms
+1	0x09dd	it	Ping del server: {ms} ms
+1	0x09dd	de	Server-Ping: {ms} ms
+1	0x09dd	es_ES	Ping del servidor: {ms} ms
+1	0x09dd	ja	サーバーへのPing：{ms} ms
+1	0x09dd	ko	서버 핑: {ms}ms
+1	0x09dd	zh_CN	服务器延迟：{ms} 毫秒
+1	0x09dd	ru	Пинг до сервера: {ms} мс
+1	0x09de	en	Ping to {name}: {ms} ms
+1	0x09de	fr	Ping vers {name} : {ms} ms
+1	0x09de	it	Ping verso {name}: {ms} ms
+1	0x09de	de	Ping zu {name}: {ms} ms
+1	0x09de	es_ES	Ping a {name}: {ms} ms
+1	0x09de	ja	{name}へのPing：{ms} ms
+1	0x09de	ko	{name} 님과의 핑: {ms}ms
+1	0x09de	zh_CN	与 {name} 的延迟：{ms} 毫秒
+1	0x09de	ru	Пинг до {name}: {ms} мс

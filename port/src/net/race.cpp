@@ -30,6 +30,8 @@
 #include "game/MathLine.h"
 #include "game/MEdgeMap.h"
 #include "game/SceneGame.h"
+#include "game/SoundEventPoolManager.h"
+#include "game/SoundManager.h"
 #include "game/TextManager.h"
 #include "game/UI/Window.h"
 #include "game/UI/WindowStore.h"
@@ -62,6 +64,10 @@ enum : uint8_t { kMapServer = 1, kMapFile = 2, kMapReady = 3, kMapFailed = 4 };
 enum : uint8_t { kCheckpoint = 1, kFinish = 2, kHit = 3 };
 const int kSendEveryMs = 50;
 const int kDelayMs = 100;
+const int kVisualKnocked = 10, kVisualLying = 33, kVisualGettingUp = 34;
+const int kPredictSlackMs = 400;
+const int kSettleMs = 250;
+const int kCatchupMs = 700;
 const int kTypeGhost = 2;
 const int kSceneGame = 3;
 const int kHoldMs = 45000;
@@ -169,6 +175,7 @@ struct Frame {
     MathVector position;
     int visual;
     float blend;
+    uint8_t flags;
 };
 
 std::deque<Frame> s_frames;
@@ -342,13 +349,33 @@ public:
     void resetCheckpoint() override {}
     void resetLevel() override {}
 
+    void predictKnockdown() {
+        m_predictPos = m_position;
+        m_predictAt = nowMs();
+        m_predictUntil = m_predictAt + (s_peer ? ping(s_peer) : 0) + kDelayMs + kPredictSlackMs;
+        int visual = hashVisual(VISUAL_ORIGIN, kVisualKnocked, getFacingDir());
+        m_shownVisual = visual;
+        setVisual(visual);
+    }
+
+    void catchUp() { m_catchupAt = nowMs(); }
+
     void update(int dt) override {
         GameObjectRunner::update(dt);
         if (s_frames.empty() || !s_haveOffset) {
             setShown(false);
             return;
         }
-        long long at = nowMs() - s_offset - kDelayMs;
+        long long now = nowMs();
+        long long delay = kDelayMs;
+        if (m_catchupAt) {
+            long long since = now - m_catchupAt;
+            if (since >= kCatchupMs)
+                m_catchupAt = 0;
+            else
+                delay = kDelayMs * since / kCatchupMs;
+        }
+        long long at = now - s_offset - delay;
         size_t i = 0;
         while (i + 1 < s_frames.size() && s_frames[i + 1].time <= at) i++;
         const Frame& a = s_frames[i];
@@ -361,11 +388,45 @@ public:
             position.setAsLinearInterpolation(a.position, b.position, t);
             blend = a.blend + (b.blend - a.blend) * t;
         }
-        if (a.visual != m_shownVisual) {
-            m_shownVisual = a.visual;
-            setVisual(a.visual);
+        bool frozen = false;
+        if (m_predictUntil) {
+            if (knocked(a.visual)) {
+                log("падение соперника подтвердилось его кадрами через %lld мс", now - m_predictAt);
+                m_predictUntil = 0;
+                m_settleFrom = m_predictPos;
+                m_settleAt = now;
+                if ((a.visual >> 1) == (m_shownVisual >> 1)) {
+                    m_shownVisual = a.visual;
+                    setFacingDir(FacingDir(((a.visual & 1) << 1) - 1));
+                }
+            } else if (now < m_predictUntil) {
+                frozen = true;
+            } else {
+                m_predictUntil = 0;
+                log("удар у соперника не прошёл — его кадры без падения");
+            }
         }
-        if (getVisualType() == VISUAL_BLEND3) set3WayAnimationBlendWeights(blend);
+        if (frozen) {
+            position = m_predictPos;
+        } else {
+            if (a.visual != m_shownVisual) {
+                m_shownVisual = a.visual;
+                setVisual(a.visual);
+            }
+            if (getVisualType() == VISUAL_BLEND3) set3WayAnimationBlendWeights(blend);
+            if (m_settleAt) {
+                long long since = now - m_settleAt;
+                if (since >= kSettleMs)
+                    m_settleAt = 0;
+                else
+                    position.setAsLinearInterpolation(m_settleFrom, position, float(since) / float(kSettleMs));
+            }
+        }
+        bool blink = (a.flags & 2) && !frozen && !knocked(m_shownVisual) && ((now >> 8) & 1);
+        if (blink != m_blinkHidden) {
+            m_blinkHidden = blink;
+            m_objectNodeCull->setVisible(!blink);
+        }
         m_position = position;
         m_objectNode->setTranslation(m_position.x, m_position.y, m_position.z);
         while (i > 1) {
@@ -384,8 +445,21 @@ public:
     }
 
 private:
+    static bool knocked(int visual) {
+        int type = (visual >> 1) & 3, index = visual >> 3;
+        return (type == VISUAL_ORIGIN && index == kVisualKnocked) ||
+               (type == VISUAL_SOLO && (index == kVisualLying || index == kVisualGettingUp));
+    }
+
     int m_shownVisual = -2;
     bool m_shown = false;
+    long long m_predictAt = 0;
+    long long m_predictUntil = 0;
+    MathVector m_predictPos;
+    long long m_settleAt = 0;
+    MathVector m_settleFrom;
+    long long m_catchupAt = 0;
+    bool m_blinkHidden = false;
 };
 
 bool s_started;
@@ -411,6 +485,7 @@ bool s_followNewMap;
 bool s_followRestart;
 bool s_chooseNext;
 long long s_peerMenuAt;
+std::atomic<bool> s_noPause(false);
 
 const int kTimerEveryMs = 250;
 const int kHitCooldownMs = 2500;
@@ -818,15 +893,22 @@ void remoteTookBag(int index) {
     }
 }
 
-void remoteHitMe() {
+void hitSound() {
+    AppEngine* app = AppEngine::getCanvas();
+    SceneGame* scene = app ? app->getSceneGame() : nullptr;
+    if (scene) app->getSoundManager().playEvent(scene->getSoundPoolManager().getRandomSoundEventID(5, 1, -1), 1.0f);
+}
+
+bool remoteHitMe() {
     GameScreen* screen = myScreen();
     GameObjectPlayer* player = screen ? screen->getPlayerObject() : nullptr;
-    if (!player || !combatChosen() || player->isImmuneToOtherPlayer()) return;
+    if (!player || !combatChosen() || player->isImmuneToOtherPlayer()) return false;
     player->meleeByPlayer();
     if (rivalsMode() && player->getNumCollectablesCollected() > 0) {
         screen->decNumCollectablesCollected();
         sendPlain(kGift);
     }
+    return true;
 }
 
 void sendEvent(uint8_t kind, int raceTime, const MathVector& at) {
@@ -911,7 +993,7 @@ void receive(const Received& r) {
         if (!sessionInfo().host && s_scene && s_remoteReadyLevel == currentLevel() && s_finished)
             s_followRestart = true;
         if (s_scene && (rivalsMode() || s_together) && s_remoteReadyLevel == currentLevel() &&
-            s_scene->getState() == SceneGame::STATE_GAME)
+            s_scene->getStateBehindMenu() == SceneGame::STATE_GAME)
             s_followRestart = true;
         log("соперник ждёт на старте уровня %d", s_remoteReadyLevel);
         if (!s_holding) notice(TEXT_PEER_READY);
@@ -931,6 +1013,7 @@ void receive(const Received& r) {
         s_remoteBags = bags;
         s_remoteAttacking = (flags & 1) != 0;
         s_remoteImmune = (flags & 2) != 0;
+        f.flags = flags;
         long long sent = time;
         if (!s_frames.empty() && sent <= s_frames.back().time) return;
         long long offset = nowMs() - sent;
@@ -953,7 +1036,14 @@ void receive(const Received& r) {
             log("сумка %d — хоста, мне не засчитана", index);
         }
     } else if (type == kRivalHit) {
-        remoteHitMe();
+        MathVector from, seen;
+        from.x = in.f32(), from.y = in.f32(), from.z = in.f32();
+        seen.x = in.f32(), seen.y = in.f32(), seen.z = in.f32();
+        GameScreen* screen = myScreen();
+        GameObjectPlayer* me = screen ? screen->getPlayerObject() : nullptr;
+        if (in.ok && me)
+            log("соперник ударил: у него я был в %.2f, на деле — в %.2f (он сам в %.2f)", seen.x, me->m_position.x, from.x);
+        if (remoteHitMe() && s_remote) s_remote->catchUp();
     } else if (type == kGift) {
         if (myScreen() && rivalsMode()) myScreen()->incNumCollectablesCollected();
     } else if (type == kTimer) {
@@ -1057,6 +1147,8 @@ void raceUserQuit() {
 
 bool raceOpponent() { return s_peer != 0; }
 
+bool raceNoPause() { return s_noPause; }
+
 void raceBrowsing(bool race, const Level* level, int timeLimit, bool combat, const char* playerLevel) {
     if (!s_peer || !sessionInfo().host) return;
     Browsing b;
@@ -1103,7 +1195,9 @@ bool raceTogether() { return s_together; }
 bool raceIsHost() { return sessionInfo().host; }
 
 bool raceHostChooses() {
-    return s_peer && sessionInfo().host && AppEngine::getLevelData()->getGameMode() == LevelData::GAME_MODE_SPEEDRUN;
+    int mode = AppEngine::getLevelData()->getGameMode();
+    return s_peer && sessionInfo().host &&
+           (mode == LevelData::GAME_MODE_SPEEDRUN || mode == LevelData::GAME_MODE_MULTIPLAYER_TIMED);
 }
 
 void raceChooseNext() {
@@ -1356,8 +1450,47 @@ void renderLabels(midp::Graphics* g) {
     drawLabel(g, mine, you, true);
 }
 
+const int kTextServerPing = 0x9dd;
+const int kTextPeerPing = 0x9de;
+const int kPingX = 16, kPingY = 16, kPingGap = 4;
+
+struct PingPlate {
+    std::string shown;
+    midp::ReferenceCountedPointer<midp::String> text{NULL};
+
+    int draw(midp::Graphics* g, const std::string& wanted, int y) {
+        if (wanted.empty()) return y;
+        if (wanted != shown || !text) {
+            shown = wanted;
+            text = fromUtf8(wanted);
+        }
+        TextManager* tm = AppEngine::getCanvas()->getTextManager();
+        int w = tm->getStringWidth(text, kFontLabel) + 2 * kLabelPadX, h = tm->getLineHeight(kFontLabel) + 2 * kLabelPadY;
+        g->setColor(0, 0, 0, kLabelShade);
+        g->fillRect(kPingX, y, w, h);
+        tm->drawString(g, text, kFontLabel, kPingX + w / 2, y + h - kLabelPadY, kAnchorLabel);
+        return y + h + kPingGap;
+    }
+};
+
+void renderPing(midp::Graphics* g) {
+    if (!s_peer) return;
+    static PingPlate server, peer;
+    SessionInfo info = sessionInfo();
+    int ms = ping(s_peer);
+    std::string name = peerName();
+    int y = server.draw(g, info.serverPing < 0 ? std::string()
+                                               : replaced(gameText(kTextServerPing), "{ms}", std::to_string(info.serverPing)),
+                        kPingY);
+    peer.draw(g, ms < 0 ? std::string()
+                        : replaced(replaced(gameText(kTextPeerPing), "{name}", name.empty() ? "?" : name), "{ms}",
+                                   std::to_string(ms)),
+              y);
+}
+
 void renderRace(midp::Graphics* g) {
     renderLabels(g);
+    renderPing(g);
     if (!s_holding) return;
     AppEngine* app = AppEngine::getCanvas();
     TextManager* text = app->getTextManager();
@@ -1381,6 +1514,19 @@ void renderRace(midp::Graphics* g) {
     int x = app->getWidth() / 2, y = kWaitingY;
     text->drawString(g, line, FONT_HEADING, x, y, ANCHOR_CENTER_BASELINE);
     text->drawString(g, seconds, FONT_NOTE, x, y + text->getLineHeight(FONT_NOTE) + 8, ANCHOR_CENTER_BASELINE);
+}
+
+void renderRivalsNote(midp::Graphics* g, int centerX, int baselineY) {
+    if (!s_peer || sessionInfo().host) return;
+    std::string name = peerName();
+    static std::string shown;
+    static midp::ReferenceCountedPointer<midp::String> note(NULL);
+    std::string wanted = replaced(gameText(TEXT_HOST_DECIDES), "{name}", name.empty() ? "?" : name);
+    if (wanted != shown || !note) {
+        shown = wanted;
+        note = fromUtf8(wanted);
+    }
+    AppEngine::getCanvas()->getTextManager()->drawString(g, note, FONT_NOTE, centerX, baselineY, ANCHOR_CENTER_BASELINE);
 }
 
 void renderRaceResult(midp::Graphics* g, int labelX, int timeX, int rowY, int centerX, int headlineY) {
@@ -1435,6 +1581,7 @@ void raceFrame(int dt) {
             notice(replaced(gameText(TEXT_ROOM_OPEN), "{code}", info.code));
         lastState = info.state;
     }
+    s_noPause = s_peer || (info.state != SessionState::Idle && info.state != SessionState::Failed);
     if (sessionInfo().state == SessionState::Idle && !s_peer) return;
     Received r;
     while (sessionPoll(&r)) {
@@ -1556,7 +1703,7 @@ void raceFrame(int dt) {
         s_lastCheckpoint = checkpoint;
         sendEvent(kCheckpoint, scene->m_raceTime, checkpoint);
     }
-    int state = scene->getState();
+    int state = scene->getStateBehindMenu();
     bool finished = state == SceneGame::STATE_LEVEL_COMPLETE_SINGLE || state == SceneGame::STATE_LEVEL_COMPLETE_MULTIPLAYER;
     if (finished && !s_finished) {
         log("финиш: %s с", secondsText(scene->m_raceTime).c_str());
@@ -1586,6 +1733,7 @@ void raceFrame(int dt) {
     if (s_quitAt && nowMs() >= s_quitAt) {
         s_quitAt = 0;
         if (!finished) {
+            scene->closeMenuOverGame();
             scene->stateTransition(SceneGame::STATE_EXIT_LEVEL);
             app->startFadeOut(true, 0xffffff);
             return;
@@ -1594,6 +1742,7 @@ void raceFrame(int dt) {
     if (s_followRestart && (rivalsMode() || s_together) && state == SceneGame::STATE_GAME) {
         log("соперник начал заново — я тоже");
         topMessage(replaced(gameText(TEXT_RESTARTED), "{name}", peerName()));
+        scene->closeMenuOverGame();
         scene->setExitState(SceneGame::STATE_RESTART_LEVEL);
         scene->stateTransition(SceneGame::STATE_EXIT_FADE);
         s_followRestart = false;
@@ -1604,6 +1753,7 @@ void raceFrame(int dt) {
     bool newMap = s_followLevel >= 0 && (s_followLevel != level || s_followNewMap);
     if ((s_followLevel >= 0 || s_followRestart) && (atEnd || (newMap && running))) {
         if (newMap && s_peerLevel.expected && !s_peerLevel.ready) return;
+        scene->closeMenuOverGame();
         for (UI::Window* w : app->getWindowStore().m_windows) w->close(UI::RESULT_NONE);
         s_holding = false;
         if (newMap) {
@@ -1648,9 +1798,16 @@ void raceFrame(int dt) {
         state == SceneGame::STATE_GAME && player->isAttacking() && !s_remoteImmune && now >= s_hitCooldownUntil &&
         fabsf(player->m_position.x - s_remote->m_position.x) < kHitReachX &&
         fabsf(player->m_position.y - s_remote->m_position.y) < kHitReachY) {
-        sendPlain(kRivalHit);
+        Writer w;
+        w.u8(kRivalHit);
+        w.u8(kVersion);
+        w.f32(player->m_position.x), w.f32(player->m_position.y), w.f32(player->m_position.z);
+        w.f32(s_remote->m_position.x), w.f32(s_remote->m_position.y), w.f32(s_remote->m_position.z);
+        send(s_peer, w.b.data(), w.b.size(), true);
+        s_remote->predictKnockdown();
+        hitSound();
         s_hitCooldownUntil = now + kHitCooldownMs;
-        log("удар по сопернику");
+        log("удар по сопернику: я в %.2f, он у меня в %.2f", player->m_position.x, s_remote->m_position.x);
     }
     static long long lastLog;
     if (verbose() >= 2 || (verbose() && now - lastLog >= 1000)) {

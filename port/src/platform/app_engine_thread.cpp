@@ -9,6 +9,7 @@
 #include "game/AchievementData.h"
 #include "game/AppEngine.h"
 #include "game/SceneGame.h"
+#include "capture.h"
 #include "levels.h"
 #include "port/net.h"
 #include "port/online.h"
@@ -40,9 +41,10 @@ void AppEngineThread::run() {
     int frames = 0;
     long long gameMs = 0;
     unsigned long presents = port::platform::presentCount();
+    const bool capture = port::platform::capture::active();
     while (m_engine->m_running) {
         Clock::time_point now = Clock::now();
-        int rate = port::platform::frameTimerRate();
+        int rate = capture ? 60 : port::platform::frameTimerRate();
         if (rate > 0) {
             Clock::time_point due = last + std::chrono::duration_cast<Clock::duration>(
                                                std::chrono::duration<double>(1.0 / rate));
@@ -71,6 +73,7 @@ void AppEngineThread::run() {
         m_lastTime = midp::System::currentTimeMillis();
         if (m_engine->m_running && !m_engine->m_paused) {
             Clock::time_point workStart = Clock::now();
+            if (capture) dt = port::platform::capture::frameBegin();
             gameMs += dt;
             m_engine->m_updating = true;
             m_engine->runLoop(dt);
@@ -91,6 +94,7 @@ void AppEngineThread::run() {
                 m_engine->serviceRepaints();
                 m_engine->m_painting = false;
             }
+            if (capture) port::platform::capture::frameEnd();
             port::platform::perfFrame(std::chrono::duration<double, std::milli>(Clock::now() - workStart).count());
         }
         if (log && ++frames && now - logStart >= std::chrono::seconds(2)) {

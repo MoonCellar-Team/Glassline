@@ -3,6 +3,10 @@
 #include "runtime/midp/System.h"
 #include "runtime/util/RandomClass.h"
 
+#ifdef MEDECOMP_PORT
+extern "C" long long medecomp_random_seed(void);
+#endif
+
 namespace util {
 
 midp::Class* JRandom::getClass() const {
@@ -35,7 +39,11 @@ void JRandom::setSeed(long long seed) {
 JRandom::~JRandom() {}
 
 JRandom::JRandom() : m_seed(0) {
+#ifdef MEDECOMP_PORT
+    setSeed(medecomp_random_seed());
+#else
     setSeed(midp::System::currentTimeMillis());
+#endif
 }
 
 int JRandom::next(int bits) {

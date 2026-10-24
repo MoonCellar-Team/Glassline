@@ -21,6 +21,7 @@
 #include <string>
 #include <thread>
 
+#include "capture.h"
 #include "input.h"
 #include "launcher.h"
 #include "overlay.h"
@@ -132,8 +133,12 @@ void handle(const SDL_Event& e, bool* running) {
         *running = false;
         return;
     case SDL_WINDOWEVENT:
-        if (e.window.event == SDL_WINDOWEVENT_MINIMIZED || e.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
-            resignActive();
+        if (e.window.event == SDL_WINDOWEVENT_MINIMIZED || e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+            if (port::net::raceNoPause() || capture::active())
+                inputReset();
+            else
+                resignActive();
+        }
         if (e.window.event == SDL_WINDOWEVENT_RESTORED || e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
             becomeActive();
         return;
@@ -232,7 +237,7 @@ int run() {
         port::objc::runMainThreadQueue();
         runTimers();
         Uint32 now = SDL_GetTicks();
-        if (now - lastAccel >= 33) {
+        if (now - lastAccel >= 33 && !capture::active()) {
             lastAccel = now;
             runAccelerometer();
         }
@@ -450,10 +455,12 @@ int main(int argc, char** argv) {
         port::online::cloud::applyDownloadedPrefs();
         port::online::cloud::markPlaying();
     }
+    port::platform::capture::start();
     NSAutoreleasePool* pool = NSAutoreleasePool::alloc()->init();
     midp::Runtime* rt = midp::Runtime::getRuntime();
     midp::INCREF(rt);
     int code = run();
+    port::platform::capture::finish();
     s_quitDone = true;
     port::net::sessionClose();
     port::net::shutdown();

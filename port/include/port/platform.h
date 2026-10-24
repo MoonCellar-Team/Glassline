@@ -154,7 +154,9 @@ void menuFocusApply();
 const void* menuFocusTarget();
 
 void setTilt(float tilt);
+float tilt();
 void runAccelerometer();
+void accelerate(float tilt);
 #ifdef _WIN32
 void windowsStartup();
 #endif

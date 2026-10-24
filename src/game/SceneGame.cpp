@@ -47,6 +47,8 @@
 extern "C" int medecomp_solo_bags(void);
 extern "C" void medecomp_solo_bags_result(int collected, int total, int timeLeft);
 extern "C" int medecomp_player_level_test(void);
+extern "C" void medecomp_capture_level_start(void);
+extern "C" int medecomp_capture_autostart(void);
 extern "C" int medecomp_player_level_playing(void);
 extern "C" int medecomp_player_level_no_board(void);
 #endif
@@ -1128,6 +1130,86 @@ void SceneGame::resumeMenuPaused() {
     m_pausedState = STATE_NONE;
 }
 
+#ifdef MEDECOMP_PORT
+bool SceneGame::isMenuOverGame() {
+    if (!port::net::raceOpponent() || m_pausedState == STATE_NONE) {
+        return false;
+    }
+    switch (m_state) {
+    case STATE_MENU_PAUSED:
+    case STATE_GAME_OPTIONS:
+    case STATE_SOUND_OPTIONS:
+    case STATE_HELP:
+    case STATE_ABOUT:
+        return true;
+    default:
+        return false;
+    }
+}
+
+int SceneGame::getStateBehindMenu() {
+    return isMenuOverGame() ? m_pausedState : m_state;
+}
+
+void SceneGame::closeMenuOverGame() {
+    if (!isMenuOverGame()) {
+        return;
+    }
+    UI::WindowStore& windows = m_engine->getWindowStore();
+    for (UI::Window* window : windows.m_windows) {
+        window->close(UI::RESULT_NONE);
+    }
+    windows.clearWindowResult();
+    deinitState();
+    if (m_state != STATE_MENU_PAUSED) {
+        deinitMenuPaused();
+    }
+    QuadManager& quads = m_engine->getQuadManager();
+    quads.setGroupVisible(49, false);
+    quads.setMeshVisible(95, true);
+    m_state = m_pausedState;
+    m_pausedState = STATE_NONE;
+}
+
+void SceneGame::updateBehindMenu(int dt) {
+    GameState under = m_pausedState;
+    if (under == STATE_GAME) {
+        updateRaceTime(dt);
+        if (!isMenuOverGame()) {
+            return;
+        }
+    }
+    m_sfxVolume.setTargetValue(m_engine->getSoundManager().getVolumeSFX());
+    QuadManager& quads = m_engine->getQuadManager();
+    m_gameTimeFactor.update(dt);
+    int gameDt = (int)(dt * getGameTimeFactor());
+    updateSound(gameDt);
+    m_achievementData->update(gameDt);
+    for (int i = 0; i != m_gameScreens.m_length; i++) {
+        m_gameScreens[i]->updateEffectAnims(quads, dt);
+    }
+    quads.updateAnim(1, dt);
+    updateCamera(dt);
+    m_map.updateObjects(gameDt);
+    m_map.updateObjectCollisions();
+    m_map.updateChunkVisibility(gameDt);
+    if (m_combatTime > 0) {
+        m_combatTime -= dt;
+        setGameTimeFactor(1.0f);
+    }
+    if (under == STATE_INTRO_CAM && isMenuOverGame() && !m_gameScreens[0]->getGameCamera()->isAnimating() &&
+        !port::net::raceHoldStart()) {
+        closeMenuOverGame();
+        if (AppEngine::getLevelData()->isRaceMode() || AppEngine::getLevelData()->isMultiplayerMode()) {
+            stateTransition(STATE_RACE_START);
+        } else {
+            stateTransition(STATE_GAME);
+            m_storyStartTimer = 2000;
+        }
+    }
+}
+#endif
+
 void SceneGame::stateTransitionFade(GameState state) {
     if (m_state == STATE_FADE_OUT) {
         return;
@@ -1137,6 +1219,9 @@ void SceneGame::stateTransitionFade(GameState state) {
 }
 
 void SceneGame::completeLevel() {
+#ifdef MEDECOMP_PORT
+    closeMenuOverGame();
+#endif
     LevelData* levelData = AppEngine::getLevelData();
     m_map.updateCollectableList();
     m_achievementData->registerLevelComplete();
@@ -1600,15 +1685,28 @@ void SceneGame::update(int dt) {
         m_storyStartTimer -= dt;
     }
 
+#ifdef MEDECOMP_PORT
+    if (isMenuOverGame()) {
+        updateBehindMenu(dt);
+        if (!isMenuOverGame()) {
+            return;
+        }
+    } else if (m_pausedState != STATE_NONE && port::net::raceOpponent() && m_state != STATE_MEDIA_PICKER) {
+        m_pausedState = STATE_NONE;
+    }
+#endif
     switch (m_state) {
     case STATE_LOADING:
 #ifdef MEDECOMP_PORT
-        if (medecomp_player_level_test() && m_loadingProgress == 100 && !m_engine->isFading() &&
-            !m_engine->isFadedOut()) {
+        if ((medecomp_player_level_test() || medecomp_capture_autostart()) && m_loadingProgress == 100 &&
+            !m_engine->isFading() && !m_engine->isFadedOut()) {
             m_engine->startFadeOut(true, 0xffffff);
         }
 #endif
         if (m_engine->isFadedOut() && m_loadingProgress == 100) {
+#ifdef MEDECOMP_PORT
+            medecomp_capture_level_start();
+#endif
             resetLevel(STATE_INTRO_CAM);
             m_state = m_stateAfterLoading;
             for (int i = 0; i != m_gameScreens.m_length; i++) {

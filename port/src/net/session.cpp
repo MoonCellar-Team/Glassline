@@ -223,6 +223,7 @@ SessionInfo sessionInfo() {
     info.peerName = s_peerName;
     info.error = s_error;
     info.ping = s_peer && s_state == SessionState::Connected ? ping(s_peer) : -1;
+    info.serverPing = s_state == SessionState::Idle || s_state == SessionState::Failed ? -1 : signalPing();
     return info;
 }
 
@@ -244,6 +245,7 @@ void sessionFrame() {
     if (s_state != SessionState::Opening) {
         SignalReceived s;
         while (signalPoll(&s)) onSignal(s);
+        signalPingFrame();
     }
     std::string blob;
     while (takeSignal(&blob)) signalSend("ice:" + port::online::base64Encode(blob.data(), blob.size()));

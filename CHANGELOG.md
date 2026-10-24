@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2 — 2026-10-24
+
+- **Network play:** a takedown on your opponent now shows at once — you hear the hit and the opponent
+  falls where you struck, instead of a moment later when you had already run past. While you are
+  connected to a friend, Alt+Tab, minimizing the window or the pause menu no longer stop the game, so the
+  start countdown and the race stay in step for both players.
+- **Network play:** the lobby shows your ping to the MoonCellar server and to your friend, and the same
+  two lines are in the top-left corner during a race or a Rivals game. After a Rivals game the host can
+  RESTART the arena or SELECT the next one, and the friend follows; the selection window opens on the
+  last mode, level and settings.
+- **Fixed:** the heroine's footsteps, breathing, jumps and slides and the bag pickup sound could fall
+  silent until you quit the game, and some sounds dropped after Alt+Tab.
+
 ## 1.1 — 2026-10-24
 
 - **Russian:** the game can now be played in Russian — a full translation of the game's texts and of

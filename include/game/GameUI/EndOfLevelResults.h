@@ -25,6 +25,9 @@ public:
     void pointerPressed(int x, int y);
     void pointerDragged(int pressX, int pressY, int x, int y);
     int pointerReleased(int pressX, int pressY, int x, int y, GameScreen* screen);
+#ifdef MEDECOMP_PORT
+    Button* netButton(int index);
+#endif
 
     SceneGame* m_scene;
     GameScreen* m_screen;

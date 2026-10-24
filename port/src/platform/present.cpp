@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "port/platform.h"
+#include "capture.h"
 #include "fsr.h"
 #include "../gfx/attribs.h"
 #include "overlay.h"
@@ -342,6 +343,19 @@ void writeShot(const std::string& path, int x0, int y0, int w, int h) {
     bool ok = f && fwrite(out.data(), 1, out.size(), f) == out.size();
     if (f) fclose(f);
     fprintf(stderr, ok ? "medecomp: снимок кадра: %s\n" : "medecomp: снимок не записан: %s\n", path.c_str());
+}
+
+void captureFrame(int x, int y, int w, int h, int w0, int h0) {
+    int x1 = std::min(x + w, w0), y1 = std::min(y + h, h0);
+    x = std::max(x, 0);
+    y = std::max(y, 0);
+    w = (x1 - x) & ~1;
+    h = (y1 - y) & ~1;
+    if (w < 2 || h < 2) return;
+    static std::vector<unsigned char> px;
+    px.resize(size_t(w) * h * 4);
+    gl.ReadPixels(x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+    capture::videoFrame(px.data(), w, h);
 }
 
 void fit(int w, int h, float* scale, float* ox, float* oy) {
@@ -928,6 +942,7 @@ void present() {
     gl.DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     gl.Viewport(0, 0, w, h);
     drawTextField(w, h);
+    if (capture::wantsVideoFrame()) captureFrame(vx, vy, vw, vh, w, h);
     overlayDraw(w, h);
     {
 

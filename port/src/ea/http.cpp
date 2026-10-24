@@ -14,6 +14,7 @@
 #endif
 #include <time.h>
 
+#include <chrono>
 #include <mutex>
 
 #include "json.h"
@@ -522,6 +523,25 @@ bool WebSocket::open(const std::string& url, const std::vector<std::string>& hea
     m_handle = h;
     m_headers = list;
     m_partial.clear();
+    m_pingAt = 0;
+    m_rtt = -1;
+    return true;
+}
+
+namespace {
+long long steadyMs() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
+}
+
+bool WebSocket::ping() {
+    if (!m_handle) return false;
+    long long now = steadyMs();
+    if (m_pingAt && now - m_pingAt < 5000) return false;
+    size_t sent = 0;
+    if (s_curl.wsSend(m_handle, "mc", 2, &sent, 0, kWsPing) != 0) return false;
+    m_pingAt = now;
     return true;
 }
 
@@ -554,7 +574,12 @@ bool WebSocket::recv(std::string* text, bool* closed) {
             *closed = true;
             return false;
         }
-        if (meta->flags & (kWsPing | kWsPong)) continue;
+        if (meta->flags & kWsPong) {
+            if (m_pingAt) m_rtt = int(steadyMs() - m_pingAt);
+            m_pingAt = 0;
+            continue;
+        }
+        if (meta->flags & kWsPing) continue;
         m_partial.append(buf, got);
         if (meta->bytesleft == 0 && !(meta->flags & kWsCont)) {
             *text = std::move(m_partial);
@@ -574,6 +599,8 @@ void WebSocket::close() {
     m_handle = nullptr;
     m_headers = nullptr;
     m_partial.clear();
+    m_pingAt = 0;
+    m_rtt = -1;
 }
 
 }

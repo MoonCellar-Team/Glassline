@@ -921,7 +921,11 @@ void focusScreen(GameScreen* screen, int cmd, int px) {
         s_count.store(focusRibbons(&screen->m_menu, screen, cmd));
         return;
     case GameScreen::SCREEN_MULTIPLAYER_COMPLETE:
-        if (screen->m_results) addGame(ts, &screen->m_results->m_button, screen, true);
+        if (screen->m_results) {
+            addGame(ts, screen->m_results->netButton(0), screen, false);
+            addGame(ts, screen->m_results->netButton(1), screen, false);
+            addGame(ts, &screen->m_results->m_button, screen, true);
+        }
         break;
     case GameScreen::SCREEN_CONFIRM_RESTART:
     case GameScreen::SCREEN_CONFIRM_QUIT:

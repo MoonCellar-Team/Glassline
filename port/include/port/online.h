@@ -62,11 +62,15 @@ public:
     bool recv(std::string* text, bool* closed);
     void close();
     bool isOpen() const { return m_handle != nullptr; }
+    bool ping();
+    int rttMs() const { return m_rtt; }
 
 private:
     void* m_handle = nullptr;
     void* m_headers = nullptr;
     std::string m_partial;
+    long long m_pingAt = 0;
+    int m_rtt = -1;
 };
 
 void frame();

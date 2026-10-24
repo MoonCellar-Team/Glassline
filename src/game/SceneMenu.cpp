@@ -30,6 +30,7 @@ extern "C" int sscanf(const char* s, const char* format, ...);
 #include "game/UI/NetworkWaitEffect.h"
 #include "game/UI/PendingChallengeWindow.h"
 #ifdef MEDECOMP_PORT
+#include "game/UI/ChapterSelectMultiplayerWindow.h"
 #include "game/UI/PleaseWaitWindow.h"
 #include "port/net.h"
 #endif
@@ -172,6 +173,9 @@ void SceneMenu::initLevelSelectMultiplayer() {
     if (choose || medecomp_solo_bags_choosing()) {
         m_levelWindow = m_engine->getWindowStore().createWindow(
             UI::WindowStore::WINDOW_CHAPTER_SELECT_MULTIPLAYER, 0, 0, 0, 0);
+        if (choose) {
+            static_cast<UI::ChapterSelectMultiplayerWindow*>(m_levelWindow)->selectLastPlayed();
+        }
         return;
     }
     m_levelWindow = m_engine->getWindowStore().pushWindow(port::net::createLobbyWindow());

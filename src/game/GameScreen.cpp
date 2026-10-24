@@ -396,6 +396,11 @@ void GameScreen::initMenuMain() {
 void GameScreen::resetLevel() {
     m_camera->startSmoothTracking(m_player, true);
     m_checkpoint = NULL;
+#ifdef MEDECOMP_PORT
+    if (m_state == SCREEN_MULTIPLAYER_COMPLETE) {
+        stateTransition(SCREEN_GAME);
+    }
+#endif
 }
 
 void GameScreen::renderRaceStart2D(midp::Graphics* g) {
@@ -903,7 +908,11 @@ void GameScreen::applyGestures() {
     if (m_inputFlags & INPUT_HOLD) {
         m_player->addGesture(GameObjectPlayer::GESTURE_STOP);
     }
-    if ((m_inputFlags & (INPUT_SWIPE_DOWN | INPUT_SWIPE2_DOWN)) == (INPUT_SWIPE_DOWN | INPUT_SWIPE2_DOWN)) {
+    if ((m_inputFlags & (INPUT_SWIPE_DOWN | INPUT_SWIPE2_DOWN)) == (INPUT_SWIPE_DOWN | INPUT_SWIPE2_DOWN)
+#ifdef MEDECOMP_PORT
+        && !(port::net::raceOpponent() && m_scene->getState() == SceneGame::STATE_RACE_START)
+#endif
+    ) {
         SpywareManager::getInstance()->trackGamePaused();
         m_scene->stateTransition(SceneGame::STATE_MENU_PAUSED);
     }

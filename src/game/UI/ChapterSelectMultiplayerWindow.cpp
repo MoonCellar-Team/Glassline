@@ -258,6 +258,32 @@ void ChapterSelectMultiplayerWindow::onSelected() {
     AppEngine::getCanvas()->getSceneMenu()->stateTransitionFade(STATE_START_MULTIPLAYER);
 }
 
+#ifdef MEDECOMP_PORT
+void ChapterSelectMultiplayerWindow::selectLastPlayed() {
+    LevelData* levels = AppEngine::getLevelData();
+    bool timed = levels->getGameMode() == LevelData::GAME_MODE_MULTIPLAYER_TIMED;
+    if (timed && m_hasRaceLevels) {
+        m_modeScroller.setTargetNotch(1);
+    }
+    ChapterArrowedScroller& chapters = timed ? m_timedScroller : m_raceScroller;
+    const Level* current = levels->getCurrentLevelObject();
+    for (int i = 0; i < (int)chapters.m_items.size(); i++) {
+        ChapterSelectItem* item = static_cast<ChapterSelectItem*>(chapters.m_items[i]);
+        if (item->getLevelObject() == current && medecomp_mp_item_name(item) == NULL) {
+            chapters.setTargetNotch(i);
+            break;
+        }
+    }
+    if (timed) {
+        int limit = levels->getLevelTimeLimitMillis();
+        m_time2Min.setChecked(limit == TIME_2MIN_MILLIS);
+        m_time3Min.setChecked(limit != TIME_2MIN_MILLIS && limit != TIME_5MIN_MILLIS);
+        m_time5Min.setChecked(limit == TIME_5MIN_MILLIS);
+    }
+    m_combat.setChecked(levels->m_multiplayerCombatAllowed);
+}
+#endif
+
 ChapterSelectMultiplayerWindow::~ChapterSelectMultiplayerWindow() {}
 
 ChapterSelectMultiplayerWindow::ChapterSelectMultiplayerWindow()

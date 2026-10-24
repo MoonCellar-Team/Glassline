@@ -23,6 +23,9 @@ public:
     bool isRaceMode() const;
     int getRivalTimeMillis() const;
     bool getCombatAllowed() const;
+#ifdef MEDECOMP_PORT
+    void selectLastPlayed();
+#endif
 
     ChapterArrowedScroller m_modeScroller;
     ChapterArrowedScroller m_raceScroller;
