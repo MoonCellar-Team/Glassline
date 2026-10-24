@@ -252,6 +252,10 @@ void TextManager::setCurrentLocale(midp::String* locale) {
 }
 
 void TextManager::setCurrentLanguage(int language) {
+#ifdef MEDECOMP_PORT
+    if (language < 0 || language >= getLanguageCount())
+        return;
+#endif
     if (getCurrentLanguage() != language) {
         StringArray supported = LocaleManager::getInstance()->getSupportedLocales();
         setCurrentLocale(supported[language]);

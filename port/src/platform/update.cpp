@@ -333,27 +333,66 @@ void findTarget() {
 #endif
 }
 
+bool latestWithoutApi(std::string* version, std::string* notes) {
+    const port::online::Response c =
+        port::online::request("GET", "https://raw.githubusercontent.com/" MEDECOMP_PUBLIC_REPO "/main/CHANGELOG.md", std::string(), {}, 15000);
+    if (c.status != 200) return false;
+    const size_t head = c.body.find("\n## ");
+    if (head == std::string::npos) return false;
+    const size_t lineEnd = c.body.find('\n', head + 1);
+    const std::string line = c.body.substr(head + 4, lineEnd == std::string::npos ? std::string::npos : lineEnd - head - 4);
+    *version = line.substr(0, line.find(' '));
+    const size_t next = lineEnd == std::string::npos ? std::string::npos : c.body.find("\n## ", lineEnd);
+    *notes = lineEnd == std::string::npos ? std::string() : c.body.substr(lineEnd + 1, next == std::string::npos ? std::string::npos : next - lineEnd - 1);
+    return !version->empty();
+}
+
 void runCheck(bool russian) {
     Status st;
     st.stage = Stage::Checking;
     set(st);
+    findTarget();
+    std::string name = MEDECOMP_PORT_NAME;
+    for (char& c : name) c = char(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+    auto assetName = [&](const std::string& v, bool zip) {
+        return name + (zip ? "-windows-x64-" + v + ".zip" : "-linux-x64-" + v + ".AppImage");
+    };
+    std::string version, notes, page, assetUrl, sigUrl;
     const port::online::Response r =
         port::online::request("GET", releasesUrl(), std::string(), {"Accept: application/vnd.github+json"}, 15000);
-    if (r.status != 200) {
+    port::online::Json j;
+    if (r.status == 200 && port::online::parseJson(r.body, &j)) {
+        version = j["tag_name"].str();
+        if (!version.empty() && (version[0] == 'v' || version[0] == 'V')) version.erase(0, 1);
+        notes = j["body"].str();
+        page = j["html_url"].str("https://github.com/" MEDECOMP_PUBLIC_REPO "/releases");
+        for (const port::online::Json& a : j["assets"].items) {
+            if (a["name"].str() == assetName(version, s_zip)) assetUrl = a["browser_download_url"].str();
+            if (a["name"].str() == assetName(version, s_zip) + ".sig") sigUrl = a["browser_download_url"].str();
+        }
+    } else if ((r.status == 403 || r.status == 429) && !getenv("MEDECOMP_UPDATE_URL") && latestWithoutApi(&version, &notes)) {
+        fprintf(stderr, "medecomp: обновление: API GitHub — HTTP %d (лимит запросов), выпуск — по CHANGELOG.md\n", r.status);
+        const std::string base = "https://github.com/" MEDECOMP_PUBLIC_REPO "/releases/download/v" + version + "/";
+        page = "https://github.com/" MEDECOMP_PUBLIC_REPO "/releases/tag/v" + version;
+        assetUrl = base + assetName(version, s_zip);
+        sigUrl = assetUrl + ".sig";
+        if (compareVersions(version, s_version) > 0) {
+            const std::string probe = s_target.empty() ? base + assetName(version, false) + ".sig" : sigUrl;
+            const port::online::Response sig = port::online::request("GET", probe, std::string(), {}, 15000);
+            if (sig.status != 200 || sig.body.size() != 64) {
+                st.stage = Stage::Current;
+                set(st);
+                fprintf(stderr, "medecomp: обновление: %s в CHANGELOG.md, но выпуск ещё не выложен\n", version.c_str());
+                return;
+            }
+        }
+    } else {
         st.stage = r.status == 404 ? Stage::Current : Stage::Failed;
         st.error = r.error.empty() ? "HTTP " + std::to_string(r.status) : r.error;
         set(st);
         fprintf(stderr, "medecomp: обновление: выпуск не узнать — %s\n", st.error.c_str());
         return;
     }
-    port::online::Json j;
-    if (!port::online::parseJson(r.body, &j)) {
-        st.stage = Stage::Failed, st.error = "JSON";
-        set(st);
-        return;
-    }
-    std::string version = j["tag_name"].str();
-    if (!version.empty() && (version[0] == 'v' || version[0] == 'V')) version.erase(0, 1);
     if (compareVersions(version, s_version) <= 0) {
         st.stage = Stage::Current;
         set(st);
@@ -361,18 +400,9 @@ void runCheck(bool russian) {
         return;
     }
     st.version = version;
-    st.notes = plainNotes(j["body"].str());
-    st.page = j["html_url"].str("https://github.com/" MEDECOMP_PUBLIC_REPO "/releases");
-    findTarget();
-    std::string name = MEDECOMP_PORT_NAME;
-    for (char& c : name) c = char(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
-    const std::string want = name + (s_zip ? "-windows-x64-" + version + ".zip" : "-linux-x64-" + version + ".AppImage");
-    const port::online::Json& assets = j["assets"];
-    std::string assetUrl, sigUrl;
-    for (const port::online::Json& a : assets.items) {
-        if (a["name"].str() == want) assetUrl = a["browser_download_url"].str();
-        if (a["name"].str() == want + ".sig") sigUrl = a["browser_download_url"].str();
-    }
+    st.notes = plainNotes(notes);
+    st.page = page;
+    const std::string want = assetName(version, s_zip);
     uint8_t key[32];
     const bool keyOk = parseKey(keyHex(), key);
     const std::string where = s_zip ? s_target : dirOf(s_target);
@@ -537,25 +567,32 @@ bool restart() {
 
 void cleanup() {
 #ifdef _WIN32
-    const std::string dir = exeDir();
-    std::vector<std::string> dirs{dir};
-    while (!dirs.empty()) {
-        const std::string d = dirs.back();
-        dirs.pop_back();
-        WIN32_FIND_DATAW f;
-        HANDLE h = FindFirstFileW(wide(d + "\\*").c_str(), &f);
-        if (h == INVALID_HANDLE_VALUE) continue;
-        do {
-            const std::string name = narrow(f.cFileName);
-            if (name == "." || name == "..") continue;
-            const std::string path = d + "\\" + name;
-            if (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) dirs.push_back(path);
-            else if ((name.size() > 4 && name.compare(name.size() - 4, 4, ".old") == 0) ||
-                     (name.size() > 9 && name.compare(name.size() - 9, 9, ".download") == 0))
-                removeFile(path);
-        } while (FindNextFileW(h, &f));
-        FindClose(h);
-    }
+    std::thread([] {
+        const std::string dir = exeDir();
+        for (int attempt = 0; attempt < 30; attempt++) {
+            int left = 0;
+            std::vector<std::string> dirs{dir};
+            while (!dirs.empty()) {
+                const std::string d = dirs.back();
+                dirs.pop_back();
+                WIN32_FIND_DATAW f;
+                HANDLE h = FindFirstFileW(wide(d + "\\*").c_str(), &f);
+                if (h == INVALID_HANDLE_VALUE) continue;
+                do {
+                    const std::string name = narrow(f.cFileName);
+                    if (name == "." || name == "..") continue;
+                    const std::string path = d + "\\" + name;
+                    if (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) dirs.push_back(path);
+                    else if ((name.size() > 4 && name.compare(name.size() - 4, 4, ".old") == 0) ||
+                             (name.size() > 9 && name.compare(name.size() - 9, 9, ".download") == 0))
+                        left += !removeFile(path);
+                } while (FindNextFileW(h, &f));
+                FindClose(h);
+            }
+            if (!left) return;
+            Sleep(500);
+        }
+    }).detach();
 #endif
 }
 

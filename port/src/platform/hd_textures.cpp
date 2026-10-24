@@ -190,7 +190,7 @@ bool writeFile(const std::string& path, const std::string& data, mode_t mode) {
     bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
     ok = fclose(f) == 0 && ok;
     if (ok) chmod(tmp.c_str(), mode);
-    if (!ok || rename(tmp.c_str(), path.c_str()) != 0) {
+    if (!ok || !files::replaceFile(tmp, path)) {
         remove(tmp.c_str());
         return false;
     }
@@ -432,7 +432,7 @@ bool processOne(const std::string& name, const std::string& work) {
         color = std::move(half);
     }
     std::string target = root + "/" + name, tmp = target + ".tmp.png";
-    if (!gfx::writePNG(tmp, color.width, color.height, color.rgba.data()) || rename(tmp.c_str(), target.c_str()) != 0) {
+    if (!gfx::writePNG(tmp, color.width, color.height, color.rgba.data()) || !files::replaceFile(tmp, target)) {
         remove(tmp.c_str());
         return fail(name + L(": не записать", ": cannot write"));
     }

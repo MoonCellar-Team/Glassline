@@ -140,6 +140,26 @@ CFIndex encode(const std::u16string& s, CFIndex from, CFIndex to, CFStringEncodi
 
 char16_t fold(char16_t c) { return static_cast<char16_t>(towlower(c)); }
 
+char16_t upper(char16_t c) {
+    if (c < 0x80) return c >= u'a' && c <= u'z' ? char16_t(c - 0x20) : c;
+    if (c >= 0xE0 && c <= 0xFE && c != 0xF7) return char16_t(c - 0x20);
+    if (c == 0xFF) return 0x178;
+    if (c >= 0x100 && c <= 0x17F) {
+        if (c == 0x131) return u'I';
+        if (c == 0x17F) return u'S';
+        if (c == 0x138 || c == 0x149) return c;
+        bool oddUpper = (c >= 0x139 && c <= 0x148) || (c >= 0x179 && c <= 0x17E);
+        return (c & 1) == (oddUpper ? 0 : 1) ? char16_t(c - 1) : c;
+    }
+    if (c >= 0x430 && c <= 0x44F) return char16_t(c - 0x20);
+    if (c >= 0x450 && c <= 0x45F) return char16_t(c - 0x50);
+    if (c == 0x4CF) return 0x4C0;
+    if (c >= 0x4C1 && c <= 0x4CE) return (c & 1) == 0 ? char16_t(c - 1) : c;
+    if ((c >= 0x460 && c <= 0x481) || (c >= 0x48A && c <= 0x4BF) || (c >= 0x4D0 && c <= 0x52F))
+        return (c & 1) == 1 ? char16_t(c - 1) : c;
+    return c;
+}
+
 long compare(const std::u16string& a, const std::u16string& b, unsigned options) {
     size_t i = 0, j = 0;
     while (i < a.size() && j < b.size()) {
@@ -415,7 +435,7 @@ void CFStringDelete(const void* s, CFRange r) { mut(s)->s.erase(r.location, r.le
 
 void CFStringUppercase(const void* s, const void*) {
     String* m = mut(s);
-    for (char16_t& c : m->s) c = static_cast<char16_t>(towupper(c));
+    for (char16_t& c : m->s) c = upper(c);
 }
 
 CFIndex CFStringGetLength(const void* s) { return static_cast<CFIndex>(text(s).size()); }

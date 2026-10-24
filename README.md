@@ -25,8 +25,8 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   with a corrected field of view; menus and HUD stay 4:3 in the centre, never stretched.
 - Rendering at your screen's resolution (tested at 1440p and 4K) with sharp text, or at 75 % / 50 %
   with AMD FSR 1.0, bilinear or integer upscaling.
-- Frame rate 30 (as on iPad), 60, 120, 144, 165, your display's rate or unlimited; the game runs at
-  the same speed at any rate. VSync, monitor and fullscreen resolution choice; windowed, fullscreen
+- Frame rate 30 (as on iPad), 60, 120, 144 or 165 (up to what your display shows), your display's rate
+  or unlimited; the game runs at the same speed at any rate. VSync, monitor and fullscreen resolution choice; windowed, fullscreen
   or borderless (F11 or Alt+Enter in game).
 - Anisotropic filtering up to 16×, MSAA 2×/4×/8×, optional TAA.
 - Optional enhanced look: bloom, tone mapping, colour grading (presets or your own LUT), vignette.
@@ -36,18 +36,53 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Texture replacement by hash; HD textures can be generated on your own PC (Real-ESRGAN on the GPU)
   and stay on your machine. F12 saves a screenshot.
 
+**Controls**
+- Keyboard and gamepad everywhere, menus included; mouse and touchscreen work as touches.
+- Separate rebinding for keyboard and gamepad in the launcher, stick dead zone.
+- Tutorial hints show the keys or buttons of the device you are using instead of swipes and
+  "tilt the device".
+- Text (names, challenge comments, room codes) is typed straight into the game.
+- Steam Deck: add the AppImage as a non-Steam game and play in Game Mode; fullscreen, Steam Input
+  and the on-screen keyboard work, and the launcher is fully usable with the buttons.
+
 **Network play**
 - Online one-on-one in both of the original's two-player modes: **Race** (a time trial against each
   other) and **Rivals** (collect bags on a shared map in 2, 3 or 5 minutes); takedowns between
   players can be switched on or off.
-- The host creates a game and gets a four-character room code; the friend enters it. Direct
-  peer-to-peer connection without port forwarding, with a MoonCellar relay when no direct path is
-  found. No account needed.
+- MULTIPLAYER is in the EXTRAS menu: the host presses CREATE GAME and gets a four-character room code,
+  the friend enters it under JOIN GAME. Direct peer-to-peer connection without port forwarding, with a
+  MoonCellar relay when no direct path is found. No account needed.
 - Your opponent sees your skin, including custom models; police are shared (a takedown or disarm
   counts for both players) and shoot at both of you.
-- The original split-screen mode is on PC too (second gamepad; halves top and bottom, full width), and
+- Tags over the runners (YOU and your friend's name) and an arrow at the screen edge show where your
+  friend is; pop-ups say when the friend joins, is ready to start, leaves or loses the connection.
+  After a race the host picks the next level with SELECT, and the friend follows.
+- The original split-screen mode is on PC too (SPLITSCREEN in the same lobby, a second gamepad; halves top and bottom, full width), and
   player-made levels can be played together: the other player receives the level automatically. PC and
   Android play together.
+
+**Online services instead of EA (MoonCellar)**
+- Sign in to a MoonCellar account from the launcher with a code or QR code confirmed on
+  mooncellar.space; no password is typed into the game. Without an account the game works offline.
+- Global leaderboards per level with downloadable ghosts; challenges to MoonCellar friends with your
+  time and ghost.
+- Cloud saves: progress, achievements, ghosts, language, sound and control settings, your skins (up to
+  10 while they sync) and levels; display and graphics stay per device. On a conflict you choose which
+  copy to keep, the other is backed up.
+- 28 achievements with their own texts and icons, a launcher tab with progress, and your profile on
+  mooncellar.space.
+- EA-only menu items (More Games, Origin, Facebook, usage data) are removed; no telemetry.
+
+**Launcher**
+- Tabs: Game, Display, Controls, Sound, Account, Heroine, Levels, Achievements; English or Russian.
+- Choose your game copy with Browse…, drag and drop or a path, or download it from your own HTTPS
+  link. The copy is checked at once: green — fine, yellow — a warning, red — what is wrong.
+- Game language, window size, and on Linux Wayland or X11. Works with a gamepad and with touch.
+- In the game's main menu: INFO → LAUNCHER and QUIT GAME.
+- Updates itself: at start the launcher checks for a new release and shows what's new; **Update**
+  downloads the AppImage or the Windows zip, checks its signature and restarts on the new version. Your
+  game copy, saves and settings stay. Other installs (the `.tar.gz` folder, Android) get a link to the
+  release page. Switch it off on the Game tab ("Check for updates") or with `--no-update`.
 
 **Heroine skins**
 - Faith's look with previews (lighting variants, the ghost, the rival runner, the boss).
@@ -55,17 +90,40 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   with automatic rigging for Mixamo, Unity and VRM skeletons; all game animations work.
 
 **Player levels and level editor**
-- A side-view level editor: blocks, ramps, scenery pieces from the game's palette, bags,
-  checkpoints, ziplines, music markers, start and finish; 200 undo steps; Test (F5) runs the level.
-- Two kinds of levels: Race and Bag collection. PLAYER LEVELS in the EXTRAS menu lists your own and
+- A side-view level editor: blocks and ramps to run on, scenery pieces from the game's palette (in
+  groups, mirrored if needed, set in depth with a top view), bags, checkpoints with their turning dish,
+  ziplines, swing bars, music, start and finish. A block can be a wall-run, balance-beam or long-jump
+  zone, or wear a building's facade. Group selection, resize handles, 200 undo steps; Test (F5) runs
+  the level.
+- The editor opens from the launcher's **Levels** tab (Create level, Edit). There a level also
+  uploads, updates online, unpublishes, deletes, and exports to a `.glevel` file that Import level…
+  (or dropping the file onto the launcher) opens on another device — no account needed.
+- Two kinds of levels: Race and Bag collection (Rivals Mode in the game's menus), built on any chapter
+  or, for Bag collection, on a BAG HUNT arena. PLAYER LEVELS in the EXTRAS menu lists your own and
   downloaded levels.
-- Online level browser: upload, search, sort, rate, report, download and play; every shared level has
-  its own leaderboard. Levels hold only the layout: models and textures come from each player's copy.
+- BAG HUNT in the PLAY menu: collect bags alone on the original two-player arenas (Steps, Joust,
+  Pinball, Maze) or on Bag collection levels within 2, 3 or 5 minutes; the best haul is kept.
+- Online level browser (PLAYER LEVELS → ONLINE): search, sort, filter by mode, rate, report, download
+  and play; MY LEVELS uploads and unpublishes your own. Every shared level has its own leaderboard and
+  can be sent to a friend as a challenge. Levels hold only the layout: models and textures come from
+  each player's copy, so only levels built from scratch are shared — a copy of a chapter or arena stays
+  on your device.
 - **[Level editor guide](docs/editor/README.md)** — every panel and tool, how to add each object, and
   step-by-step examples (a building, a billboard to run on, a wall run, swing bars, checkpoint dishes).
 
+**Languages and audio**
+- All 8 languages of the game (English, French, Italian, German, Spanish, Japanese, Korean,
+  Chinese), selectable in the launcher; texts about tapping, swiping and the iPad are replaced with
+  neutral ones, and the port's new menus are translated into all 8.
+- Russian too, which the iPad original never had: the port's own translation of every game text and
+  menu.
+- Master volume, headphone surround (HRTF), your own music folder (MP3, OGG, Opus, FLAC, WAV, M4A…)
+  instead of the soundtrack, like iPod music on the iPad.
+
 **Android**
-- Phones and tablets with Android 9 or newer; your .ipa is picked with the system file picker.
+- Phones and tablets with Android 9 or newer, always in landscape; your .ipa is picked with the system
+  file picker and copied into the app. Exported levels and the Blender skin template go to
+  Download/MoonCellar.
 - Touch controls as on the iPad, tilt with the accelerometer, gamepads; the same launcher,
   multiplayer (with PC players too, or two on one tablet) and a touch level editor.
 
@@ -73,20 +131,21 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 
 - You need the **iPad** version of Mirror's Edge, 1.1.48 or newer (1.1.48 and 1.1.52 are tested).
   The iPhone version is not supported: it has no multiplayer and a phone screen layout.
-- No macOS version, not on Steam. The launcher updates itself only as the AppImage or the Windows zip;
+- No macOS version. The launcher updates itself only as the AppImage or the Windows zip;
   the `.tar.gz` folder and the Android APK are updated by hand (the launcher links the release).
 - Enhanced graphics and effects need OpenGL ES 3.0; on older drivers they are switched off.
-  HD texture generation needs a Vulkan GPU, takes half an hour or more and runs on PC only.
+  HD texture generation needs a Vulkan GPU and up to 3 GB of disk space, takes half an hour or more and
+  runs on PC only.
 - Online features depend on MoonCellar's servers.
 - Online play is one-on-one only. Police AI runs on each machine separately: only takedowns and
   disarms are shared, and combat slow motion is off in online play.
 - The friends-only leaderboard (formerly Facebook) is empty; global leaderboards work.
 - Split-screen on PC needs a second gamepad for player two.
-- The game itself has no Russian translation (the original never had one).
 
 ## How to play
 
-1. **Get your own copy** of Mirror's Edge for iPad (version 1.1.48 or newer) as an `.ipa` file.
+1. **Get your own copy** of Mirror's Edge for iPad (version 1.1.48 or newer) as an `.ipa` file (on PC
+   an unpacked `.app` folder works too).
    An encrypted App Store copy works: the port does not use the game's executable, only its
    resources, and reads them straight from the `.ipa`.
 2. **Download a build** from the [Releases](https://github.com/MoonCellar-Team/Glassline/releases) page:
@@ -120,8 +179,12 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
    - Windows: `%APPDATA%\mirrors-edge`;
    - Android: the app's own storage.
 
-   The log of the last run is `medecomp.log` in that folder (the one before — `medecomp.prev.log`),
-   network play writes `net.log`. Attach them when you report a problem.
+   The log of the last run is `medecomp.log` in that folder (on Linux also the one before —
+   `medecomp.prev.log`; started from a terminal, the log goes to the terminal), network play writes
+   `net.log` (the one before — `net.prev.log`). Attach them when you report a problem.
+
+   On PC, screenshots (F12) and wallpapers saved in the game go to `Pictures/Glassline` in your home
+   folder.
 
 Command line: `glassline <path to .ipa>` opens the launcher with that copy, `--no-launcher` starts the
 game straight away (with the last copy), `--launcher` always shows the launcher.

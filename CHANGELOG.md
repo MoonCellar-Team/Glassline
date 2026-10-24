@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1 — 2026-10-24
+
+- **Russian:** the game can now be played in Russian — a full translation of the game's texts and of
+  the port's menus, which the iPad original never had. Choose it on the launcher's Game tab or in the
+  game's Language window; on a Russian system it is picked automatically the first time.
+- **Languages:** on Windows and Android the launcher and the game's "As in the game" language now follow
+  the system language, as on Linux. Menus in French, German, Italian and Spanish show accented capital
+  letters (É, Ü, Ñ…) instead of lowercase ones.
+- **Graphics:** floor reflections now cover the whole floor, without the torn white silhouette next to
+  the runner. Ambient occlusion no longer draws dark stripes on distant buildings on AMD GPUs (Steam
+  Deck). Under Wine and Proton floor reflections are switched off: Wine's shader compiler made them
+  empty and very slow — on Linux and Steam Deck use the Linux build.
+- **Defaults:** a new install starts in borderless fullscreen with MSAA off; saved settings stay as they
+  are.
+- **Fixed:** on Windows, launcher settings (graphics and everything else) were saved only the first
+  time; a window popped up on every launcher start while skin and editor previews were redrawn; HD
+  textures could not be generated again over earlier ones.
+- **Fixed:** the update check no longer skips a new release silently when GitHub's request limit is
+  reached (for example behind a shared VPN).
+
 ## 1.0.1 — 2026-10-22
 
 - **Android:** the APK is now part of every release — `glassline-android-1.0.1.apk`, Android 9 or newer,

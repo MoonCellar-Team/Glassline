@@ -293,8 +293,8 @@ bool piecePreviews(midp::Graphics* g, const char* dir) {
         s_surface.close();
         s_views.close();
         const char* stamp = getenv("MEDECOMP_PIECE_STAMP");
-        std::ofstream((s_dir + "/stamp").c_str()) << (stamp ? std::string(stamp) : port::files::gameSource());
-        std::ofstream((s_dir + "/done").c_str()) << s_ids.size() << "\n";
+        std::ofstream((s_dir + "/stamp").c_str(), std::ios::binary) << (stamp ? std::string(stamp) : port::files::gameSource());
+        std::ofstream((s_dir + "/done").c_str(), std::ios::binary) << s_ids.size() << "\n";
         fprintf(stderr, "medecomp: превью кусков: %zu -> %s\n", s_ids.size(), s_dir.c_str());
         s_phase = kDone;
         finish(0);

@@ -402,6 +402,7 @@ const Language kLanguages[] = {
     {"en", "English", "English"},      {"de", "Deutsch", "Deutsch"},     {"es_ES", "Español", "Español"},
     {"fr", "Français", "Français"},    {"it", "Italiano", "Italiano"},   {"ja", "Японский", "Japanese"},
     {"ko", "Корейский", "Korean"},     {"zh_CN", "Китайский (упрощённый)", "Chinese (Simplified)"},
+    {"ru", "Русский", "Русский"},
 };
 
 void languageSection(std::string* language, float scale) {
@@ -419,8 +420,8 @@ void languageSection(std::string* language, float scale) {
     }
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
     const char* step = s_arrowGlyph ? "→" : "->";
-    std::string ru = std::string("«Как в игре» — выбранный в её окне «Язык», а в первый раз — язык системы. Русского "
-                                 "в Mirror's Edge для iPad нет. Сменить можно и в самой игре: Опции ") +
+    std::string ru = std::string("«Как в игре» — выбранный в её окне «Язык», а в первый раз — язык системы. Сменить "
+                                 "можно и в самой игре: Настройки ") +
                      step + " Язык.";
     std::string en = std::string("As in the game — the one chosen in its Language window, the first time — the "
                                  "system language. It can also be changed in the game: Options ") +
@@ -746,13 +747,20 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
     mcui::Toggle(L("Размытие в движении", "Motion blur"), motionBlur);
     ImGui::SameLine();
     ImGui::TextDisabled("%s", L("на бегу края кадра размываются по движению", "edges of the frame blur when running"));
+    const bool wine = port::platform::underWine();
+    ImGui::BeginDisabled(wine);
     mcui::Toggle(L("Отражения на полах", "Floor reflections"), ssr);
     ImGui::SameLine();
     ImGui::BeginDisabled(!*ssr);
     ImGui::SetNextItemWidth(160 * scale);
     ImGui::SliderFloat(L("Сила##ssr", "Strength##ssr"), ssrStrength, 0.05f, 1.0f, "%.2f");
     ImGui::EndDisabled();
-    ImGui::TextDisabled("%s", L("в крышах и полах отражаются дома и бегун", "buildings and the runner reflect in roofs and floors"));
+    ImGui::EndDisabled();
+    if (wine)
+        ImGui::TextDisabled("%s", L("под Wine и Proton не работают — на Linux и Steam Deck берите Linux-сборку",
+                                    "not available under Wine and Proton — on Linux and Steam Deck use the Linux build"));
+    else
+        ImGui::TextDisabled("%s", L("в крышах и полах отражаются дома и бегун", "buildings and the runner reflect in roofs and floors"));
     mcui::Toggle(L("Тени от бегунов", "Runner shadows"), shadows);
     ImGui::SameLine();
     ImGui::TextDisabled("%s", L("тень героини, соперника и полиции на полу и стенах", "shadows of the heroine, rival and police"));

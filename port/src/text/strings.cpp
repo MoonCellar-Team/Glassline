@@ -111,6 +111,8 @@ const char* tiltPhrase(const std::string& lang) {
         return "오른쪽 스틱 ←→";
     if (lang == "zh_CN")
         return "右摇杆←→";
+    if (lang == "ru")
+        return "правый стик ←→";
     return "right stick ←→";
 }
 
@@ -256,13 +258,19 @@ bool parseInt(const std::string& s, int* out) {
     return true;
 }
 
-void loadTable() {
-    g_loaded = true;
-    std::string path = tablePath();
-    if (path.empty()) {
-        fprintf(stderr, "config/string_overrides.tsv не найден — строки игры без замен\n");
-        return;
-    }
+struct Translation {
+    const char* file;
+    const char* lang;
+};
+const Translation kTranslations[] = {{"strings_ru.tsv", "ru"}};
+
+std::string translationPath(const std::string& table, const char* file) {
+    std::string::size_type slash = table.find_last_of("/\\");
+    std::string path = (slash == std::string::npos ? std::string() : table.substr(0, slash + 1)) + file;
+    return readable(path) ? path : "";
+}
+
+void readTable(const std::string& path) {
     FILE* f = fopen(path.c_str(), "rb");
     if (f == NULL) {
         fprintf(stderr, "%s: не открыть — строки игры без замен\n", path.c_str());
@@ -311,9 +319,35 @@ void loadTable() {
     fclose(f);
 }
 
+void loadTable() {
+    g_loaded = true;
+    std::string path = tablePath();
+    if (path.empty()) {
+        fprintf(stderr, "config/string_overrides.tsv не найден — строки игры без замен\n");
+        return;
+    }
+    readTable(path);
+    for (const Translation& t : kTranslations) {
+        std::string translation = translationPath(path, t.file);
+        if (!translation.empty())
+            readTable(translation);
+    }
+}
+
 }
 
 namespace port {
+
+std::vector<std::string> tableLocales() {
+    std::vector<std::string> out;
+    std::string path = tablePath();
+    if (path.empty())
+        return out;
+    for (const Translation& t : kTranslations)
+        if (!translationPath(path, t.file).empty())
+            out.push_back(t.lang);
+    return out;
+}
 
 void applyStringOverrides(int pool, midp::array<midp::ReferenceCountedPointer<midp::String>>& strings,
                           midp::String* locale) {

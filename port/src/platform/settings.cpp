@@ -176,7 +176,7 @@ bool save() {
     if (!f) return false;
     bool ok = fwrite(out.data(), 1, out.size(), f) == out.size();
     ok = fclose(f) == 0 && ok;
-    return ok && rename(tmp.c_str(), path().c_str()) == 0;
+    return ok && port::files::replaceFile(tmp, path());
 }
 
 }

@@ -268,7 +268,7 @@ void writeLog(const char* line) {
     if (!s_logOpened) {
         s_logOpened = true;
         std::string path = port::files::dataDir() + "/net.log";
-        rename(path.c_str(), (port::files::dataDir() + "/net.prev.log").c_str());
+        port::files::replaceFile(path, port::files::dataDir() + "/net.prev.log");
         s_logFile = fopen(path.c_str(), "w");
     }
     if (!s_logFile) return;

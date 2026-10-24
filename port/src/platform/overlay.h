@@ -12,6 +12,7 @@ void notify(const std::string& title, const std::string& text, const std::string
 
 void overlayDraw(int w, int h);
 void overlayCover(int w, int h);
+bool helperRun();
 
 bool splashSetting();
 void setSplashSetting(bool on);

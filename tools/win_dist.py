@@ -90,6 +90,7 @@ def main():
     shutil.copytree(os.path.join(args.sysroot, "clang64", "etc", "fonts"), os.path.join(out, "etc", "fonts"))
     os.makedirs(os.path.join(out, "config"))
     shutil.copy2("config/string_overrides.tsv", os.path.join(out, "config"))
+    shutil.copy2("config/strings_ru.tsv", os.path.join(out, "config"))
     shutil.copytree("config/achievements", os.path.join(out, "config", "achievements"))
     shutil.copytree(os.path.join(args.build, "branding"), os.path.join(out, "branding"))
 

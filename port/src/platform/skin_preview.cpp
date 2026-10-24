@@ -244,8 +244,8 @@ extern "C" bool medecomp_skin_preview(midp::Graphics* g) {
         s_phase = kBlack;
     }
     if (s_index >= s_choices.size()) {
-        std::ofstream((s_dir + "/stamp").c_str()) << skins::previewStamp(port::files::gameSource());
-        std::ofstream((s_dir + "/done").c_str()) << s_choices.size() << "\n";
+        std::ofstream((s_dir + "/stamp").c_str(), std::ios::binary) << skins::previewStamp(port::files::gameSource());
+        std::ofstream((s_dir + "/done").c_str(), std::ios::binary) << s_choices.size() << "\n";
         fprintf(stderr, "medecomp: превью героини: %zu -> %s\n", s_choices.size(), s_dir.c_str());
         s_phase = kDone;
 #ifdef __ANDROID__

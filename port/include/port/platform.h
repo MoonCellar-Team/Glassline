@@ -95,6 +95,11 @@ void setMotionBlurSetting(bool on);
 float ssrSetting();
 float ssrStrengthSetting();
 void setSsrSetting(bool on, float strength);
+#ifdef _WIN32
+bool underWine();
+#else
+inline bool underWine() { return false; }
+#endif
 bool lensFlareSetting();
 void setLensFlareSetting(bool on);
 int gradeSetting();

@@ -314,11 +314,33 @@ void crashHandlers() {
 }
 #endif
 
+#if defined(_WIN32) || defined(__ANDROID__)
+void systemLanguage() {
+    for (const char* var : {"MEDECOMP_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"})
+        if (const char* v = getenv(var); v && *v) return;
+    SDL_Locale* locales = SDL_GetPreferredLocales();
+    if (!locales) return;
+    if (locales[0].language) {
+        std::string lang = locales[0].language;
+        if (locales[0].country) lang += std::string("_") + locales[0].country;
+#ifdef _WIN32
+        _putenv_s("LANG", lang.c_str());
+#else
+        setenv("LANG", lang.c_str(), 1);
+#endif
+        fprintf(stderr, "medecomp: язык системы — %s\n", lang.c_str());
+    }
+    SDL_free(locales);
+}
+#endif
+
 int main(int argc, char** argv) {
 #if defined(__ANDROID__)
     port::platform::androidStartup();
+    systemLanguage();
 #elif defined(_WIN32)
     port::platform::windowsStartup();
+    systemLanguage();
 #else
     logToFile();
     crashHandlers();

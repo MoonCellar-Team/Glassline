@@ -27,5 +27,7 @@ bool read(const std::string& path, std::vector<unsigned char>* out);
 FILE* open(const std::string& path);
 FILE* memoryFile(const std::vector<unsigned char>& data);
 
+bool replaceFile(const std::string& from, const std::string& to);
+
 }
 }

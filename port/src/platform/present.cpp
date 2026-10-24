@@ -409,7 +409,7 @@ WindowMode windowModeSetting() {
     return WindowMode::Borderless;
 #else
     std::string mode = settings::get("window");
-    if (mode.empty() && gamescopeSession()) return WindowMode::Borderless;
+    if (mode.empty()) return WindowMode::Borderless;
     return modeByName(mode);
 #endif
 }
@@ -581,7 +581,7 @@ int textureFilterSetting() {
 }
 
 int msaaSetting() {
-    int v = atoi(settings::get("msaa", "4").c_str());
+    int v = atoi(settings::get("msaa", "off").c_str());
     return v == 2 || v == 4 || v == 8 ? v : 0;
 }
 
@@ -637,15 +637,21 @@ bool createWindow(const char* title) {
     if (const char* size = getenv("MEDECOMP_WINDOW_SIZE")) sscanf(size, "%dx%d", &forcedW, &forcedH);
     bool forced = forcedW > 0 && forcedH > 0;
     const int screen = displaySetting();
+    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#ifdef _WIN32
+    const bool hidden = helperRun();
+    if (hidden) flags |= SDL_WINDOW_HIDDEN;
+#else
+    const bool hidden = false;
+#endif
     s_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED_DISPLAY(screen), SDL_WINDOWPOS_CENTERED_DISPLAY(screen),
-                                forced ? forcedW : kScreenWidth, forced ? forcedH : kScreenHeight,
-                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+                                forced ? forcedW : kScreenWidth, forced ? forcedH : kScreenHeight, flags);
     if (!s_window) {
         fprintf(stderr, "medecomp: окно: %s\n", SDL_GetError());
         return false;
     }
     setWindowIcon(s_window);
-    WindowMode mode = windowModeSetting();
+    WindowMode mode = hidden || forced ? WindowMode::Window : windowModeSetting();
     WindowMode full = modeByName(settings::get("fullscreen"));
     s_fullKind = mode != WindowMode::Window ? mode : full != WindowMode::Window ? full : WindowMode::Borderless;
     float scale = 1.0f;

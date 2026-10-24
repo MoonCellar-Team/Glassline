@@ -9,6 +9,9 @@
 #include "runtime/midp/String.h"
 #include "runtime/midp/System.h"
 #include "sdk/CoreFoundation.h"
+#ifdef MEDECOMP_PORT
+#include "port/strings.h"
+#endif
 
 static const int DEFAULT_STRING_ID_BITS = 16;
 static const int LANGUAGE_CODE_LENGTH = 2;
@@ -36,6 +39,12 @@ midp::InputStream* LocaleManager::getLocalizedResourceAsStream(midp::String* nam
     }
     midp::ReferenceCountedPointer<midp::String> localeRef(locale);
     midp::ReferenceCountedPointer<midp::String> path(midp::File::getLocalizedFilename(name, localeRef));
+#ifdef MEDECOMP_PORT
+    if (path == NULL && !localeRef->equals("en")) {
+        midp::ReferenceCountedPointer<midp::String> english(new midp::String("en"));
+        path = midp::File::getLocalizedFilename(name, english);
+    }
+#endif
     if (path == NULL) {
         return NULL;
     }
@@ -167,6 +176,19 @@ LocaleManager::LocaleManager()
         }
     }
     CFRelease(localizations);
+#ifdef MEDECOMP_PORT
+    std::vector<std::string> extra = port::tableLocales();
+    for (size_t i = 0; i < extra.size(); i++) {
+        midp::ReferenceCountedPointer<midp::String> locale(new midp::String(extra[i].c_str()));
+        bool unique = true;
+        for (int j = 0; j < m_locales.get()->size() && unique; j++) {
+            unique = !m_locales.get()->elementAt(j)->equals(locale);
+        }
+        if (unique) {
+            m_locales.get()->addElement(locale);
+        }
+    }
+#endif
     setStringIdBits(DEFAULT_STRING_ID_BITS);
     midp::ReferenceCountedPointer<midp::String> systemLocale(
         midp::System::getProperty(new midp::String("microedition.locale")));

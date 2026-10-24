@@ -153,6 +153,14 @@ void windowsStartup() {
     }
 }
 
+bool underWine() {
+    static const bool wine = [] {
+        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+        return ntdll && GetProcAddress(ntdll, "wine_get_version") != nullptr;
+    }();
+    return wine;
+}
+
 }
 }
 

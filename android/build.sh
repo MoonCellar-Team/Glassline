@@ -50,7 +50,7 @@ mkdir -p "$assets/branding" "$assets/config" "$assets/licenses"
 cp -r port/branding/. "$assets/branding/"
 rm -f "$assets/branding/README.md" "$assets/branding/app-icon.ico"
 cp -r config/achievements "$assets/config/"
-cp config/string_overrides.tsv "$assets/config/"
+cp config/string_overrides.tsv config/strings_ru.tsv "$assets/config/"
 first=${ABIS%% *}
 cp -r "$A/sysroot/$first/licenses/." "$assets/licenses/"
 for f in "$A/port-$first"/lib/*-LICENSE.txt; do [ -e "$f" ] && cp "$f" "$assets/licenses/"; done

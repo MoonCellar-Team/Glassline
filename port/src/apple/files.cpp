@@ -11,6 +11,11 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #endif
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 #include <map>
 #include <mutex>
@@ -508,6 +513,21 @@ FILE* open(const std::string& path) {
 }
 
 FILE* memoryFile(const std::vector<unsigned char>& data) { return toMemoryFile(data); }
+
+bool replaceFile(const std::string& from, const std::string& to) {
+#ifdef _WIN32
+    auto wide = [](const std::string& s) {
+        int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+        std::wstring out(n > 0 ? size_t(n) : 1, L'\0');
+        if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &out[0], n);
+        out.resize(n > 0 ? size_t(n - 1) : 0);
+        return out;
+    };
+    return MoveFileExW(wide(from).c_str(), wide(to).c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
+#else
+    return rename(from.c_str(), to.c_str()) == 0;
+#endif
+}
 
 }
 }
