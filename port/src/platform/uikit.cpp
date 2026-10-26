@@ -96,7 +96,7 @@ const Class kPlayerIPhone2Meta = {{"PlayerIPhone2 class", nullptr, nullptr}, &NS
 
 }
 
-extern "C" void* OBJC_CLASS_PlayerIPhone2 __asm__("OBJC_CLASS_$_PlayerIPhone2");
+extern "C" void* OBJC_CLASS_PlayerIPhone2 MEDECOMP_SYMBOL("OBJC_CLASS_$_PlayerIPhone2");
 void* OBJC_CLASS_PlayerIPhone2 = singleton(&kPlayerIPhone2Meta);
 
 UIApplication* UIApplication::sharedApplication() {

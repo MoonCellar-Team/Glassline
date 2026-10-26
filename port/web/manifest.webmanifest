@@ -1,0 +1,13 @@
+{
+  "name": "Glassline",
+  "short_name": "Glassline",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0d0d0f",
+  "theme_color": "#0d0d0f",
+  "icons": [
+    { "src": "icons/app-icon-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "icons/app-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

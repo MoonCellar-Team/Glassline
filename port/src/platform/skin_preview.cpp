@@ -248,8 +248,8 @@ extern "C" bool medecomp_skin_preview(midp::Graphics* g) {
         std::ofstream((s_dir + "/done").c_str(), std::ios::binary) << s_choices.size() << "\n";
         fprintf(stderr, "medecomp: превью героини: %zu -> %s\n", s_choices.size(), s_dir.c_str());
         s_phase = kDone;
-#ifdef __ANDROID__
-        port::platform::androidRestart();
+#ifdef MEDECOMP_ONE_PROCESS
+        port::platform::appRestart();
 #endif
         _exit(0);
     }

@@ -34,7 +34,7 @@ const int kPaused = 500;
 
 void* alcOpenDevice(const char* name);
 void* alcCreateContext(void* device, const int* attrs);
-void alcMakeContextCurrent(void* context);
+char alcMakeContextCurrent(void* context);
 void alcDestroyContext(void* context);
 int alcCloseDevice(void* device);
 void* alGetProcAddress(const char* name);
@@ -312,6 +312,11 @@ void PlayerIPhoneOpenAL::createShared() {
             alcMacOSXMixerOutputRate(22050.0);
         alBufferDataStatic = reinterpret_cast<void (*)(unsigned int, int, const void*, int, int)>(
             alGetProcAddress("alBufferDataStatic"));
+#ifdef MEDECOMP_PORT
+        if (alBufferDataStatic == 0)
+            alBufferDataStatic = reinterpret_cast<void (*)(unsigned int, int, const void*, int, int)>(
+                alGetProcAddress("alBufferData"));
+#endif
     }
     if (s_sharedContext == 0) {
         const int attrs[3] = {kAlcMixerRate, 22050, 0};

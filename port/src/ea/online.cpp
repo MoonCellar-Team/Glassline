@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "port/net.h"
 #include "ea_online/FBConnection.h"
 #include "ea_online/FBFriend.h"
 #include "ea_online/Mayhem/Challenge.h"
@@ -563,3 +564,43 @@ bool GameCenter::isGameCenterAPIAvailable() { return false; }
 void GameCenter::authenticateLocalPlayer() {}
 
 extern "C" void CleanIPSP(void*) {}
+
+namespace port {
+namespace online {
+
+void startCheck() {
+    if (!getenv("MEDECOMP_ONLINE_CHECK")) return;
+    std::thread([] {
+        std::string why;
+        if (!available(&why)) {
+            fprintf(stderr, "medecomp: онлайн: недоступен — %s\n", why.c_str());
+            return;
+        }
+        const std::string server = serverUrl();
+        Response health = request("GET", server + "/health");
+        fprintf(stderr, "medecomp: онлайн: %s/health — %d %s\n", server.c_str(), health.status,
+                health.status ? health.body.substr(0, 80).c_str() : health.error.c_str());
+        Response board = request("GET", server + "/games/rooftops/leaderboards/level-1?limit=3");
+        Json doc;
+        int entries = parseJson(board.body, &doc) ? int(doc["entries"].items.size()) : -1;
+        fprintf(stderr, "medecomp: онлайн: таблица level-1 — %d, записей %d\n", board.status, entries);
+        std::string error;
+        if (!port::net::signalOpen(&error)) {
+            fprintf(stderr, "medecomp: онлайн: сигнальный сервер — нет: %s\n", error.c_str());
+            return;
+        }
+        port::net::signalHost(27015);
+        port::net::SignalReceived got;
+        bool hosted = false;
+        for (int i = 0; i < 500 && !hosted; i++) {
+            while (!hosted && port::net::signalPoll(&got)) hosted = got.event == port::net::SignalEvent::Hosted;
+            if (!hosted) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        fprintf(stderr, "medecomp: онлайн: сигнальный сервер — %s\n",
+                hosted ? ("комната " + got.code).c_str() : "комнату не создал за 5 с");
+        port::net::signalClose();
+    }).detach();
+}
+
+}
+}

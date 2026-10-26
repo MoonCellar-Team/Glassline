@@ -4,14 +4,46 @@ set(MEDECOMP_GNS_PREFIX "${CMAKE_BINARY_DIR}/gns" CACHE PATH "Куда став�
 
 set(MEDECOMP_GNS_VERSION 1.6.1)
 set(MEDECOMP_GNS_SHA256 4091ddcb5285134d5d0e97385ae4792b828e5b103c8ae2c79652dc7d177366d9)
-set(MEDECOMP_PROTOBUF_VERSION 21.12)
-set(MEDECOMP_PROTOBUF_SHA256 4eab9b524aa5913c6fffb20b2a8abf5ef7f95a80bc0701f3a6dbb4c607f73460)
+set(MEDECOMP_PROTOBUF_VERSION 33.5)
+set(MEDECOMP_PROTOBUF_SHA256 c6c7c27fadc19d40ab2eaa23ff35debfe01f6494a8345559b9bb285ce4144dd1)
+set(MEDECOMP_ABSEIL_VERSION 20250512.1)
+set(MEDECOMP_ABSEIL_SHA256 9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db)
 set(MEDECOMP_OPENSSL_VERSION 3.5.9)
 set(MEDECOMP_OPENSSL_SHA256 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a)
 file(SHA256 ${CMAKE_CURRENT_LIST_FILE} MEDECOMP_GNS_RECIPE)
 string(SUBSTRING ${MEDECOMP_GNS_RECIPE} 0 12 MEDECOMP_GNS_RECIPE)
 
 set(MEDECOMP_HOST_CXX_FLAGS "" CACHE STRING "Флаги компилятора машины сборки для protoc (сборка под Windows и Android)")
+
+function(medecomp_gns_protobuf name prefix timestamp jobs with_protoc)
+    ExternalProject_Add(${name}_abseil
+        URL https://github.com/abseil/abseil-cpp/archive/refs/tags/${MEDECOMP_ABSEIL_VERSION}.tar.gz
+        URL_HASH SHA256=${MEDECOMP_ABSEIL_SHA256}
+        ${timestamp}
+        PREFIX ${MEDECOMP_EXT_DIR}/gns-build/${name}-abseil
+        CMAKE_ARGS ${ARGN} -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_INSTALL_LIBDIR=lib
+            -DCMAKE_CXX_STANDARD=17 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF
+            -DABSL_BUILD_TESTING=OFF -DABSL_ENABLE_INSTALL=ON -DABSL_PROPAGATE_CXX_STD=ON
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> -j${jobs}
+        INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${prefix}/licenses
+            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE ${prefix}/licenses/abseil.txt)
+    ExternalProject_Add(${name}
+        DEPENDS ${name}_abseil
+        URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-${MEDECOMP_PROTOBUF_VERSION}.tar.gz
+        URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
+        ${timestamp}
+        PREFIX ${MEDECOMP_EXT_DIR}/gns-build/${name}
+        CMAKE_ARGS ${ARGN} -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_INSTALL_LIBDIR=lib
+            -DCMAKE_CXX_STANDARD=17 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF
+            -Dabsl_DIR=${prefix}/lib/cmake/absl -Dprotobuf_LOCAL_DEPENDENCIES_ONLY=ON
+            -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
+            -Dprotobuf_BUILD_PROTOC_BINARIES=${with_protoc} -Dprotobuf_BUILD_LIBPROTOC=${with_protoc}
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> -j${jobs}
+        INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE ${prefix}/licenses/protobuf.txt
+            COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/third_party/utf8_range/LICENSE ${prefix}/licenses/utf8_range.txt)
+endfunction()
 
 function(medecomp_gns_windows prefix done timestamp jobs)
     set(host ${MEDECOMP_EXT_DIR}/gns-host)
@@ -24,25 +56,10 @@ function(medecomp_gns_windows prefix done timestamp jobs)
     if(EXISTS ${done})
         add_custom_target(medecomp_gns_build)
     else()
-        ExternalProject_Add(medecomp_protoc_host
-            URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-cpp-3.${MEDECOMP_PROTOBUF_VERSION}.tar.gz
-            URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
-            ${timestamp}
-            PREFIX ${MEDECOMP_EXT_DIR}/gns-build/protoc-host
-            CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
-                "-DCMAKE_CXX_FLAGS=${MEDECOMP_HOST_CXX_FLAGS}"
-                -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
-            BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target protoc -j${jobs}
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <BINARY_DIR>/protoc ${host}/bin/protoc)
-        ExternalProject_Add(medecomp_protobuf
-            URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-cpp-3.${MEDECOMP_PROTOBUF_VERSION}.tar.gz
-            URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
-            ${timestamp}
-            PREFIX ${MEDECOMP_EXT_DIR}/gns-build/protobuf
-            CMAKE_ARGS ${win} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
-                -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBPROTOC=OFF
-            INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
-                COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE ${prefix}/licenses/protobuf.txt)
+        medecomp_gns_protobuf(medecomp_protoc_host ${host} "${timestamp}" ${jobs} ON
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
+            "-DCMAKE_CXX_FLAGS=${MEDECOMP_HOST_CXX_FLAGS}")
+        medecomp_gns_protobuf(medecomp_protobuf ${prefix} "${timestamp}" ${jobs} OFF ${win})
         ExternalProject_Add(medecomp_gns_build
             DEPENDS medecomp_protoc_host medecomp_protobuf
             URL https://github.com/ValveSoftware/GameNetworkingSockets/archive/refs/tags/v${MEDECOMP_GNS_VERSION}.tar.gz
@@ -71,6 +88,8 @@ function(medecomp_gns_windows prefix done timestamp jobs)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/GameNetworkingSockets.txt
                 ${out}/GameNetworkingSockets-LICENSE.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/protobuf.txt ${out}/protobuf-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/abseil.txt ${out}/abseil-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/utf8_range.txt ${out}/utf8_range-LICENSE.txt
         VERBATIM)
     add_dependencies(medecomp_gns medecomp_gns_build)
 endfunction()
@@ -106,25 +125,10 @@ function(medecomp_gns_android prefix done timestamp jobs)
             BUILD_COMMAND ${sslenv} make -j${jobs} build_libs
             INSTALL_COMMAND make install_dev
                 COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE.txt ${prefix}/licenses/OpenSSL.txt)
-        ExternalProject_Add(medecomp_protoc_host
-            URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-cpp-3.${MEDECOMP_PROTOBUF_VERSION}.tar.gz
-            URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
-            ${timestamp}
-            PREFIX ${MEDECOMP_EXT_DIR}/gns-build/protoc-host
-            CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
-                "-DCMAKE_CXX_FLAGS=${MEDECOMP_HOST_CXX_FLAGS}"
-                -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
-            BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target protoc -j${jobs}
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <BINARY_DIR>/protoc ${host}/bin/protoc)
-        ExternalProject_Add(medecomp_protobuf
-            URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-cpp-3.${MEDECOMP_PROTOBUF_VERSION}.tar.gz
-            URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
-            ${timestamp}
-            PREFIX ${MEDECOMP_EXT_DIR}/gns-build/protobuf
-            CMAKE_ARGS ${ndk} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
-                -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_LIBPROTOC=OFF
-            INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
-                COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE ${prefix}/licenses/protobuf.txt)
+        medecomp_gns_protobuf(medecomp_protoc_host ${host} "${timestamp}" ${jobs} ON
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
+            "-DCMAKE_CXX_FLAGS=${MEDECOMP_HOST_CXX_FLAGS}")
+        medecomp_gns_protobuf(medecomp_protobuf ${prefix} "${timestamp}" ${jobs} OFF ${ndk})
         ExternalProject_Add(medecomp_gns_build
             DEPENDS medecomp_openssl medecomp_protoc_host medecomp_protobuf
             URL https://github.com/ValveSoftware/GameNetworkingSockets/archive/refs/tags/v${MEDECOMP_GNS_VERSION}.tar.gz
@@ -157,6 +161,8 @@ function(medecomp_gns_android prefix done timestamp jobs)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/GameNetworkingSockets.txt
                 ${out}/GameNetworkingSockets-LICENSE.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/protobuf.txt ${out}/protobuf-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/abseil.txt ${out}/abseil-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/utf8_range.txt ${out}/utf8_range-LICENSE.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/OpenSSL.txt ${out}/OpenSSL-LICENSE.txt
         VERBATIM)
     add_dependencies(medecomp_gns medecomp_gns_build)
@@ -210,14 +216,7 @@ function(medecomp_gns_bundle)
             BUILD_COMMAND make -j${jobs} build_libs
             INSTALL_COMMAND make install_dev
                 COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE.txt ${prefix}/licenses/OpenSSL.txt)
-        ExternalProject_Add(medecomp_protobuf
-            URL https://github.com/protocolbuffers/protobuf/releases/download/v${MEDECOMP_PROTOBUF_VERSION}/protobuf-cpp-3.${MEDECOMP_PROTOBUF_VERSION}.tar.gz
-            URL_HASH SHA256=${MEDECOMP_PROTOBUF_SHA256}
-            ${timestamp}
-            PREFIX ${MEDECOMP_EXT_DIR}/gns-build/protobuf
-            CMAKE_ARGS ${common} -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -Dprotobuf_WITH_ZLIB=OFF
-            INSTALL_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
-                COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/LICENSE ${prefix}/licenses/protobuf.txt)
+        medecomp_gns_protobuf(medecomp_protobuf ${prefix} "${timestamp}" ${jobs} ON ${common})
         ExternalProject_Add(medecomp_gns_build
             DEPENDS medecomp_openssl medecomp_protobuf
             URL https://github.com/ValveSoftware/GameNetworkingSockets/archive/refs/tags/v${MEDECOMP_GNS_VERSION}.tar.gz
@@ -244,6 +243,8 @@ function(medecomp_gns_bundle)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/GameNetworkingSockets.txt
                 ${out}/GameNetworkingSockets-LICENSE.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/protobuf.txt ${out}/protobuf-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/abseil.txt ${out}/abseil-LICENSE.txt
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/utf8_range.txt ${out}/utf8_range-LICENSE.txt
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${prefix}/licenses/OpenSSL.txt ${out}/OpenSSL-LICENSE.txt
         VERBATIM)
     add_dependencies(medecomp_gns medecomp_gns_build)

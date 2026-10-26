@@ -1,5 +1,6 @@
 #include "port/net.h"
 #include "port/files.h"
+#include "../platform/process.h"
 
 #include <dlfcn.h>
 #include <stdarg.h>
@@ -137,9 +138,8 @@ bool sym(void* lib, const char* name, F* out) {
 }
 
 std::string exeDir() {
-    char exe[4096];
-    ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
-    std::string dir = n > 0 ? std::string(exe, size_t(n)) : std::string(".");
+    std::string dir = port::platform::process::selfPath();
+    if (dir.empty()) dir = ".";
     size_t slash = dir.rfind('/');
     return slash == std::string::npos ? std::string(".") : dir.substr(0, slash);
 }
@@ -436,6 +436,7 @@ bool takeSignal(std::string* blob) {
 }
 
 bool send(Peer peer, const void* data, size_t size, bool reliable) {
+    if (peer == kRelayPeer) return relaySend(data, size);
     std::lock_guard<std::recursive_mutex> lock(s_mu);
     if (!s_ok || peer == 0) return false;
     int flags = reliable ? k_nSteamNetworkingSend_ReliableNoNagle : k_nSteamNetworkingSend_UnreliableNoNagle;
@@ -466,6 +467,7 @@ bool poll(Received* out) {
 }
 
 int ping(Peer peer) {
+    if (peer == kRelayPeer) return relayPing();
     std::lock_guard<std::recursive_mutex> lock(s_mu);
     if (!s_ok || peer == 0 || !s_api.status) return -1;
     SteamNetConnectionRealTimeStatus_t status;
@@ -474,6 +476,7 @@ int ping(Peer peer) {
 }
 
 void disconnect(Peer peer) {
+    if (peer == kRelayPeer) return;
     std::lock_guard<std::recursive_mutex> lock(s_mu);
     if (s_ok && peer) s_api.close(s_sockets, peer, 0, "до встречи", true);
 }

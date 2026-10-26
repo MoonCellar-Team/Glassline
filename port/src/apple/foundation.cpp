@@ -32,7 +32,7 @@ long CFStringCompare(const void* a, const void* b, unsigned options);
 extern int __CFConstantStringClassReference[32];
 }
 
-#define NS(sym) __asm__(sym)
+#define NS(sym) MEDECOMP_SYMBOL(sym)
 
 namespace {
 

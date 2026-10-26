@@ -18,6 +18,8 @@
 #include <fstream>
 #include <map>
 #include <mutex>
+#include <random>
+#include <set>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -102,13 +104,19 @@ using Files = std::map<std::string, Entry>;
 
 struct Manifest {
     bool valid = false;
+    int version = 1;
     long long revision = -1;
+    std::string created;
     Files files;
 };
 
 struct Outcome {
     int down = 0, up = 0, removed = 0;
     int skipped = 0;
+    int released = 0;
+    int keptHere = 0;
+    int renamed = 0;
+    bool reset = false;
     bool conflict = false, localWon = false, first = false;
     bool pending = false;
     long long localTime = 0, remoteTime = 0;
@@ -192,10 +200,20 @@ bool keepLevel(const std::string& path) {
 
 bool keepPrefs(const std::string& path) { return path == "prefs.json" || path == "lut.png"; }
 
+const char* const kHereMark = ".local";
+const char* const kReleased = "local-only.json";
+const size_t kReleasedMax = 64;
+
 bool keepSkin(const std::string& path) {
     size_t slash = path.find('/');
     return path.compare(0, 5, "skin-") == 0 && slash != std::string::npos &&
-           path.find('/', slash + 1) == std::string::npos && !partial(path);
+           path.find('/', slash + 1) == std::string::npos && !partial(path) && path.compare(slash + 1, std::string::npos, kHereMark) != 0;
+}
+
+std::set<std::string> s_hereFolders;
+
+bool keepSyncedSkin(const std::string& path) {
+    return keepSkin(path) && !s_hereFolders.count(path.substr(0, path.find('/')));
 }
 
 void scan(const std::string& root, const std::string& rel, int depth, bool (*keep)(const std::string&),
@@ -231,14 +249,16 @@ void scan(const std::string& root, const std::string& rel, int depth, bool (*kee
 
 std::string manifestPath(const std::string& bucket) { return port::files::dataDir() + "/cache/cloud-" + bucket + ".json"; }
 
-Manifest loadManifest(const std::string& bucket) {
+Manifest loadManifest(const std::string& bucket, const std::string& server = s_server, const std::string& user = s_user) {
     Manifest m;
     std::string text;
     Json j;
     if (!readFile(manifestPath(bucket), &text) || !parseJson(text, &j) || j.type != Json::Object) return m;
-    if (j["server"].str() != s_server || j["user"].str() != s_user) return m;
+    if (j["server"].str() != server || j["user"].str() != user) return m;
     m.valid = true;
+    m.version = int(j["v"].integer(1));
     m.revision = j["revision"].integer(-1);
+    m.created = j["created"].str();
     for (const auto& f : j["files"].fields) {
         Entry e;
         e.sha = f.second["sha"].str();
@@ -249,10 +269,10 @@ Manifest loadManifest(const std::string& bucket) {
     return m;
 }
 
-void saveManifest(const std::string& bucket, long long revision, const Files& local) {
+void saveManifest(const std::string& bucket, long long revision, const std::string& created, const Files& local) {
     std::ostringstream s;
-    s << "{\"server\":" << jsonString(s_server) << ",\"user\":" << jsonString(s_user) << ",\"revision\":" << revision
-      << ",\"files\":{";
+    s << "{\"v\":2,\"server\":" << jsonString(s_server) << ",\"user\":" << jsonString(s_user) << ",\"revision\":" << revision
+      << ",\"created\":" << jsonString(created) << ",\"files\":{";
     bool first = true;
     for (const auto& f : local) {
         s << (first ? "" : ",") << jsonString(f.first) << ":{\"sha\":\"" << f.second.sha << "\",\"size\":" << f.second.size
@@ -267,11 +287,13 @@ void saveManifest(const std::string& bucket, long long revision, const Files& lo
 std::string bucketUrl(const std::string& bucket) { return s_server + "/games/" + kGame + "/storage/" + bucket; }
 std::vector<std::string> authHeaders() { return {"Authorization: Bearer " + s_token}; }
 
-bool listRemote(const std::string& bucket, Files* out, long long* revision, long long* maxFile, std::string* error) {
+bool listRemote(const std::string& bucket, Files* out, long long* revision, std::string* created, long long* maxFile,
+                std::string* error) {
     Response r = request("GET", bucketUrl(bucket), std::string(), authHeaders());
     Json j;
     if (r.status != 200 || !parseJson(r.body, &j)) return *error = errorOf(r.status, r.body, r.error), false;
     *revision = j["revision"].integer();
+    *created = j["createdAt"].str();
     *maxFile = j["maxFileBytes"].integer();
     for (const Json& f : j["files"].items) {
         Entry e;
@@ -295,11 +317,12 @@ void slow() {
 }
 
 bool putFile(const std::string& bucket, const std::string& path, const std::string& data, long long* revision,
-             std::string* error) {
+             std::string* error, int* status = nullptr) {
     slow();
     std::vector<std::string> headers = authHeaders();
     headers.push_back("Content-Type: application/octet-stream");
     Response r = request("PUT", bucketUrl(bucket) + "/file?path=" + path, data, headers, 120000);
+    if (status) *status = r.status;
     Json j;
     if (r.status != 200 || !parseJson(r.body, &j)) return *error = errorOf(r.status, r.body, r.error), false;
     *revision = j["revision"].integer();
@@ -373,7 +396,7 @@ bool download(const std::string& bucket, const std::string& dir, const Files& lo
 }
 
 bool upload(const std::string& bucket, const std::string& dir, const Files& local, const Files& remote, bool prune,
-            long long maxFile, long long* revision, Outcome* o) {
+            long long maxFile, long long* revision, Outcome* o, Files* sent = nullptr) {
     for (const auto& f : local) {
         auto r = remote.find(f.first);
         if (r != remote.end() && r->second.sha == f.second.sha) continue;
@@ -384,6 +407,7 @@ bool upload(const std::string& bucket, const std::string& dir, const Files& loca
         std::string data;
         if (!readFile(dir + "/" + f.first, &data)) continue;
         if (!putFile(bucket, f.first, data, revision, &o->error)) return false;
+        if (sent) (*sent)[f.first] = f.second;
         o->up++;
         s_done++;
     }
@@ -394,6 +418,31 @@ bool upload(const std::string& bucket, const std::string& dir, const Files& loca
                 o->removed++;
             }
     return true;
+}
+
+void createdAfterWrites(const std::string& bucket, long long revision, std::string* created) {
+    if (!created->empty() || revision <= 0) return;
+    Files files;
+    long long again = 0, maxFile = 0;
+    std::string error;
+    listRemote(bucket, &files, &again, created, &maxFile, &error);
+}
+
+void storageReset(const std::string& bucket, Manifest* m, const Files& remote, long long revision, const std::string& created,
+                  Outcome* o) {
+    bool other = !m->created.empty() && created != m->created, behind = m->revision >= 0 && revision <= m->revision;
+    if (!m->valid || !(other || behind)) return;
+    int lost = 0;
+    for (const auto& f : m->files) lost += !remote.count(f.first);
+    if (lost == 0) return;
+    fprintf(stderr, "medecomp: облако — хранилище «%s» в аккаунте сброшено (%s; пропало файлов: %d): "
+                    "здесь ничего не удаляется, своё уходит заново\n",
+            bucket.c_str(),
+            other ? ("корзина создана " + (created.empty() ? std::string("заново, ещё пуста") : created) + ", в слепке " + m->created).c_str()
+                  : ("ревизия " + std::to_string(revision) + ", в слепке " + std::to_string(m->revision)).c_str(),
+            lost);
+    m->files.clear();
+    o->reset = true;
 }
 
 void backupLocal(const std::string& dir, const Files& files, const std::string& to) {
@@ -408,7 +457,9 @@ bool syncWhole(const std::string& bucket, const std::string& dir, bool (*keep)(c
     Files local, remote;
     scan(dir, std::string(), 0, keep, m.files, &local);
     long long revision = 0, maxFile = 0;
-    if (!listRemote(bucket, &remote, &revision, &maxFile, &o->error)) return false;
+    std::string created;
+    if (!listRemote(bucket, &remote, &revision, &created, &maxFile, &o->error)) return false;
+    storageReset(bucket, &m, remote, revision, created, o);
     if (!sameFiles(local, remote)) {
         bool localChanged = !m.valid || !sameFiles(local, m.files);
         bool remoteChanged = !m.valid || !sameFiles(remote, m.files);
@@ -439,7 +490,8 @@ bool syncWhole(const std::string& bucket, const std::string& dir, bool (*keep)(c
         local.clear();
         scan(dir, std::string(), 0, keep, Files(), &local);
     }
-    saveManifest(bucket, revision, local);
+    createdAfterWrites(bucket, revision, &created);
+    saveManifest(bucket, revision, created, local);
     return true;
 }
 
@@ -448,20 +500,51 @@ std::string folderOf(const std::string& path) {
     return slash == std::string::npos ? std::string() : path.substr(0, slash);
 }
 
-bool syncFiles(const std::string& bucket, const std::string& dir, bool (*keep)(const std::string&), bool firstFromAccount,
-               Outcome* o, int maxFolders = 0) {
-    Manifest m = loadManifest(bucket);
-    Files local, remote;
-    scan(dir, std::string(), 0, keep, m.files, &local);
-    long long revision = 0, maxFile = 0;
-    if (!listRemote(bucket, &remote, &revision, &maxFile, &o->error)) return false;
+std::set<std::string> foldersOf(const Files& files) {
+    std::set<std::string> out;
+    for (const auto& f : files)
+        if (!folderOf(f.first).empty()) out.insert(folderOf(f.first));
+    return out;
+}
+
+void eraseFolder(Files* files, const std::string& folder) {
+    for (auto it = files->begin(); it != files->end();) {
+        if (folderOf(it->first) == folder) it = files->erase(it);
+        else ++it;
+    }
+}
+
+Files inBoth(const Files& local, const Files& remote) {
+    Files out;
+    for (const auto& f : local) {
+        auto r = remote.find(f.first);
+        if (r != remote.end() && r->second.sha == f.second.sha) out[f.first] = f.second;
+    }
+    return out;
+}
+
+void forgetUnsent(Manifest* m, const Files& remote) {
+    if (!m->valid || m->version >= 2) return;
+    for (auto it = m->files.begin(); it != m->files.end();) {
+        if (remote.count(it->first)) ++it;
+        else it = m->files.erase(it);
+    }
+}
+
+struct Plan {
     Files toDown, toUp, dropLocal, dropRemote;
+};
+
+Plan plan(const Files& local, const Files& remote, const Manifest& m, bool firstFromAccount,
+          const std::set<std::string>& skip = std::set<std::string>()) {
+    Plan p;
     std::map<std::string, bool> paths;
     for (const auto& f : local) paths[f.first] = true;
     for (const auto& f : remote) paths[f.first] = true;
     for (const auto& f : m.files) paths[f.first] = true;
-    for (const auto& p : paths) {
-        auto l = local.find(p.first), r = remote.find(p.first), b = m.files.find(p.first);
+    for (const auto& path : paths) {
+        if (skip.count(folderOf(path.first))) continue;
+        auto l = local.find(path.first), r = remote.find(path.first), b = m.files.find(path.first);
         std::string ls = l == local.end() ? "" : l->second.sha, rs = r == remote.end() ? "" : r->second.sha,
                     bs = b == m.files.end() ? "" : b->second.sha;
         if (ls == rs) continue;
@@ -470,52 +553,307 @@ bool syncFiles(const std::string& bucket, const std::string& dir, bool (*keep)(c
                                                          : (r != remote.end() ? r->second.time : 0) > (l != local.end() ? l->second.time : 0);
         if (!m.valid && firstFromAccount && r != remote.end()) takeRemote = true;
         if (takeRemote) {
-            if (r != remote.end()) toDown[p.first] = r->second;
-            else dropLocal[p.first] = l->second;
+            if (r != remote.end()) p.toDown[path.first] = r->second;
+            else p.dropLocal[path.first] = l->second;
         } else {
-            if (l != local.end()) toUp[p.first] = l->second;
-            else dropRemote[p.first] = r->second;
+            if (l != local.end()) p.toUp[path.first] = l->second;
+            else p.dropRemote[path.first] = r->second;
         }
     }
-    if (maxFolders > 0) {
-        std::map<std::string, bool> held, skipped;
-        for (const auto& f : remote)
-            if (!dropRemote.count(f.first) && !folderOf(f.first).empty()) held[folderOf(f.first)] = true;
-        std::vector<std::string> fresh;
-        for (const auto& f : toUp) {
-            std::string folder = folderOf(f.first);
-            if (!folder.empty() && !held.count(folder) && (fresh.empty() || fresh.back() != folder)) fresh.push_back(folder);
-        }
-        std::sort(fresh.begin(), fresh.end(), [](const std::string& a, const std::string& b) {
-            return a.size() != b.size() ? a.size() < b.size() : a < b;
-        });
-        fresh.erase(std::unique(fresh.begin(), fresh.end()), fresh.end());
-        for (const std::string& folder : fresh) {
-            if (int(held.size()) < maxFolders) held[folder] = true;
-            else skipped[folder] = true;
-        }
-        for (auto it = toUp.begin(); it != toUp.end();) {
-            if (skipped.count(folderOf(it->first))) it = toUp.erase(it);
-            else ++it;
-        }
-        o->skipped = int(skipped.size());
-    }
-    s_total += int(toDown.size() + toUp.size());
-    if (!download(bucket, dir, Files(), toDown, false, o)) return false;
-    for (const auto& f : dropLocal)
+    return p;
+}
+
+void removeLocal(const std::string& dir, const Files& drop, Outcome* o) {
+    for (const auto& f : drop)
         if (remove((dir + "/" + f.first).c_str()) == 0) o->removed++;
-    for (const auto& f : dropRemote) {
+    for (const auto& f : drop) {
+        std::string folder = folderOf(f.first);
+        if (!folder.empty() && port::files::list(dir + "/" + folder).empty()) remove((dir + "/" + folder).c_str());
+    }
+}
+
+bool syncFiles(const std::string& bucket, const std::string& dir, bool (*keep)(const std::string&), bool firstFromAccount,
+               Outcome* o) {
+    Manifest m = loadManifest(bucket);
+    Files local, remote, listed;
+    scan(dir, std::string(), 0, keep, m.files, &local);
+    long long revision = 0, maxFile = 0;
+    std::string created;
+    if (!listRemote(bucket, &listed, &revision, &created, &maxFile, &o->error)) return false;
+    for (const auto& f : listed)
+        if (keep(f.first)) remote.insert(f);
+    storageReset(bucket, &m, remote, revision, created, o);
+    forgetUnsent(&m, remote);
+    Plan p = plan(local, remote, m, firstFromAccount);
+    s_total += int(p.toDown.size() + p.toUp.size());
+    if (!download(bucket, dir, Files(), p.toDown, false, o)) return false;
+    removeLocal(dir, p.dropLocal, o);
+    for (const auto& f : p.dropRemote) {
         if (!deleteFile(bucket, f.first, &revision, &o->error)) return false;
+        remote.erase(f.first);
         o->removed++;
     }
-    if (!upload(bucket, dir, toUp, Files(), false, maxFile, &revision, o)) return false;
-    for (const auto& f : dropLocal) {
-        std::string folder = dir + "/" + f.first.substr(0, f.first.find('/'));
-        if (port::files::list(folder).empty()) remove(folder.c_str());
-    }
+    Files sent;
+    if (!upload(bucket, dir, p.toUp, Files(), false, maxFile, &revision, o, &sent)) return false;
+    for (const auto& f : sent) remote[f.first] = f.second;
     local.clear();
     scan(dir, std::string(), 0, keep, Files(), &local);
-    saveManifest(bucket, revision, local);
+    createdAfterWrites(bucket, revision, &created);
+    saveManifest(bucket, revision, created, inBoth(local, remote));
+    return true;
+}
+
+std::vector<std::string> skinFolders(const std::string& dir) {
+    std::vector<std::string> out;
+    for (const std::string& name : port::files::list(dir))
+        if (name.compare(0, 5, "skin-") == 0 && port::files::stat(dir + "/" + name).dir) out.push_back(name);
+    return out;
+}
+
+bool marked(const std::string& dir, const std::string& folder) {
+    struct stat st;
+    return stat((dir + "/" + folder + "/" + kHereMark).c_str(), &st) == 0;
+}
+
+void mark(const std::string& dir, const std::string& folder, bool here) {
+    std::string path = dir + "/" + folder + "/" + kHereMark;
+    if (here) std::ofstream(path.c_str()) << "Только здесь: в облако MoonCellar не отправляется / Local only: not synced to the MoonCellar cloud\n";
+    else remove(path.c_str());
+}
+
+Files folderFiles(const std::string& dir, const std::string& folder) {
+    Files out;
+    for (const std::string& name : port::files::list(dir + "/" + folder)) {
+        std::string path = folder + "/" + name, data;
+        struct stat st;
+        if (!keepSkin(path) || !validPath(path) || stat((dir + "/" + path).c_str(), &st) != 0 || S_ISDIR(st.st_mode) ||
+            !readFile(dir + "/" + path, &data))
+            continue;
+        Entry e;
+        e.sha = sha256(data);
+        e.size = (long long)st.st_size;
+        e.time = (long long)st.st_mtime;
+        out[path] = e;
+    }
+    return out;
+}
+
+std::mutex s_idMu;
+
+std::string makeSkinId(const std::string& dir, const std::set<std::string>& taken) {
+    std::lock_guard<std::mutex> lock(s_idMu);
+    static std::mt19937 rng(std::random_device()() ^ unsigned(time(nullptr)) ^ unsigned(clock()));
+    time_t now = time(nullptr);
+    struct tm t;
+#ifdef _WIN32
+    localtime_s(&t, &now);
+#else
+    localtime_r(&now, &t);
+#endif
+    char when[32];
+    strftime(when, sizeof when, "%Y%m%d%H%M%S", &t);
+    const char* const kLetters = "abcdefghijklmnopqrstuvwxyz0123456789";
+    while (true) {
+        std::string id = std::string("skin-") + when + "-";
+        for (int i = 0; i < 3; i++) id += kLetters[rng() % 36];
+        struct stat st;
+        if (!taken.count(id) && stat((dir + "/" + id).c_str(), &st) != 0) return id;
+    }
+}
+
+std::map<std::string, long long> parseReleased(const std::string& text) {
+    std::map<std::string, long long> out;
+    Json j;
+    if (parseJson(text, &j) && j.type == Json::Object)
+        for (const auto& f : j.fields)
+            if (f.first.compare(0, 5, "skin-") == 0 && validPath(f.first)) out[f.first] = f.second.integer();
+    return out;
+}
+
+bool putReleased(std::map<std::string, long long>* list, bool* exists, long long* revision, std::string* error) {
+    while (list->size() > kReleasedMax) {
+        auto oldest = list->begin();
+        for (auto it = list->begin(); it != list->end(); ++it)
+            if (it->second < oldest->second) oldest = it;
+        list->erase(oldest);
+    }
+    if (list->empty()) {
+        if (*exists && !deleteFile("skins", kReleased, revision, error)) return false;
+        *exists = false;
+        return true;
+    }
+    std::ostringstream s;
+    s << "{";
+    for (auto it = list->begin(); it != list->end(); ++it) s << (it == list->begin() ? "" : ",") << jsonString(it->first) << ":" << it->second;
+    s << "}\n";
+    if (!putFile("skins", kReleased, s.str(), revision, error)) return false;
+    *exists = true;
+    return true;
+}
+
+std::mutex s_renameMu;
+std::vector<std::pair<std::string, std::string>> s_renames;
+std::atomic<int> s_skinsSaved(0);
+
+void leaveHere(const std::string& dir, const std::string& folder, Files* local, Files* toUp) {
+    mark(dir, folder, true);
+    s_hereFolders.insert(folder);
+    eraseFolder(local, folder);
+    if (toUp) eraseFolder(toUp, folder);
+}
+
+bool syncSkinFolders(const std::string& dir, Outcome* o) {
+    const std::string bucket = "skins";
+    Manifest m = loadManifest(bucket);
+    s_hereFolders.clear();
+    for (const std::string& f : skinFolders(dir))
+        if (marked(dir, f)) s_hereFolders.insert(f);
+    Files local, remote, listed;
+    scan(dir, std::string(), 0, keepSyncedSkin, m.files, &local);
+    long long revision = 0, maxFile = 0;
+    std::string created;
+    if (!listRemote(bucket, &listed, &revision, &created, &maxFile, &o->error)) return false;
+    bool releasedThere = false;
+    for (const auto& f : listed) {
+        if (f.first == kReleased) releasedThere = true;
+        else if (keepSkin(f.first)) remote.insert(f);
+    }
+    storageReset(bucket, &m, remote, revision, created, o);
+    forgetUnsent(&m, remote);
+    std::map<std::string, long long> released;
+    if (releasedThere) {
+        std::string text;
+        if (!fetchFile(bucket, kReleased, &text, &o->error)) return false;
+        released = parseReleased(text);
+    }
+    std::map<std::string, long long> written = released;
+    std::set<std::string> base = foldersOf(m.files);
+
+    std::vector<std::string> release;
+    for (const std::string& f : s_hereFolders)
+        if (base.count(f)) release.push_back(f);
+    if (!release.empty()) {
+        for (const std::string& f : release) released[f] = (long long)time(nullptr);
+        if (!putReleased(&released, &releasedThere, &revision, &o->error)) return false;
+        written = released;
+        for (const std::string& f : release) {
+            for (auto it = remote.begin(); it != remote.end();) {
+                if (folderOf(it->first) != f) {
+                    ++it;
+                    continue;
+                }
+                if (!deleteFile(bucket, it->first, &revision, &o->error)) return false;
+                it = remote.erase(it);
+            }
+            o->released++;
+        }
+    }
+    for (const std::string& f : base) {
+        if (!released.count(f) || s_hereFolders.count(f) || !port::files::stat(dir + "/" + f).dir) continue;
+        leaveHere(dir, f, &local, nullptr);
+        o->keptHere++;
+    }
+    std::set<std::string> there = foldersOf(remote);
+    for (const std::string& f : there) {
+        if (base.count(f) || !port::files::stat(dir + "/" + f).dir) continue;
+        Files mine = folderFiles(dir, f), theirs;
+        for (const auto& r : remote)
+            if (folderOf(r.first) == f) theirs.insert(r);
+        bool same = mine.empty() || mine.size() == theirs.size();
+        for (const auto& x : mine) {
+            auto t = theirs.find(x.first);
+            same = same && t != theirs.end() && t->second.sha == x.second.sha;
+        }
+        if (same) {
+            if (s_hereFolders.erase(f)) mark(dir, f, false);
+            for (const auto& x : mine) local[x.first] = x.second;
+            continue;
+        }
+        std::string id = makeSkinId(dir, there);
+        if (rename((dir + "/" + f).c_str(), (dir + "/" + id).c_str()) != 0) return o->error = "не переименовать " + dir + "/" + f, false;
+        if (s_hereFolders.erase(f)) s_hereFolders.insert(id);
+        Files moved;
+        for (const auto& x : local)
+            if (folderOf(x.first) == f) moved[id + x.first.substr(f.size())] = x.second;
+        eraseFolder(&local, f);
+        local.insert(moved.begin(), moved.end());
+        {
+            std::lock_guard<std::mutex> lock(s_renameMu);
+            s_renames.push_back({f, id});
+        }
+        fprintf(stderr, "medecomp: облако — скин %s переименован в %s: в аккаунте под этим именем другой\n", f.c_str(), id.c_str());
+        o->renamed++;
+    }
+
+    Plan p = plan(local, remote, m, false, s_hereFolders);
+    std::set<std::string> held;
+    for (const auto& f : remote)
+        if (!p.dropRemote.count(f.first)) held.insert(folderOf(f.first));
+    std::map<std::string, long long> born;
+    for (const auto& f : p.toUp) {
+        std::string folder = folderOf(f.first);
+        if (held.count(folder)) continue;
+        auto it = born.find(folder);
+        if (it == born.end() || f.second.time < it->second) born[folder] = f.second.time;
+    }
+    std::vector<std::pair<long long, std::string>> order;
+    for (const auto& f : born) order.push_back({f.second, f.first});
+    std::sort(order.begin(), order.end(), [](const std::pair<long long, std::string>& a, const std::pair<long long, std::string>& b) {
+        if (a.first != b.first) return a.first < b.first;
+        return a.second.size() != b.second.size() ? a.second.size() < b.second.size() : a.second < b.second;
+    });
+    for (const auto& f : order) {
+        if (int(held.size()) < kSkinLimit) {
+            held.insert(f.second);
+            continue;
+        }
+        leaveHere(dir, f.second, &local, &p.toUp);
+        o->skipped++;
+    }
+
+    s_total += int(p.toDown.size() + p.toUp.size());
+    if (!download(bucket, dir, Files(), p.toDown, false, o)) return false;
+    removeLocal(dir, p.dropLocal, o);
+    for (const auto& f : p.dropRemote) {
+        if (!deleteFile(bucket, f.first, &revision, &o->error)) return false;
+        remote.erase(f.first);
+        o->removed++;
+    }
+    there = foldersOf(remote);
+    for (const std::string& f : foldersOf(p.dropRemote))
+        if (!there.count(f)) released.erase(f);
+    std::string refused;
+    for (const auto& f : p.toUp) {
+        std::string folder = folderOf(f.first);
+        if (folder == refused) continue;
+        if (f.second.size > maxFile) {
+            fprintf(stderr, "medecomp: облако — %s больше %lld Б, в аккаунт не уходит\n", f.first.c_str(), maxFile);
+            continue;
+        }
+        std::string data;
+        if (!readFile(dir + "/" + f.first, &data)) continue;
+        int status = 0;
+        if (!putFile(bucket, f.first, data, &revision, &o->error, &status)) {
+            if (status != 422 || foldersOf(remote).count(folder)) return false;
+            fprintf(stderr, "medecomp: облако — скин %s не принят (%s): только здесь\n", folder.c_str(), o->error.c_str());
+            o->error.clear();
+            refused = folder;
+            mark(dir, folder, true);
+            s_hereFolders.insert(folder);
+            o->skipped++;
+            continue;
+        }
+        remote[f.first] = f.second;
+        o->up++;
+        s_done++;
+    }
+    for (const std::string& f : foldersOf(remote)) released.erase(f);
+    if (released != written && !putReleased(&released, &releasedThere, &revision, &o->error)) return false;
+    local.clear();
+    scan(dir, std::string(), 0, keepSyncedSkin, Files(), &local);
+    createdAfterWrites(bucket, revision, &created);
+    saveManifest(bucket, revision, created, inBoth(local, remote));
+    s_skinsSaved++;
     return true;
 }
 
@@ -562,9 +900,39 @@ void writePrefs() {
 std::mutex s_mu;
 std::atomic<bool> s_prefsChanged(false);
 std::atomic<bool> s_levelsAgain(false);
+std::atomic<bool> s_skinsAgain(false), s_skinsRussian(false);
 Outcome s_conflict;
 std::atomic<bool> s_busy(false), s_skinsChanged(false);
-std::string s_status;
+std::string s_status, s_skinsNotice;
+
+std::string skinsNoticeOf(const Outcome& skins, bool ok, bool russian) {
+    auto L = [russian](const char* ru, const char* en) { return std::string(russian ? ru : en); };
+    if (!ok) return L("Скины не сверены с облаком: ", "Skins are not synced with the cloud: ") + skins.error;
+    std::string out;
+    if (skins.reset)
+        out += L("Скины в облаке пропали (хранилище аккаунта сброшено на сервере) — здесь ничего не удалено, свои отправлены заново.",
+                 "The skins in the cloud were gone (the account storage was reset on the server) — nothing was removed here, "
+                 "yours are sent again.");
+    if (skins.skipped)
+        out += (out.empty() ? "" : " ") + L("В облаке уже ", "The cloud already holds ") + std::to_string(kSkinLimit) + L(" скинов — ещё ", " skins — ") +
+               std::to_string(skins.skipped) +
+               L(" оставлено только здесь: «В облако» — когда освободится место («Убрать из облака» у другого).",
+                 " more stay here only: Send to cloud once there is room (Remove from cloud on another one).");
+    if (skins.keptHere)
+        out += (out.empty() ? "" : " ") + L("Убраны из облака на другом компьютере, здесь остались (только здесь): ",
+                                              "Removed from the cloud on another computer, kept here (here only): ") +
+               std::to_string(skins.keptHere) + ".";
+    if (skins.renamed)
+        out += (out.empty() ? "" : " ") +
+               L("Здешние скины назывались так же, как другие скины в облаке, — переименованы, остались оба: ",
+                 "Skins here had the same names as other skins in the cloud — renamed, both are kept: ") +
+               std::to_string(skins.renamed) + ".";
+    return out;
+}
+
+bool skinsMoved(const Outcome& o) {
+    return o.down || o.up || o.removed || o.skipped || o.released || o.keptHere || o.renamed || o.reset;
+}
 
 std::string describe(const Outcome& save, const Outcome& skins, bool saveOk, bool skinsOk, bool russian, bool withSave) {
     auto L = [russian](const char* ru, const char* en) { return std::string(russian ? ru : en); };
@@ -591,17 +959,14 @@ std::string describe(const Outcome& save, const Outcome& skins, bool saveOk, boo
     } else {
         out = L("Сохранение совпадает с аккаунтом.", "The save matches the account.");
     }
-    if (!skinsOk) {
-        out += " " + L("Скины не сверены: ", "Skins are not synced: ") + skins.error;
-    } else if (skins.down || skins.up || skins.removed) {
+    if (skinsOk && (skins.down || skins.up || skins.removed))
         out += " " + L("Скины: из аккаунта ", "Skins: from the account ") + std::to_string(skins.down) + L(", в аккаунт ", ", to the account ") +
                std::to_string(skins.up) + (skins.removed ? L(", удалено ", ", removed ") + std::to_string(skins.removed) : std::string()) + ".";
-    }
-    if (skinsOk && skins.skipped)
-        out += " " + L("Своих скинов больше ", "There are more than ") + std::to_string(kSkinLimit) +
-               L(" — в аккаунт не ушли ещё ", " custom skins — not sent to the account: ") + std::to_string(skins.skipped) +
-               L(". Удалите лишние (вкладка «Героиня») или выключите «Синхронизировать свои скины».",
-                 ". Delete the extra ones (Heroine tab) or turn off Sync custom skins.");
+    if (skinsOk && skins.released)
+        out += " " + L("Убрано из облака скинов (здесь остались): ", "Skins removed from the cloud (kept here): ") +
+               std::to_string(skins.released) + ".";
+    std::string notice = skinsNoticeOf(skins, skinsOk, russian);
+    if (!notice.empty()) out += " " + notice;
     return out;
 }
 
@@ -617,6 +982,28 @@ void runLevels() {
         fprintf(stderr, "medecomp: облако — уровни не сверены: %s\n", levels.error.c_str());
 }
 
+void runSkins(bool russian) {
+    if (!s_syncSkins) return;
+    Outcome skins;
+    std::string dir = port::files::dataDir() + "/skins";
+    makeDirs(dir);
+    bool ok = syncSkinFolders(dir, &skins);
+    if (!ok || skinsMoved(skins)) s_skinsChanged = true;
+    fprintf(stderr, "medecomp: облако — скины: ↓%d ↑%d ×%d, убрано %d, только здесь +%d, переименовано %d%s%s\n", skins.down,
+            skins.up, skins.removed, skins.released, skins.skipped + skins.keptHere, skins.renamed, ok ? "" : " — не сверены: ",
+            skins.error.c_str());
+    std::lock_guard<std::mutex> lock(s_mu);
+    s_skinsNotice = skinsNoticeOf(skins, ok, russian);
+}
+
+void runAgain() {
+    for (bool more = true; more;) {
+        more = false;
+        if (s_levelsAgain.exchange(false)) runLevels(), more = true;
+        if (s_skinsAgain.exchange(false)) runSkins(s_skinsRussian), more = true;
+    }
+}
+
 void runSync(bool russian, Choice choice, bool withSave) {
     s_done = 0;
     s_total = 0;
@@ -625,8 +1012,8 @@ void runSync(bool russian, Choice choice, bool withSave) {
     makeDirs(data + "/Documents");
     makeDirs(data + "/skins");
     bool saveOk = !withSave || syncWhole("save", data + "/Documents", keepSave, choice, &save);
-    bool skinsOk = !s_syncSkins || syncFiles("skins", data + "/skins", keepSkin, false, &skins, kSkinLimit);
-    if (skins.down || skins.removed) s_skinsChanged = true;
+    bool skinsOk = !s_syncSkins || syncSkinFolders(data + "/skins", &skins);
+    if (!skinsOk || skinsMoved(skins)) s_skinsChanged = true;
     Outcome levels, prefs;
     makeDirs(data + "/levels");
     bool levelsOk = syncFiles("levels", data + "/levels", keepLevel, false, &levels);
@@ -640,6 +1027,13 @@ void runSync(bool russian, Choice choice, bool withSave) {
                 L(", в аккаунт ", ", to the account ") + std::to_string(levels.up) + ".";
     if (!prefsOk) text += " " + L("Настройки не сверены: ", "Settings are not synced: ") + prefs.error;
     else if (prefs.down || prefs.removed) text += " " + L("Настройки из аккаунта применены.", "Settings from the account are applied.");
+    std::string lost;
+    for (const auto& b : {std::make_pair(&save, L("сохранение", "save")), std::make_pair(&levels, L("уровни", "levels")),
+                          std::make_pair(&prefs, L("настройки", "settings"))})
+        if (b.first->reset) lost += (lost.empty() ? "" : ", ") + b.second;
+    if (!lost.empty())
+        text += " " + L("В облаке пропали файлы аккаунта (хранилище сброшено на сервере): ", "The account's files were gone from the cloud (the storage was reset on the server): ") +
+                lost + L(" — здесь ничего не удалено, отправлено заново.", " — nothing was removed here, sent again.");
     if (withSave && saveOk && skinsOk && levelsOk && prefsOk && !save.pending) remove(unsyncedPath().c_str());
     fprintf(stderr, "medecomp: облако — %s (сохранение: ↓%d ↑%d ×%d, скины: ↓%d ↑%d ×%d, уровни: ↓%d ↑%d ×%d, настройки: ↓%d ↑%d)\n",
             text.c_str(), save.down, save.up, save.removed, skins.down, skins.up, skins.removed, levels.down, levels.up,
@@ -647,9 +1041,26 @@ void runSync(bool russian, Choice choice, bool withSave) {
     std::lock_guard<std::mutex> lock(s_mu);
     s_status = text;
     s_conflict = save;
+    if (s_syncSkins) s_skinsNotice = skinsNoticeOf(skins, skinsOk, russian);
+}
+
+void applyRenames() {
+    std::vector<std::pair<std::string, std::string>> renames;
+    {
+        std::lock_guard<std::mutex> lock(s_renameMu);
+        renames.swap(s_renames);
+    }
+    std::string skin = settings::get("skin", "");
+    bool changed = false;
+    for (const auto& r : renames)
+        if (skin == r.first) skin = r.second, changed = true;
+    if (!changed) return;
+    settings::set("skin", skin);
+    settings::save();
 }
 
 bool applyPrefs() {
+    applyRenames();
     if (!s_prefsChanged.exchange(false)) return false;
     std::string dir = prefsDir(), text;
     Json j;
@@ -675,7 +1086,7 @@ void launch(bool russian, Choice choice, bool withSave = true) {
     writePrefs();
     std::thread([russian, choice, withSave] {
         runSync(russian, choice, withSave);
-        while (s_levelsAgain.exchange(false)) runLevels();
+        runAgain();
         s_busy = false;
     }).detach();
 }
@@ -718,15 +1129,94 @@ void setSkinsEnabled(bool on) {
     settings::save();
 }
 
-int customSkins() {
+bool skinsActive() { return !token().empty() && enabled() && skinsEnabled(); }
+
+namespace {
+
+std::string skinsDir() { return port::files::dataDir() + "/skins"; }
+
+const Manifest& skinsManifest() {
+    static Manifest m;
+    static int seen = -1;
+    static std::string seenFor;
+    std::string who = serverUrl() + "\n" + userName();
+    if (seen != s_skinsSaved || seenFor != who) {
+        seen = s_skinsSaved;
+        seenFor = who;
+        m = loadManifest("skins", serverUrl(), userName());
+    }
+    return m;
+}
+
+}
+
+SkinPlace skinPlace(const std::string& id) {
+    if (!skinsActive()) return SkinPlace::Off;
+    std::string dir = skinsDir();
+    if (marked(dir, id)) return SkinPlace::Here;
+    Files saved;
+    for (const auto& f : skinsManifest().files)
+        if (folderOf(f.first) == id) saved.insert(f);
+    if (saved.empty()) return SkinPlace::New;
+    size_t files = 0, same = 0;
+    for (const std::string& name : port::files::list(dir + "/" + id)) {
+        std::string path = id + "/" + name;
+        struct stat st;
+        if (!keepSkin(path) || stat((dir + "/" + path).c_str(), &st) != 0 || S_ISDIR(st.st_mode)) continue;
+        files++;
+        auto s = saved.find(path);
+        if (s != saved.end() && s->second.size == (long long)st.st_size && s->second.time == (long long)st.st_mtime) same++;
+    }
+    return files == same && files == saved.size() ? SkinPlace::Saved : SkinPlace::Changed;
+}
+
+int skinsForCloud() {
+    std::string dir = skinsDir();
     int n = 0;
-    std::string dir = port::files::dataDir() + "/skins";
-    for (const std::string& name : port::files::list(dir))
-        if (name.compare(0, 5, "skin-") == 0 && port::files::stat(dir + "/" + name).dir) n++;
+    for (const std::string& f : skinFolders(dir))
+        if (!marked(dir, f)) n++;
     return n;
 }
 
-bool skinLimitActive() { return !token().empty() && enabled() && skinsEnabled(); }
+bool placeNewSkin(const std::string& id) {
+    if (!skinsActive() || skinsForCloud() <= kSkinLimit) return false;
+    mark(skinsDir(), id, true);
+    return true;
+}
+
+bool sendSkin(const std::string& id, bool russian) {
+    if (skinsForCloud() >= kSkinLimit) return false;
+    mark(skinsDir(), id, false);
+    syncSkins(russian);
+    return true;
+}
+
+void keepSkinHere(const std::string& id, bool russian) {
+    mark(skinsDir(), id, true);
+    syncSkins(russian);
+}
+
+std::string newSkinId() { return makeSkinId(skinsDir(), std::set<std::string>()); }
+
+void syncSkins(bool russian) {
+    if (!allowed() || !skinsEnabled()) return;
+    s_skinsRussian = russian;
+    if (s_busy.exchange(true)) {
+        s_skinsAgain = true;
+        return;
+    }
+    capture();
+    std::thread([] {
+        runSkins(s_skinsRussian);
+        runAgain();
+        s_busy = false;
+    }).detach();
+}
+
+std::string skinsNotice() {
+    std::lock_guard<std::mutex> lock(s_mu);
+    return s_skinsNotice;
+}
 
 void startSync(bool russian, bool afterGame, bool withSave) { launch(russian, afterGame ? Newer : Ask, withSave); }
 
@@ -738,9 +1228,8 @@ void syncLevels() {
     }
     capture();
     std::thread([] {
-        do {
-            runLevels();
-        } while (s_levelsAgain.exchange(false));
+        runLevels();
+        runAgain();
         s_busy = false;
     }).detach();
 }
@@ -779,7 +1268,7 @@ void syncNow(bool russian) {
     capture();
     writePrefs();
     runSync(russian, Newer, true);
-    while (s_levelsAgain.exchange(false)) runLevels();
+    runAgain();
     s_busy = false;
 }
 

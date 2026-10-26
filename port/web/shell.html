@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<!-- «На экран Домой» (W5): во весь экран, без панели Safari; там же хранилище сайта не стирается через 7 дней без
+     захода, как у сайта в самом Safari -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/app-icon-256.png">
+<link rel="icon" type="image/png" href="icons/app-icon-256.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0d0d0f">
+<title>Glassline</title>
+<!-- Страница браузерной версии (W1): шаблон emcc (--shell-file). Своя копия игры (.ipa) копируется один раз в
+     хранилище сайта (OPFS) и читается оттуда игрой (WASMFS, /opfs — port/src/platform/web.cpp); на сервер не уходит.
+     После загрузки программы открывается лаунчер; .ipa выбирается его кнопкой «Обзор». -->
+<style>
+  :root { --bg: #0d0d0f; --fg: #f2f2f2; --muted: #9a9aa2; --accent: #e8322b; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+               font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; background: #000; outline: none; }
+  #safe-area { position: fixed; width: 0; height: env(safe-area-inset-bottom, 0px); visibility: hidden; pointer-events: none; }
+  /* Касания (W5) — игре, не странице: без прокрутки, масштаба, выделения и меню долгого нажатия */
+  html, body, #canvas { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+                        -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  #setup { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+           justify-content: center; gap: 14px; padding: 16px; text-align: center; }
+  #setup.hidden { display: none; }
+  button { font: inherit; color: #fff; background: var(--accent); border: 0; border-radius: 6px;
+           padding: 10px 20px; cursor: pointer; }
+  #status { color: var(--muted); max-width: 520px; }
+  progress, #loading { width: min(420px, 85vw); height: 8px; accent-color: var(--accent); }
+  #loading { overflow: hidden; border-radius: 6px; background: #29292f; }
+  #loading span { display: block; height: 100%; background: var(--accent); transition: width .15s linear; }
+  #loading.busy span { width: 35%; animation: loading 1.4s ease-in-out infinite alternate; }
+  #download { color: var(--muted); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+  #loading[hidden], #download[hidden] { display: none; }
+  @keyframes loading { from { transform: translateX(-100%); } to { transform: translateX(285%); } }
+  @media (prefers-reduced-motion: reduce) { #loading.busy span { animation-duration: 4s; } }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="safe-area" aria-hidden="true"></div>
+<div id="setup">
+  <h1 style="margin:0;font-size:28px">Glassline</h1>
+  <div id="status" role="status">Loading Glassline…</div>
+  <div id="loading" class="busy" role="progressbar" aria-label="Loading Glassline"><span></span></div>
+  <div id="download"></div>
+  <progress id="progress" max="1" value="0" hidden></progress>
+</div>
+<!-- iOS не всегда сопоставляет расширение .ipa с типом файла: без accept файл доступен в «Файлах». -->
+<input id="file" type="file" hidden>
+<script>
+const ru = (navigator.language || "").startsWith("ru");
+const T = ru ? {
+  loading: "Загружаю Glassline…", preparing: "Подготавливаю игру…",
+  wait: "Первый запуск может занять больше времени. Пожалуйста, подождите.",
+  loadFailed: "Не удалось загрузить игру. Проверьте соединение и обновите страницу.",
+  mb: "МБ",
+  copying: "Копирую игру в хранилище браузера…", starting: "Запускаю лаунчер…",
+  noThreads: "Страница открыта без заголовков COOP и COEP — потоки wasm недоступны.",
+  unsupported: "Этот браузер игру не потянет: нет ",
+  noSab: "потоков WebAssembly (SharedArrayBuffer)", noOpfs: "хранилища для файлов (OPFS)",
+  storageFailed: "Не удалось открыть хранилище браузера. ",
+  noWorkerGl: "WebGL 2 в потоке (OffscreenCanvas)",
+  browsers: "Подойдёт свежий Chrome, Edge, Firefox или Safari 17 и новее. Браузеры на WebKitGTK (GNOME Web — Epiphany) " +
+            "этого пока не дают.",
+  stopped: "Игра остановилась: ",
+  failed: "Не вышло скопировать: ",
+} : {
+  loading: "Downloading Glassline…", preparing: "Preparing the game…",
+  wait: "The first launch may take longer. Please wait.",
+  loadFailed: "Could not load the game. Check your connection and reload the page.",
+  mb: "MB",
+  copying: "Copying the game into browser storage…", starting: "Starting the launcher…",
+  noThreads: "The page is served without COOP and COEP headers — wasm threads are unavailable.",
+  unsupported: "This browser cannot run the game: it lacks ",
+  noSab: "WebAssembly threads (SharedArrayBuffer)", noOpfs: "file storage (OPFS)",
+  storageFailed: "Could not open browser storage. ",
+  noWorkerGl: "WebGL 2 in a worker (OffscreenCanvas)",
+  browsers: "Use a recent Chrome, Edge, Firefox or Safari 17 or newer. WebKitGTK browsers (GNOME Web — Epiphany) " +
+            "do not provide these yet.",
+  stopped: "The game stopped: ",
+  failed: "Could not copy: ",
+};
+const $ = (id) => document.getElementById(id);
+// Высота мобильных панелей браузера меняется без обычного resize окна: SDL должен перечитать размер холста.
+new ResizeObserver(() => window.dispatchEvent(new Event("resize"))).observe($("canvas"));
+const status = (text) => { if ($("status").textContent !== text) $("status").textContent = text; };
+const IPA = "game.ipa";
+status(T.loading);
+$("loading").setAttribute("aria-label", T.loading);
+$("download").textContent = T.wait;
+
+// Считаем байты только двух файлов программы, сохраняя потоковую компиляцию WebAssembly.
+// При сжатии Content-Length — размер сжатого ответа, а fetch отдаёт распакованные байты: тогда без процента.
+const runtimeFetch = window.fetch;
+const downloads = new Map();
+let loadFailed = false;
+function loadingProgress() {
+  if (runtimeReady || loadFailed) return;
+  const files = [...downloads.values()];
+  const complete = files.length && files.every((f) => f.done);
+  const loaded = files.reduce((n, f) => n + f.loaded, 0);
+  const total = files.every((f) => f.total > 0) ? files.reduce((n, f) => n + f.total, 0) : 0;
+  const known = !complete && total > 0;
+  const percent = known ? Math.min(99, Math.floor(loaded / total * 100)) : 0;
+  status(complete ? T.preparing : T.loading);
+  $("loading").classList.toggle("busy", !known);
+  $("loading").firstElementChild.style.width = known ? percent + "%" : "";
+  if (known) $("loading").setAttribute("aria-valuenow", percent);
+  else $("loading").removeAttribute("aria-valuenow");
+  const mb = (n) => (n / 1048576).toFixed(1) + " " + T.mb;
+  $("download").textContent = complete || !loaded ? T.wait :
+    (known ? percent + "% · " + mb(loaded) + " / " + mb(total) : mb(loaded));
+}
+
+function trackDownloads(scriptUrl) {
+  for (const ext of ["wasm", "data"]) {
+    const url = new URL(scriptUrl);
+    url.pathname = url.pathname.replace(/\.js$/, "." + ext);
+    downloads.set(url.href, { loaded: 0, total: 0, done: false });
+  }
+  window.fetch = async function(input, init) {
+    const url = new URL(input instanceof Request ? input.url : input, location.href).href;
+    const file = downloads.get(url);
+    if (!file) return runtimeFetch.call(this, input, init);
+    try {
+      const response = await runtimeFetch.call(this, input, init);
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      file.total = response.headers.get("Content-Encoding") ? 0 : Number(response.headers.get("Content-Length")) || 0;
+      loadingProgress();
+      const reader = response.body.getReader();
+      return new Response(new ReadableStream({
+        async pull(controller) {
+          try {
+            const { value, done } = await reader.read();
+            if (done) {
+              file.done = true;
+              file.total = file.loaded;
+              controller.close();
+            } else {
+              file.loaded += value.byteLength;
+              controller.enqueue(value);
+            }
+            loadingProgress();
+          } catch (e) { stopped(T.loadFailed); controller.error(e); }
+        },
+        cancel(reason) { return reader.cancel(reason); },
+      }), { status: response.status, statusText: response.statusText, headers: response.headers });
+    } catch (e) { stopped(T.loadFailed); throw e; }
+  };
+}
+
+var Module = {
+  canvas: $("canvas"),
+  arguments: [],
+  // До статических конструкторов: копия игры и папка игрока — в хранилище сайта (port/src/platform/web.cpp)
+  preRun: [(m) => {
+    m.ENV.MEDECOMP_DATA = "/opfs/data";
+    m.ENV.HOME = "/opfs/data";
+    // Сервер игры — за этим же адресом (W3): tools/web_serve.py --proxy-game, на хостинге — nginx
+    m.ENV.MEDECOMP_ONLINE_SERVER = location.origin + "/game-api";
+    // Проверки: ?MEDECOMP_SCRIPT=…&MEDECOMP_FPS_LOG=1 — переменные порта, как в терминале на PC
+    for (const [k, v] of new URLSearchParams(location.search)) if (k.startsWith("MEDECOMP_")) m.ENV[k] = v;
+  }],
+  print: (t) => console.log(t),
+  printErr: (t) => {
+    console.warn(t);
+    if (/sent an error!|RuntimeError:|Aborted\(/.test(String(t))) stopped(String(t));
+  },
+  // Программа остановилась (abort) — сказать на странице, а не оставить пустой экран
+  onAbort: (what) => stopped(what),
+};
+
+function stopped(what) {
+  if (loadFailed) return;
+  loadFailed = true;
+  window.fetch = runtimeFetch;
+  $("setup").classList.remove("hidden");
+  $("loading").hidden = true;
+  $("download").hidden = true;
+  $("progress").hidden = true;
+  status(T.stopped + what);
+}
+
+async function opfs() { return navigator.storage.getDirectory(); }
+
+// Safari (W5): у файлов OPFS нет createWritable — пишет воркер через createSyncAccessHandle
+const writerSource = `onmessage = async (e) => {
+  try {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle(e.data.name, { create: true });
+    const access = await handle.createSyncAccessHandle();
+    access.truncate(0);
+    const reader = e.data.blob.stream().getReader();
+    let at = 0;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      access.write(value, { at });
+      at += value.length;
+      postMessage({ at });
+    }
+    access.flush();
+    access.close();
+    postMessage({ done: true });
+  } catch (err) {
+    postMessage({ error: String(err) });
+  }
+};`;
+
+function copyInWorker(name, blob, size) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(URL.createObjectURL(new Blob([writerSource], { type: "text/javascript" })));
+    worker.onmessage = (e) => {
+      if (e.data.at !== undefined && size) $("progress").value = e.data.at / size;
+      if (e.data.done) { worker.terminate(); resolve(); }
+      if (e.data.error) { worker.terminate(); reject(new Error(e.data.error)); }
+    };
+    worker.postMessage({ name, blob });
+  });
+}
+
+// .ipa — в OPFS потоком, с ходом копирования; не целиком в память (около 140 МБ). source — файл (Blob) или поток
+// ответа сервера; воркеру Safari — Blob: его копирует любой браузер, а переносить потоки умеют не все
+async function copyIpa(source, size) {
+  const root = await opfs();
+  const handle = await root.getFileHandle(IPA + ".part", { create: true });
+  $("progress").hidden = false;
+  if (size) $("progress").value = 0;
+  else $("progress").removeAttribute("value");
+  if (!handle.createWritable) {
+    const blob = source instanceof Blob ? source : await new Response(source).blob();
+    await copyInWorker(IPA + ".part", blob, size);
+    try { await root.removeEntry(IPA); } catch (e) {}
+    await handle.move(IPA);
+    return;
+  }
+  const writable = await handle.createWritable();
+  const reader = (source instanceof Blob ? source.stream() : source).getReader();
+  let done = 0;
+  $("progress").hidden = false;
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    await writable.write(value);
+    done += value.length;
+    if (size) $("progress").value = done / size;
+  }
+  await writable.close();
+  try { await root.removeEntry(IPA); } catch (e) {}  // прежняя копия (новый выбор из лаунчера)
+  await handle.move(IPA);
+}
+
+function start() {
+  status(T.starting);
+  $("loading").hidden = false;
+  $("loading").classList.add("busy");
+  $("loading").removeAttribute("aria-valuenow");
+  $("loading").firstElementChild.style.width = "";
+  $("progress").hidden = true;
+  // Лаунчер (W6) — как на PC; ?MEDECOMP_NO_LAUNCHER=1 (проверки) — сразу игра
+  const noLauncher = new URLSearchParams(location.search).get("MEDECOMP_NO_LAUNCHER");
+  if (noLauncher) Module.medecompLauncherReady();
+  Module.callMain(noLauncher ? ["--no-launcher"] : []);
+}
+
+Module.medecompLauncherReady = () => {
+  if (loadFailed) return;
+  Module.medecompInLauncher = true;
+  $("setup").classList.add("hidden");
+  $("canvas").focus();
+};
+
+// «Лаунчер» в меню игры (E12, W9; port/src/platform/main.cpp, webFrame): игра сохранилась — страница заново, уже с
+// лаунчером (без MEDECOMP_NO_LAUNCHER и без копии с сервера проверок)
+Module.medecompToLauncher = () => {
+  const url = new URL(location.href);
+  url.searchParams.delete("MEDECOMP_NO_LAUNCHER");
+  url.searchParams.delete("ipa");
+  location.replace(url);
+};
+
+// «Обзор» лаунчера: файл остаётся на странице, поток выбора читает его порциями и пишет через WASMFS.
+// Прежняя .ipa может быть открыта игрой — новый файл получает свой путь, перезагрузка не нужна.
+function openPicker() {
+  Module.medecompFile = { state: 0 };
+  Module.medecompFilePending = true;
+  const input = $("file");
+  input.value = "";
+  input.oncancel = () => { Module.medecompFile.state = 2; };
+  input.onchange = () => {
+    const file = input.files[0];
+    Module.medecompFile = file ? { state: 1, file } : { state: 2 };
+  };
+  try { input.click(); }
+  catch (e) { Module.medecompFile = { state: -1 }; console.warn(e); }
+}
+// Координаты «Обзора» приходят с кадром лаунчера. Сам диалог открывается синхронно в доверенном событии
+// страницы: переход через SDL, поток лаунчера и поток выбора может потерять активацию пользователя в Safari.
+let browsePointer;
+const inCanvasRect = (e, r) => {
+  const c = $("canvas").getBoundingClientRect();
+  let x = (e.clientX - c.left) / c.width, y = (e.clientY - c.top) / c.height;
+  const q = Module.medecompTurnQuarter || 0;
+  if (q === 1) [x, y] = [y, 1 - x];
+  if (q === 3) [x, y] = [1 - y, x];
+  return r && x >= r[0] && y >= r[1] && x < r[2] && y < r[3];
+};
+const inBrowse = (e) => inCanvasRect(e, Module.medecompBrowseRect);
+$("canvas").addEventListener("pointerdown", (e) => {
+  browsePointer = e.isPrimary && e.button === 0 && inBrowse(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+}, true);
+$("canvas").addEventListener("pointermove", (e) => {
+  if (browsePointer && Math.hypot(e.clientX - browsePointer.x, e.clientY - browsePointer.y) > 10) browsePointer = null;
+}, true);
+$("canvas").addEventListener("pointercancel", () => { browsePointer = null; }, true);
+$("canvas").addEventListener("pointerup", (e) => {
+  const pick = browsePointer && browsePointer.id === e.pointerId && inBrowse(e);
+  browsePointer = null;
+  if (pick && !Module.medecompFilePending && !Module.medecompFile) openPicker();
+}, true);
+// Fullscreen требует доверенного нажатия страницы, до перехода через SDL и поток wasm (как «Обзор»).
+Module.medecompFullscreenSupported = () => !!(
+  (document.fullscreenEnabled && document.documentElement.requestFullscreen) ||
+  (document.webkitFullscreenEnabled && document.documentElement.webkitRequestFullscreen)
+);
+let displayRequest, playPointer;
+Module.medecompLaunchDisplay = () => {
+  if (displayRequest) return displayRequest;
+  const options = Module.medecompPlayOptions || {};
+  displayRequest = (async () => {
+    const root = document.documentElement;
+    if (options.fullscreen && !document.fullscreenElement && !document.webkitFullscreenElement && Module.medecompFullscreenSupported()) {
+      try {
+        if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: "hide" });
+        else await root.webkitRequestFullscreen();
+      } catch (e) { console.warn("Fullscreen request declined:", e); }
+    }
+    if (screen.orientation && typeof screen.orientation.lock === "function" &&
+        (document.fullscreenElement || document.webkitFullscreenElement)) {
+      try {
+        if (options.orientation === "landscape" || options.orientation === "portrait")
+          await screen.orientation.lock(options.orientation);
+        else screen.orientation.unlock();
+      } catch (e) { /* Поворот кадра и координат обеспечивает turn.cpp и без Screen Orientation API. */ }
+    }
+  })();
+  return displayRequest;
+};
+$("canvas").addEventListener("pointerdown", (e) => {
+  playPointer = e.isPrimary && e.button === 0 && inCanvasRect(e, Module.medecompPlayRect)
+    ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+}, true);
+$("canvas").addEventListener("pointermove", (e) => {
+  if (playPointer && Math.hypot(e.clientX - playPointer.x, e.clientY - playPointer.y) > 10) playPointer = null;
+}, true);
+$("canvas").addEventListener("pointercancel", () => { playPointer = null; }, true);
+$("canvas").addEventListener("pointerup", (e) => {
+  const play = playPointer && playPointer.id === e.pointerId && inCanvasRect(e, Module.medecompPlayRect);
+  playPointer = null;
+  if (play) Module.medecompLaunchDisplay();
+}, true);
+window.addEventListener("keydown", (e) => {
+  if (!e.repeat && Module.medecompPlayFocused && Module.medecompPlayRect && (e.key === "Enter" || e.key === " "))
+    Module.medecompLaunchDisplay();
+}, true);
+
+Module.medecompPickFile = () => {
+  if (!Module.medecompFilePending) {
+    // Клавиатура/геймпад: не оставлять поток в вечном ожидании, если браузер уже отозвал активацию.
+    if (navigator.userActivation && !navigator.userActivation.isActive) {
+      Module.medecompFile = { state: -1 };
+      return;
+    }
+    openPicker();
+  }
+  Module.medecompFilePending = false;
+};
+Module.medecompReadFile = async (offset, target) => {
+  const picked = Module.medecompFile;
+  picked.state = 0;
+  try {
+    const bytes = await picked.file.slice(offset, offset + target.length).arrayBuffer();
+    if (bytes.byteLength !== target.length) throw new Error("Incomplete file read");
+    target.set(new Uint8Array(bytes));
+    picked.state = 1;
+  } catch (e) { picked.state = -1; console.warn(e); }
+};
+
+let runtimeReady = false;  // среда Emscripten поднялась (boot)
+
+async function boot() {
+  if (loadFailed) return;
+  runtimeReady = true;
+  window.fetch = runtimeFetch;
+  $("loading").hidden = true;
+  $("download").hidden = true;
+  $("progress").hidden = true;
+  if (navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  // Проверки на своём компьютере (tools/web_serve.py --ipa): ?ipa=<адрес> — копия с того же сервера, без выбора файла
+  const src = new URLSearchParams(location.search).get("ipa");
+  if (src) {
+    status(T.copying);
+    const r = await fetch(src);
+    if (!r.ok) { status(T.failed + r.status); return; }
+    await copyIpa(r.body, Number(r.headers.get("Content-Length")) || 0);
+    start();
+    return;
+  }
+  start();
+}
+
+// Наклон (W5): телефон и планшет — как акселерометр iPad. Игре нужна проекция силы тяжести на ось Y устройства, это
+// sin β из deviceorientation (и в альбомной ориентации): наклон порта — β/90° (port/src/platform/devices.cpp). На iOS
+// событие — только с разрешения игрока, а спросить его можно только по касанию
+Module.medecompTilt = NaN;
+function startTilt() {
+  window.addEventListener("deviceorientation", (e) => {
+    if (e.beta === null) return;
+    Module.medecompTilt = Math.max(-1, Math.min(1, e.beta / 90));
+  });
+}
+if (typeof DeviceOrientationEvent !== "undefined") {
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    const ask = () => {
+      if (Module.medecompInLauncher || !$("setup").classList.contains("hidden")) return;
+      DeviceOrientationEvent.requestPermission().then((state) => { if (state === "granted") startTilt(); }).catch(() => {});
+      window.removeEventListener("touchend", ask);
+    };
+    window.addEventListener("touchend", ask);
+  } else {
+    startTilt();
+  }
+}
+
+// Звук (W2): вкладка скрыта — кадров нет (requestAnimationFrame стоит) и игра стоит, а Web Audio (вывод SDL2, его
+// смешивает OpenAL Soft) играл бы дальше — приостановить; вернулись — продолжить. Паузу в самой игре (потеря фокуса,
+// D6) ставит игра, когда кадры пойдут снова
+document.addEventListener("visibilitychange", () => {
+  const ctx = Module.SDL2 && Module.SDL2.audioContext;
+  if (!ctx) return;
+  if (document.hidden) ctx.suspend(); else ctx.resume();
+});
+
+Module.onRuntimeInitialized = () => boot().catch((e) => stopped(String(e)));
+
+// Чего у браузера нет для этой сборки — до загрузки программы: без потоков wasm Emscripten падает на первом же потоке
+// (DataCloneError), и страница так и оставалась пустой. WebKitGTK (GNOME Web) при COOP и COEP SharedArrayBuffer не
+// даёт, OPFS и WebGL 2 в воркере — тоже; Safari 16 — без WebGL в OffscreenCanvas (оно с 17-го)
+async function missingFeatures() {
+  const missing = [];
+  if (typeof SharedArrayBuffer === "undefined") missing.push(T.noSab);
+  if (!navigator.storage || !navigator.storage.getDirectory) missing.push(T.noOpfs);
+  const workerGl = await new Promise((resolve) => {
+    try {
+      const probe = new Worker(URL.createObjectURL(new Blob([
+        "try { postMessage(!!new OffscreenCanvas(1, 1).getContext('webgl2')); } catch (e) { postMessage(false); }"],
+        { type: "text/javascript" })));
+      probe.onmessage = (e) => { probe.terminate(); resolve(e.data); };
+      probe.onerror = () => { probe.terminate(); resolve(false); };
+    } catch (e) {
+      resolve(false);
+    }
+  });
+  if (!workerGl) missing.push(T.noWorkerGl);
+  return missing;
+}
+
+// Программа (medecomp.js) — в <template>: так emcc вставляет её тег, а браузер его не выполняет; грузим сами, когда
+// браузер подходит
+(async () => {
+  if (!self.crossOriginIsolated) { stopped(T.noThreads); return; }
+  const missing = await missingFeatures();
+  if (missing.length) { stopped(T.unsupported + missing.join(", ") + ". " + T.browsers); return; }
+  // Наличие API ещё не означает доступ: Safari может отказать в приватном профиле или при ограничениях сайта.
+  // Иначе отказ из вложенного OPFS-воркера оставляет C++ в ожидании ответа навсегда.
+  try { await navigator.storage.getDirectory(); }
+  catch (e) { stopped(T.storageFailed + String(e)); return; }
+  // Ошибка главного потока или воркера после boot тоже должна остановить индикатор запуска.
+  window.addEventListener("unhandledrejection", (e) => stopped(String(e.reason || T.loadFailed)));
+  window.addEventListener("error", (e) => stopped(e.message || T.loadFailed));
+  const tag = $("runtime").content.querySelector("script");
+  const script = document.createElement("script");
+  script.src = tag.getAttribute("src");
+  script.async = true;
+  script.onerror = () => stopped(T.loadFailed);
+  trackDownloads(new URL(script.src, location.href));
+  document.body.appendChild(script);
+})();
+</script>
+<template id="runtime">{{{ SCRIPT }}}</template>
+</body>
+</html>

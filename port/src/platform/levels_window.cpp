@@ -50,6 +50,8 @@ enum Text {
     TEXT_RATING = 0x9b9, TEXT_UNPUBLISH = 0x9bf, TEXT_DELETE_ONLINE_CONFIRM = 0x9c0,
     TEXT_UNPUBLISH_CONFIRM = 0x9c1, TEXT_REMOVED = 0x9c2, TEXT_COLUMN_LEVEL = 0x9c3, TEXT_COLUMN_AUTHOR = 0x9c4,
     TEXT_COLUMN_SAVED = 0x9c5, TEXT_COLUMN_MODE = 0x9c7, TEXT_FILTER_ALL = 0x9c8, TEXT_OTHER_ACCOUNT = 0x9dc,
+    TEXT_STAR_1 = 0x9e0,
+    TEXT_RATE_PICK = 0x9e5, TEXT_RATE_BEFORE = 0x9e6, TEXT_OWN_LEVEL = 0x9e7, TEXT_CANCEL = 0x9e8,
     TEXT_PLAY = 0x906,
     TEXT_RACE = 0x941,
     TEXT_TIMED = 0x942,
@@ -68,11 +70,12 @@ const int WHERE_ABOVE = 16;
 const int FIRST_ROW = BOX_Y + 42;
 const int ROW_H = 35, ROWS = 8;
 const int BUTTONS_Y = 548, BUTTONS_GAP_Y = 56, BUTTONS_GAP_X = 24;
+const int BUTTONS_ROW_MAX = 1000, BUTTONS_GAP_MIN = 6;
 const int STATUS_Y = 660;
-const int ARROW_INSET = 36, COLUMN_GAP = 14;
+const int ARROW_INSET = 20, COLUMN_GAP = 14;
 const int SELECTED_ARGB = int(0xFFF8D3D3u);
 
-const int RATE_DELAY_MS = 1500;
+const int NOTE_TEXT = -2;
 const int SEARCH_LIMIT = 40;
 const int KEY_RETURN = 13, KEY_ESCAPE = 27;
 
@@ -100,6 +103,40 @@ std::vector<Mine> readMine(Filter filter) {
     }
     std::sort(out.begin(), out.end(), [](const Mine& a, const Mine& b) { return a.id < b.id; });
     return out;
+}
+
+std::string ratingsPath() { return port::files::dataDir() + "/cache/level-ratings.json"; }
+std::string ratingKey(const std::string& id) { return port::online::userName() + "/" + id; }
+
+int myRating(const std::string& id) {
+    std::vector<unsigned char> data;
+    port::online::Json all;
+    if (!port::files::read(ratingsPath(), &data) || !port::online::parseJson(std::string(data.begin(), data.end()), &all))
+        return 0;
+    return int(all[ratingKey(id).c_str()].integer());
+}
+
+void rememberRating(const std::string& id, int stars) {
+    std::vector<unsigned char> data;
+    port::online::Json all;
+    std::map<std::string, long long> ratings;
+    if (port::files::read(ratingsPath(), &data) && port::online::parseJson(std::string(data.begin(), data.end()), &all))
+        for (const auto& f : all.fields) ratings[f.first] = f.second.integer();
+    ratings[ratingKey(id)] = stars;
+    std::string out = "{";
+    for (const auto& r : ratings) out += (out.size() > 1 ? "," : "") + port::online::jsonString(r.first) + ":" + std::to_string(r.second);
+    out += "}\n";
+    mkdir((port::files::dataDir() + "/cache").c_str(), 0755);
+    if (FILE* f = fopen(ratingsPath().c_str(), "wb")) {
+        fwrite(out.data(), 1, out.size(), f);
+        fclose(f);
+    }
+}
+
+std::string replaced(std::string s, const std::string& what, const std::string& with) {
+    size_t at = s.find(what);
+    if (at != std::string::npos) s.replace(at, what.size(), with);
+    return s;
 }
 
 midp::String* text(const std::string& utf8) {
@@ -204,6 +241,10 @@ public:
     }
 
     void update(int dt) override {
+        if (m_rating && m_backButton.isActivated()) {
+            m_backButton.reset();
+            leaveRating();
+        }
         TitledWindow::update(dt);
         std::vector<std::function<void()>> applies;
         {
@@ -217,7 +258,6 @@ public:
             run(next);
         }
         if (m_searching) typeSearch();
-        if (m_rateMs > 0 && (m_rateMs -= dt) <= 0) sendRating();
         const void* focus = port::platform::menuFocusTarget();
         if (focus != m_lastFocus) {
             m_lastFocus = focus;
@@ -255,11 +295,10 @@ public:
         }
         if (fired(m_upload) && any) upload();
         if (fired(m_play) && any) playSelected();
-        if (fired(m_rate) && any) {
-            m_stars = m_stars % 5 + 1;
-            m_rateMs = RATE_DELAY_MS;
-            m_note = -1;
-        }
+        if (fired(m_rate) && any && m_online) enterRating();
+        for (int k = 0; k < 5; k++)
+            if (fired(m_starButtons[k]) && m_rating && any) sendRating(k + 1);
+        if (fired(m_cancel)) leaveRating();
         if (fired(m_report) && any) {
             if (m_note == TEXT_REPORT_CONFIRM) report();
             else m_note = TEXT_REPORT_CONFIRM;
@@ -312,11 +351,11 @@ public:
             int y = BOX_Y + (BOX_H - int(lines.size()) * lineH) / 2;
             for (const std::string& l : lines) draw(l, FONT_INFO, left + width / 2, y, ANCHOR_CENTER_TOP), y += lineH;
         } else {
-            std::vector<std::pair<int, int>> cols = columns(left, width);
             std::vector<int> heads = m_online ? std::vector<int>{TEXT_COLUMN_LEVEL, TEXT_COLUMN_AUTHOR, TEXT_COLUMN_MODE,
                                                                  TEXT_RATING, TEXT_BEST, TEXT_COLUMN_SAVED}
                                               : std::vector<int>{TEXT_COLUMN_LEVEL, TEXT_COLUMN_AUTHOR, TEXT_COLUMN_MODE,
                                                                  TEXT_ONLINE, TEXT_BEST};
+            std::vector<std::pair<int, int>> cols = columns(left, width, heads);
             for (size_t c = 0; c < cols.size(); c++)
                 draw(fit(word(heads[c]), FONT_HEAD, cols[c].second), FONT_HEAD, cols[c].first, HEAD_Y,
                      ANCHOR_LEFT_VCENTER);
@@ -345,7 +384,8 @@ public:
         if (m_busy && !(rowCount() == 0 && m_pageWaiting)) note(word(TEXT_LOADING));
         else if (m_searching && m_query.empty()) note(word(TEXT_TYPE_SEARCH));
         else if (m_searching) note(word(TEXT_SEARCH) + ": " + m_query + "_");
-        else if (m_rateMs > 0) note(word(TEXT_RATE) + ": " + std::to_string(m_stars) + " / 5");
+        else if (m_rating && rowCount() > 0) note(ratingPrompt());
+        else if (m_note == NOTE_TEXT) note(m_noteText);
         else if (m_note >= 0) note(word(m_note));
     }
 
@@ -365,6 +405,13 @@ private:
     UI::MajorButton* m_filterAll = new UI::MajorButton(TEXT_FILTER_ALL);
     UI::MajorButton* m_filterRace = new UI::MajorButton(TEXT_RACE);
     UI::MajorButton* m_filterBags = new UI::MajorButton(TEXT_TIMED);
+    UI::MajorButton* m_starButtons[5] = {new UI::MajorButton(TEXT_STAR_1), new UI::MajorButton(TEXT_STAR_1 + 1),
+                                         new UI::MajorButton(TEXT_STAR_1 + 2), new UI::MajorButton(TEXT_STAR_1 + 3),
+                                         new UI::MajorButton(TEXT_STAR_1 + 4)};
+    UI::MajorButton* m_cancel = new UI::MajorButton(TEXT_CANCEL);
+    bool m_rating = false;
+    int m_before = 0;
+    std::string m_noteText;
     LevelRow* m_rows[ROWS] = {};
 
     bool m_online = false, m_best = false, m_searching = false, m_canUpload = false;
@@ -374,7 +421,7 @@ private:
     std::vector<port::online::NetLevel> m_net;
     std::map<std::string, std::pair<std::string, int>> m_bests;
     int m_first = 0;
-    int m_sel = 0, m_total = 0, m_note = -1, m_stars = 0, m_rateMs = 0, m_pressedSelected = -1;
+    int m_sel = 0, m_total = 0, m_note = -1, m_pressedSelected = -1;
     std::atomic<int> m_gen{0};
     bool m_pageWaiting = false, m_pageFailed = false;
     const void* m_lastFocus = nullptr;
@@ -388,14 +435,37 @@ private:
 
     int contentLeft() const { return m_left->getX() + m_left->getWidth() + COLUMN_GAP; }
     int contentRight() const { return m_right->getX() - COLUMN_GAP; }
-    std::vector<std::pair<int, int>> columns(int left, int width) const {
-        std::vector<int> parts = m_online ? std::vector<int>{22, 16, 22, 14, 14, 12} : std::vector<int>{26, 18, 24, 14, 18};
+    std::vector<std::pair<int, int>> columns(int left, int width, const std::vector<int>& heads) const {
+        size_t n = heads.size();
+        std::vector<int> need(n, 0), head(n, 0);
+        for (size_t c = 0; c < n; c++) need[c] = head[c] = widthOf(word(heads[c]), FONT_HEAD);
+        for (int i = 0; i < rowCount(); i++) {
+            std::vector<std::string> cells = rowCells(i);
+            for (size_t c = 0; c < n && c < cells.size(); c++) need[c] = std::max(need[c], widthOf(cells[c], FONT_ROW));
+        }
+        int narrow = 0;
+        for (size_t c = 2; c < n; c++) narrow += need[c];
+        int rest = width - narrow - int(n - 1) * COLUMN_GAP;
+        std::vector<int> w(need);
+        if (rest >= head[0] + head[1]) {
+            if (need[0] + need[1] <= rest) {
+                w[0] = need[0] + (rest - need[0] - need[1]) / 2;
+                w[1] = rest - w[0];
+            } else {
+                w[0] = std::max(head[0], rest * need[0] / std::max(1, need[0] + need[1]));
+                w[1] = std::max(head[1], rest - w[0]);
+                w[0] = rest - w[1];
+            }
+        } else {
+            int share = (width - head[0] - head[1] - int(n - 1) * COLUMN_GAP) / int(n - 2);
+            w[0] = head[0], w[1] = head[1];
+            for (size_t c = 2; c < n; c++) w[c] = share;
+        }
         std::vector<std::pair<int, int>> out;
         int x = left;
-        for (int p : parts) {
-            int w = width * p / 100;
-            out.push_back({x, w - COLUMN_GAP / 2});
-            x += w;
+        for (size_t c = 0; c < n; c++) {
+            out.push_back({x, w[c]});
+            x += w[c] + COLUMN_GAP;
         }
         return out;
     }
@@ -426,7 +496,8 @@ private:
     std::vector<UI::Button*> all() {
         std::vector<UI::Button*> out = {m_left,     m_right,  m_play,   m_delete, m_upload,    m_unpublish,
                                         m_toOnline, m_rate,   m_report, m_sort,   m_search,    m_toMine,
-                                        m_filterAll, m_filterRace, m_filterBags};
+                                        m_filterAll, m_filterRace, m_filterBags, m_cancel};
+        for (UI::Button* b : m_starButtons) out.push_back(b);
         for (LevelRow* r : m_rows) out.push_back(r);
         return out;
     }
@@ -438,6 +509,7 @@ private:
         return false;
     }
     std::vector<UI::Button*> rowOne() {
+        if (m_rating) return std::vector<UI::Button*>(m_starButtons, m_starButtons + 5);
         if (m_online) {
             std::vector<UI::Button*> row = {m_play, m_rate, m_report};
             if (rowCount() > 0 && ownOnline(m_net[size_t(m_sel)])) row.push_back(m_delete);
@@ -452,6 +524,7 @@ private:
         return m_filter == FILTER_RACE ? m_filterRace : m_filter == FILTER_BAGS ? m_filterBags : m_filterAll;
     }
     std::vector<UI::Button*> rowTwo() {
+        if (m_rating) return {m_cancel};
         if (m_online) return {m_toMine, m_search, filterButton()};
         return {m_toOnline, filterButton()};
     }
@@ -489,6 +562,7 @@ private:
         if (!signedIn && (b == m_upload || b == m_rate || b == m_report || b == m_unpublish || (m_online && b == m_delete)))
             return TEXT_SIGN_IN;
         if ((b == m_upload || b == m_unpublish) && m_otherAccount) return TEXT_OTHER_ACCOUNT;
+        if ((b == m_rate || b == m_report) && m_online && ownOnline(m_net[size_t(m_sel)])) return TEXT_OWN_LEVEL;
         if (b == m_upload && !m_canUpload) return TEXT_SCRATCH_ONLY;
         return -1;
     }
@@ -500,12 +574,16 @@ private:
 
     void layout() {
         for (UI::Button* b : all()) removeElement(b);
-        int w = m_play->getWidth();
         std::vector<UI::Button*> rows[2] = {rowOne(), rowTwo()};
         for (int r = 0; r < 2; r++) {
-            int x = (1024 - (int(rows[r].size()) * w + (int(rows[r].size()) - 1) * BUTTONS_GAP_X)) / 2;
-            for (size_t i = 0; i < rows[r].size(); i++)
-                rows[r][i]->setPosition(x + int(i) * (w + BUTTONS_GAP_X), BUTTONS_Y + r * BUTTONS_GAP_Y);
+            int n = int(rows[r].size()), total = 0;
+            for (UI::Button* b : rows[r]) total += b->getWidth();
+            int gap = n > 1 ? std::max(BUTTONS_GAP_MIN, std::min(BUTTONS_GAP_X, (BUTTONS_ROW_MAX - total) / (n - 1))) : 0;
+            int x = (1024 - (total + (n - 1) * gap)) / 2;
+            for (UI::Button* b : rows[r]) {
+                b->setPosition(x, BUTTONS_Y + r * BUTTONS_GAP_Y);
+                x += b->getWidth() + gap;
+            }
         }
         for (UI::Button* b : shown()) addElement(b);
     }
@@ -519,6 +597,7 @@ private:
         m_chosen = false;
         m_note = -1;
         m_searching = false;
+        m_rating = false;
         m_gen++;
         medecomp_line_close(this);
         m_mine = readMine(m_filter);
@@ -537,8 +616,7 @@ private:
         m_sel = i;
         if (changed) {
             m_note = -1;
-            m_stars = 0;
-            m_rateMs = 0;
+            m_rating = false;
         }
         m_canUpload = !m_online && port::online::uploadable(m_mine[size_t(m_first + m_sel)].id);
         m_otherAccount = !m_online && port::online::onlineState(m_mine[size_t(m_first + m_sel)].id).state ==
@@ -551,6 +629,7 @@ private:
         if (first < 0 || first >= total) return;
         m_note = -1;
         m_chosen = false;
+        if (m_rating) m_rating = false, layout();
         if (m_online) {
             fetch(first);
         } else {
@@ -715,19 +794,47 @@ private:
             }
         });
     }
-    void sendRating() {
-        m_rateMs = 0;
+    void enterRating() {
         if (port::online::token().empty()) {
             m_note = TEXT_SIGN_IN;
             return;
         }
+        m_rating = true;
+        m_note = -1;
+        layout();
+        m_before = myRating(m_net[size_t(m_sel)].id);
+        port::platform::menuFocusSet(m_starButtons[m_before > 0 ? m_before - 1 : 2]);
+    }
+    void leaveRating() {
+        if (!m_rating) return;
+        m_rating = false;
+        layout();
+        port::platform::menuFocusSet(m_rate);
+    }
+    std::string ratingPrompt() const {
+        const port::online::NetLevel& l = m_net[size_t(m_sel)];
+        std::string text = replaced(word(TEXT_RATE_PICK), "{name}", l.name);
+        if (m_before > 0) text += " " + replaced(word(TEXT_RATE_BEFORE), "{stars}", std::to_string(m_before));
+        return text;
+    }
+    void sendRating(int stars) {
         std::string id = m_net[size_t(m_sel)].id;
-        int stars = m_stars;
-        m_stars = 0;
+        leaveRating();
         run([id, stars, this](const Post& post) {
             std::string error;
-            bool ok = port::online::rateLevel(id, stars, &error);
-            post([this, ok] { m_note = ok ? TEXT_RATED : TEXT_OFFLINE; });
+            port::online::NetLevel updated;
+            bool ok = port::online::rateLevel(id, stars, &error, &updated);
+            post([this, ok, id, stars, error, updated] {
+                if (!ok) {
+                    m_noteText = error.empty() ? word(TEXT_OFFLINE) : error;
+                    m_note = NOTE_TEXT;
+                    return;
+                }
+                rememberRating(id, stars);
+                for (port::online::NetLevel& l : m_net)
+                    if (l.id == id && updated.id == id) l.rating = updated.rating, l.ratings = updated.ratings;
+                m_note = TEXT_RATED;
+            });
         });
     }
     void report() {
@@ -739,7 +846,10 @@ private:
         run([id, this](const Post& post) {
             std::string error;
             bool ok = port::online::reportLevel(id, "Reported from the game", &error);
-            post([this, ok] { m_note = ok ? TEXT_REPORTED : TEXT_OFFLINE; });
+            post([this, ok, error] {
+                m_noteText = error.empty() ? word(TEXT_OFFLINE) : error;
+                m_note = ok ? TEXT_REPORTED : NOTE_TEXT;
+            });
         });
     }
     void playSelected() {

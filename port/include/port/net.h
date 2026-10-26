@@ -153,6 +153,10 @@ bool sessionPoll(Received* out);
 bool sessionTakeLobby(std::vector<uint8_t>* message);
 bool sessionSend(const void* data, size_t size, bool reliable);
 
+const Peer kRelayPeer = 0xffffffffu;
+bool relaySend(const void* data, size_t size);
+int relayPing();
+
 UI::Window* createLobbyWindow();
 const int kLobbyChooseLevel = 3;
 bool splitScreenChosen();
@@ -199,6 +203,7 @@ void enemyAimBegin(GameObjectPolice* cop);
 void enemyAimEnd();
 GameObject* enemyBullet(MEdgeMap* map, float x, float y, float z, const MathVector& velocity);
 void renderRace(midp::Graphics* g);
+int pingBottom();
 void renderRivalsNote(midp::Graphics* g, int centerX, int baselineY);
 void renderRaceResult(midp::Graphics* g, int labelX, int timeX, int rowY, int centerX, int headlineY);
 

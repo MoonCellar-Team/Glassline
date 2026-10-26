@@ -1,6 +1,11 @@
 #include "port/online.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#include <emscripten/fetch.h>
+#else
 #include <dlfcn.h>
+#endif
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -24,6 +29,7 @@ namespace online {
 
 namespace {
 
+#ifndef __EMSCRIPTEN__
 const int kOptWriteData = 10001, kOptUrl = 10002, kOptUserAgent = 10018, kOptHttpHeader = 10023,
           kOptCustomRequest = 10036, kOptFollowLocation = 52, kOptNoSignal = 99, kOptAcceptEncoding = 10102,
           kOptTimeoutMs = 155, kOptConnectTimeoutMs = 156, kOptCopyPostFields = 10165, kOptPostFieldSize = 60,
@@ -35,6 +41,7 @@ const int kOptNoProgress = 43, kOptFailOnError = 45, kOptProtocols = 181, kOptRe
           kOptMaxFileSizeLarge = 30117;
 const long kProtoHttp = 1 << 0;
 const long kProtoHttps = 1 << 1;
+const int kOptProtocolsStr = 10318, kOptRedirProtocolsStr = 10319;
 const int kCurlHttpError = 22;
 const int kCurlAborted = 42;
 const long long kDownloadMax = 4LL << 30;
@@ -136,6 +143,8 @@ size_t collect(char* data, size_t size, size_t count, void* user) {
     static_cast<std::string*>(user)->append(data, size * count);
     return size * count;
 }
+
+#endif
 
 struct Parser {
     const std::string& s;
@@ -361,10 +370,37 @@ std::string errorOf(int status, const std::string& body, const std::string& tran
     return "сервер ответил " + std::to_string(status);
 }
 
+#ifndef __EMSCRIPTEN__
+
 bool available(std::string* why) {
     bool ok = load();
     if (!ok && why) *why = s_why;
     return ok;
+}
+
+namespace {
+
+bool loopback(const std::string& url) {
+    size_t at = url.find("://");
+    if (at == std::string::npos) return false;
+    std::string host = url.substr(at + 3);
+    for (const char* name : {"localhost", "127.0.0.1", "[::1]"}) {
+        size_t n = strlen(name);
+        if (strncasecmp(host.c_str(), name, n) == 0 && (host.size() == n || host[n] == ':' || host[n] == '/'))
+            return true;
+    }
+    return false;
+}
+
+void onlySecure(void* h, const std::string& url, bool ws) {
+    const bool local = loopback(url);
+    const char* allowed = ws ? (local ? "ws,wss" : "wss") : (local ? "http,https" : "https");
+    if (s_curl.setopt(h, kOptProtocolsStr, allowed) != 0 && !ws)
+        s_curl.setopt(h, kOptProtocols, local ? kProtoHttp | kProtoHttps : kProtoHttps);
+    if (s_curl.setopt(h, kOptRedirProtocolsStr, ws ? "wss" : "https") != 0 && !ws)
+        s_curl.setopt(h, kOptRedirProtocols, kProtoHttps);
+}
+
 }
 
 Response request(const std::string& method, const std::string& url, const std::string& body,
@@ -387,6 +423,7 @@ Response request(const std::string& method, const std::string& url, const std::s
     }
     if (!body.empty() && !typed) list = s_curl.slistAppend(list, "Content-Type: application/json");
     s_curl.setopt(h, kOptUrl, url.c_str());
+    onlySecure(h, url, false);
     s_curl.setopt(h, kOptCustomRequest, method.c_str());
     if (!body.empty() || method == "POST" || method == "PUT") {
         s_curl.setopt(h, kOptPostFieldSize, long(body.size()));
@@ -503,6 +540,7 @@ bool WebSocket::open(const std::string& url, const std::vector<std::string>& hea
     Slist* list = nullptr;
     for (const std::string& header : headers) list = s_curl.slistAppend(list, header.c_str());
     s_curl.setopt(h, kOptUrl, url.c_str());
+    onlySecure(h, url, true);
     if (list) s_curl.setopt(h, kOptHttpHeader, list);
     s_curl.setopt(h, kOptUserAgent, "medecomp-port");
     s_curl.setopt(h, kOptConnectOnly, 2L);
@@ -602,6 +640,186 @@ void WebSocket::close() {
     m_pingAt = 0;
     m_rtt = -1;
 }
+
+#else
+
+bool available(std::string*) { return true; }
+
+namespace {
+
+struct FetchHeaders {
+    std::vector<std::string> parts;
+    std::vector<const char*> ptrs;
+
+    FetchHeaders(const std::vector<std::string>& headers, bool json) {
+        bool typed = false;
+        for (const std::string& header : headers) {
+            size_t colon = header.find(':');
+            if (colon == std::string::npos) continue;
+            std::string name = header.substr(0, colon), value = header.substr(colon + 1);
+            while (!value.empty() && value[0] == ' ') value.erase(0, 1);
+            typed |= strncasecmp(name.c_str(), "Content-Type", 12) == 0;
+            parts.push_back(name);
+            parts.push_back(value);
+        }
+        if (json && !typed) {
+            parts.push_back("Content-Type");
+            parts.push_back("application/json");
+        }
+        for (const std::string& part : parts) ptrs.push_back(part.c_str());
+        ptrs.push_back(nullptr);
+    }
+};
+
+Response fetchSync(const std::string& method, const std::string& url, const std::string& body,
+                   const std::vector<std::string>& headers, long timeoutMs) {
+    Response r;
+    FetchHeaders list(headers, !body.empty());
+    emscripten_fetch_attr_t attr;
+    emscripten_fetch_attr_init(&attr);
+    snprintf(attr.requestMethod, sizeof attr.requestMethod, "%s", method.c_str());
+    attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY | EMSCRIPTEN_FETCH_SYNCHRONOUS | EMSCRIPTEN_FETCH_REPLACE;
+    attr.requestHeaders = list.ptrs.data();
+    if (!body.empty() || method == "POST" || method == "PUT") {
+        attr.requestData = body.data();
+        attr.requestDataSize = body.size();
+    }
+    attr.timeoutMSecs = unsigned(timeoutMs > 0 ? timeoutMs : 0);
+    emscripten_fetch_t* f = emscripten_fetch(&attr, url.c_str());
+    if (!f) {
+        r.error = "запрос не отправить";
+        return r;
+    }
+    r.status = f->status;
+    if (r.status != 0 && f->data) r.body.assign(f->data, size_t(f->numBytes));
+    if (r.status == 0) r.error = f->statusText[0] ? f->statusText : "нет связи с сервером";
+    emscripten_fetch_close(f);
+    return r;
+}
+
+}
+
+Response request(const std::string& method, const std::string& url, const std::string& body,
+                 const std::vector<std::string>& headers, long timeoutMs) {
+    return fetchSync(method, url, body, headers, timeoutMs);
+}
+
+bool download(const std::string& url, const std::string& path,
+              const std::function<bool(long long done, long long total)>& progress, std::string* error, bool) {
+    Response r = fetchSync("GET", url, std::string(), {}, 0);
+    if (r.status == 0) return *error = r.error, false;
+    if (r.status >= 400) return *error = "сервер ответил " + std::to_string(r.status), false;
+    if (progress && !progress((long long)r.body.size(), (long long)r.body.size())) return *error = "отменено", false;
+    FILE* file = fopen(path.c_str(), "wb");
+    if (!file) return *error = "не создать " + path, false;
+    bool written = fwrite(r.body.data(), 1, r.body.size(), file) == r.body.size();
+    written = fclose(file) == 0 && written;
+    if (!written) return *error = "не записать " + path, false;
+    return true;
+}
+
+bool WebSocket::open(const std::string& url, const std::vector<std::string>& headers, std::string* error) {
+    close();
+    std::string target = url;
+    for (const std::string& header : headers)
+        if (strncasecmp(header.c_str(), "Authorization: Bearer ", 22) == 0)
+            target += std::string(target.find('?') == std::string::npos ? "?" : "&") + "token=" + header.substr(22);
+    int id = MAIN_THREAD_EM_ASM_INT({
+        const all = Module.medecompSockets || (Module.medecompSockets = { next: 1 });
+        const id = all.next++;
+        const s = {}; s.queue = []; s.state = 0;
+        all[id] = s;
+        try {
+            s.ws = new WebSocket(UTF8ToString($0));
+        } catch (e) {
+            s.state = 2;
+            return id;
+        }
+        s.ws.onopen = () => { s.state = 1; };
+        s.ws.onmessage = (e) => { if (typeof e.data === "string") s.queue.push(e.data); };
+        s.ws.onclose = () => { s.state = 2; };
+        s.ws.onerror = () => { s.state = 2; };
+        return id;
+    }, target.c_str());
+    int state = 0;
+    for (int waited = 0; waited < 10000 && state == 0; waited += 10) {
+        state = MAIN_THREAD_EM_ASM_INT({ return Module.medecompSockets[$0].state; }, id);
+        if (state == 0) {
+            struct timespec t = {0, 10000000};
+            nanosleep(&t, nullptr);
+        }
+    }
+    if (state != 1) {
+        MAIN_THREAD_EM_ASM({
+            const s = Module.medecompSockets[$0];
+            if (s.ws) s.ws.close();
+            delete Module.medecompSockets[$0];
+        }, id);
+        if (error) *error = state == 0 ? "сервер не ответил" : "соединение не установлено";
+        return false;
+    }
+    m_handle = reinterpret_cast<void*>(intptr_t(id));
+    m_partial.clear();
+    m_pingAt = 0;
+    m_rtt = -1;
+    return true;
+}
+
+bool WebSocket::ping() { return false; }
+
+bool WebSocket::send(const std::string& text) {
+    if (!m_handle) return false;
+    return MAIN_THREAD_EM_ASM_INT({
+        const s = Module.medecompSockets[$0];
+        if (!s || s.state !== 1) return 0;
+        s.ws.send(UTF8ToString($1, $2));
+        return 1;
+    }, int(intptr_t(m_handle)), text.data(), int(text.size())) != 0;
+}
+
+bool WebSocket::recv(std::string* text, bool* closed) {
+    *closed = false;
+    if (!m_handle) {
+        *closed = true;
+        return false;
+    }
+    const int id = int(intptr_t(m_handle));
+    int size = MAIN_THREAD_EM_ASM_INT({
+        const s = Module.medecompSockets[$0];
+        if (!s) return -2;
+        if (s.queue.length) return lengthBytesUTF8(s.queue[0]);
+        return s.state === 2 ? -2 : -1;
+    }, id);
+    if (size == -2) {
+        *closed = true;
+        return false;
+    }
+    if (size < 0) return false;
+    std::string out(size_t(size) + 1, '\0');
+    MAIN_THREAD_EM_ASM({
+        const s = Module.medecompSockets[$0];
+        stringToUTF8(s.queue.shift(), $1, $2);
+    }, id, &out[0], size + 1);
+    out.resize(size_t(size));
+    *text = std::move(out);
+    return true;
+}
+
+void WebSocket::close() {
+    if (m_handle) {
+        MAIN_THREAD_EM_ASM({
+            const s = Module.medecompSockets && Module.medecompSockets[$0];
+            if (s && s.ws) s.ws.close();
+            if (s) delete Module.medecompSockets[$0];
+        }, int(intptr_t(m_handle)));
+    }
+    m_handle = nullptr;
+    m_partial.clear();
+    m_pingAt = 0;
+    m_rtt = -1;
+}
+
+#endif
 
 }
 }

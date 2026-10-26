@@ -94,10 +94,13 @@ cmake_lib() {
 }
 
 step() {
-	[ -f "$P/.done-$1" ] && return
+	local stamp
+	stamp="$P/.done-$1-$(declare -f "lib_$1" | sha256sum | cut -c1-12)"
+	[ -f "$stamp" ] && return
 	echo "== $ABI: $1"
+	rm -f "$P/.done-$1" "$P/.done-$1"-*
 	"lib_$1"
-	touch "$P/.done-$1"
+	touch "$stamp"
 }
 
 lib_zlib() {
@@ -106,22 +109,22 @@ lib_zlib() {
 }
 
 lib_libpng() {
-	fetch https://download.sourceforge.net/libpng/libpng-1.6.44.tar.xz 60c4da1d5b7f0aa8d158da48e8f8afa9773c1c8baa5d21974df61f1886b8ce8e
-	autotools libpng "$SRC/libpng-1.6.44" --enable-hardware-optimizations=no
-	licenses "$SRC/libpng-1.6.44" libpng
+	fetch https://download.sourceforge.net/libpng/libpng-1.6.59.tar.xz d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389
+	autotools libpng "$SRC/libpng-1.6.59" --enable-hardware-optimizations=no
+	licenses "$SRC/libpng-1.6.59" libpng
 }
 
 lib_freetype() {
-	fetch https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz 0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289
-	CC_BUILD=cc autotools freetype "$SRC/freetype-2.13.3" --with-zlib=yes --with-png=yes --with-harfbuzz=no \
+	fetch https://download.savannah.gnu.org/releases/freetype/freetype-2.15.0.tar.xz 93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5
+	CC_BUILD=cc autotools freetype "$SRC/freetype-2.15.0" --with-zlib=yes --with-png=yes --with-harfbuzz=no \
 		--with-bzip2=no --with-brotli=no
-	licenses "$SRC/freetype-2.13.3" freetype
+	licenses "$SRC/freetype-2.15.0" freetype
 }
 
 lib_expat() {
-	fetch https://github.com/libexpat/libexpat/releases/download/R_2_6_4/expat-2.6.4.tar.xz a695629dae047055b37d50a0ff4776d1d45d0a4c842cf4ccee158441f55ff7ee
-	autotools expat "$SRC/expat-2.6.4" --without-docbook --without-examples --without-tests
-	licenses "$SRC/expat-2.6.4" expat
+	fetch https://github.com/libexpat/libexpat/releases/download/R_2_9_0/expat-2.9.0.tar.xz 1e6371862cc31999b368c3b89b49994f0677e1bab5f1b2b85ae3741f5d803051
+	autotools expat "$SRC/expat-2.9.0" --without-docbook --without-examples --without-tests
+	licenses "$SRC/expat-2.9.0" expat
 }
 
 lib_fontconfig() {
@@ -138,11 +141,11 @@ lib_pixman() {
 }
 
 lib_cairo() {
-	fetch https://cairographics.org/releases/cairo-1.18.2.tar.xz a62b9bb42425e844cc3d6ddde043ff39dbabedd1542eba57a2eb79f85889d45a
-	meson_lib cairo "$SRC/cairo-1.18.2" -Dxlib=disabled -Dxcb=disabled -Dquartz=disabled -Dglib=disabled \
+	fetch https://cairographics.org/releases/cairo-1.18.6.tar.xz 1c767308174337a74694da0f3ec069c271452163a1ef4540964c50c301f157d4
+	meson_lib cairo "$SRC/cairo-1.18.6" -Dxlib=disabled -Dxcb=disabled -Dquartz=disabled -Dglib=disabled \
 		-Dtests=disabled -Dspectre=disabled -Dsymbol-lookup=disabled -Dgtk_doc=false \
 		-Dfreetype=enabled -Dfontconfig=enabled -Dpng=enabled -Dzlib=enabled
-	licenses "$SRC/cairo-1.18.2" cairo
+	licenses "$SRC/cairo-1.18.6" cairo
 }
 
 lib_sdl2() {
@@ -183,28 +186,28 @@ host_gperf() {
 }
 
 lib_curl() {
-	fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz 23c666d0edf20f14249b3d8f0368acaee9ab585b09e1de82107c66e1f3ec9533
+	fetch https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 	local ssl=$A/deps-build/$ABI/ssl target
 	case $ABI in
 	arm64-v8a) target=android-arm64 ;;
 	armeabi-v7a) target=android-arm ;;
 	*) target=android-x86_64 ;;
 	esac
-	rm -rf "$A/deps-build/$ABI/openssl" && cp -a "$SRC/openssl-3.0.15" "$A/deps-build/$ABI/openssl"
+	rm -rf "$A/deps-build/$ABI/openssl" && cp -a "$SRC/openssl-3.5.9" "$A/deps-build/$ABI/openssl"
 	(cd "$A/deps-build/$ABI/openssl" && env -u CC -u CXX -u AR -u RANLIB -u CFLAGS -u CXXFLAGS -u CPPFLAGS -u LDFLAGS \
 		ANDROID_NDK_ROOT="$NDK" PATH="$TC/bin:$PATH" ./Configure $target -D__ANDROID_API__=$API no-shared no-tests \
 		-fPIC --prefix="$ssl" --libdir=lib --openssldir=/nonexistent/medecomp-openssl \
 		&& env ANDROID_NDK_ROOT="$NDK" PATH="$TC/bin:$PATH" make -j"$JOBS" build_libs \
 		&& make install_dev)
-	fetch https://curl.se/download/curl-8.11.0.tar.xz db59cf0d671ca6e7f5c2c5ec177084a33a79e04c97e71cf183a5cdea235054eb
-	cmake_lib curl "$SRC/curl-8.11.0" -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DBUILD_CURL_EXE=OFF \
+	fetch https://curl.se/download/curl-8.23.0.tar.xz 8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5
+	cmake_lib curl "$SRC/curl-8.23.0" -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DBUILD_CURL_EXE=OFF \
 		-DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF \
 		-DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR="$ssl" -DOPENSSL_USE_STATIC_LIBS=ON -DCMAKE_FIND_ROOT_PATH="$ssl" \
 		-DCURL_CA_BUNDLE=none -DCURL_CA_PATH=none -DCURL_USE_LIBPSL=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF \
 		-DUSE_NGHTTP2=OFF -DUSE_LIBIDN2=OFF -DCURL_USE_LIBSSH2=OFF -DCURL_DISABLE_LDAP=ON -DCURL_DISABLE_LDAPS=ON \
 		-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--exclude-libs,ALL
-	licenses "$SRC/curl-8.11.0" curl
-	licenses "$SRC/openssl-3.0.15" openssl
+	licenses "$SRC/curl-8.23.0" curl
+	licenses "$SRC/openssl-3.5.9" openssl
 }
 
 lib_qrencode() {

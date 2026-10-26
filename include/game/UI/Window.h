@@ -82,4 +82,9 @@ public:
     bool m_deleteOnClosed;
 };
 
+#ifdef MEDECOMP_PORT
+void thumbPressed(int x, int y);
+bool thumbMoved(int x, int y, bool released);
+#endif
+
 }

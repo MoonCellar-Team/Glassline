@@ -15,6 +15,11 @@ static const int CLIENT_MARGIN = 10;
 static const int CONTENT_PADDING = 5;
 static const int TEXT_NULL = 0x800;
 static const int QUAD_GROUP_FRAME = 71;
+#ifdef MEDECOMP_PORT
+static const int THUMB_REACH = 10;
+
+extern "C" int medecomp_pointer_mouse(void);
+#endif
 
 namespace UI {
 
@@ -58,6 +63,104 @@ WindowElement* Window::getElement(int index) {
     }
     return NULL;
 }
+
+#ifdef MEDECOMP_PORT
+static struct {
+    Window* window;
+    bool vertical;
+    float origin;
+    int pressX;
+    int pressY;
+} s_thumb;
+
+struct Thumb {
+    ScrollBar* bar;
+    float length;
+    float travel;
+    float pos;
+    float span;
+};
+
+static Thumb thumbOf(Window* w, bool vertical) {
+    Thumb t;
+    t.bar = vertical ? static_cast<ScrollBar*>(w->m_verticalScrollBar) : w->m_horizontalScrollBar;
+    t.span = (float)(vertical ? w->getClientMaxY() : w->getClientMaxX());
+    if (t.bar == NULL || t.span <= 0.0f) {
+        t.bar = NULL;
+        return t;
+    }
+    float client = (float)(vertical ? w->getClientHeight() : w->getClientWidth());
+    float track = (float)(vertical ? t.bar->getHeight() : t.bar->getWidth());
+    t.length = client / (client + t.span) * track;
+    t.travel = track - t.length;
+    t.pos = t.travel * (float)(-(vertical ? w->getClientOffsetY() : w->getClientOffsetX())) / t.span;
+    if (t.travel <= 0.0f) {
+        t.bar = NULL;
+    }
+    return t;
+}
+
+static void thumbTo(Window* w, bool vertical, float pos) {
+    Thumb t = thumbOf(w, vertical);
+    if (t.bar == NULL) {
+        return;
+    }
+    int offset = -(int)lroundf(pos / t.travel * t.span);
+    if (vertical) {
+        w->setClientOffsetY(offset);
+    } else {
+        w->setClientOffsetX(offset);
+    }
+}
+
+static bool grabThumb(Window* w, int x, int y) {
+    if (!medecomp_pointer_mouse()) {
+        return false;
+    }
+    for (int i = 0; i < 2; i++) {
+        bool vertical = i == 0;
+        Thumb t = thumbOf(w, vertical);
+        if (t.bar == NULL) {
+            continue;
+        }
+        int reachX = vertical ? THUMB_REACH : 0;
+        int reachY = vertical ? 0 : THUMB_REACH;
+        int left = t.bar->getX() - reachX;
+        int top = t.bar->getY() - reachY;
+        if (x < left || y < top || x >= left + t.bar->getWidth() + reachX * 2 ||
+            y >= top + t.bar->getHeight() + reachY * 2) {
+            continue;
+        }
+        float along = (float)(vertical ? y - t.bar->getY() : x - t.bar->getX());
+        float grab = along >= t.pos && along < t.pos + t.length ? along - t.pos : t.length / 2;
+        thumbTo(w, vertical, along - grab);
+        t.bar->m_velocity = 0.0f;
+        s_thumb.window = w;
+        s_thumb.vertical = vertical;
+        s_thumb.origin = (float)(vertical ? s_thumb.pressY : s_thumb.pressX) - along + grab;
+        return true;
+    }
+    return false;
+}
+
+void thumbPressed(int x, int y) {
+    s_thumb.window = NULL;
+    s_thumb.pressX = x;
+    s_thumb.pressY = y;
+}
+
+bool thumbMoved(int x, int y, bool released) {
+    if (s_thumb.window == NULL || !medecomp_pointer_mouse()) {
+        return false;
+    }
+    if (released) {
+        s_thumb.window = NULL;
+    } else {
+        thumbTo(s_thumb.window, s_thumb.vertical, (float)(s_thumb.vertical ? y : x) - s_thumb.origin);
+    }
+    return true;
+}
+#endif
 
 bool Window::pointerDragged(int x, int y, int id) {
     std::vector<WindowElement*>::iterator it = m_elements.begin();
@@ -118,6 +221,11 @@ bool Window::pointerReleased(int x, int y, int id) {
 }
 
 bool Window::pointerPressed(int x, int y, int id) {
+#ifdef MEDECOMP_PORT
+    if (grabThumb(this, x - m_marginX, y - m_marginY)) {
+        return true;
+    }
+#endif
     std::vector<WindowElement*>::iterator it = m_elements.begin();
     std::vector<WindowElement*>::iterator end = m_elements.end();
     for (; it != end; ++it) {
@@ -168,6 +276,11 @@ Window::~Window() {
     }
     delete m_verticalScrollBar;
     delete m_horizontalScrollBar;
+#ifdef MEDECOMP_PORT
+    if (s_thumb.window == this) {
+        s_thumb.window = NULL;
+    }
+#endif
 }
 
 void Window::render(midp::Graphics* g, int originY, int originX) {

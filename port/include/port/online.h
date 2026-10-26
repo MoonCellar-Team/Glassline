@@ -75,6 +75,8 @@ private:
 
 void frame();
 
+void startCheck();
+
 int consoleSignIn();
 int consoleSignOut();
 

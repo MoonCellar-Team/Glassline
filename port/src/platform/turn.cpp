@@ -1,4 +1,5 @@
 #include "turn.h"
+#include "settings.h"
 
 #include <stdlib.h>
 
@@ -59,6 +60,13 @@ int quarter(SDL_Window* window) {
     int w = 0, h = 0;
     SDL_GetWindowSize(window, &w, &h);
     return h > w ? side() : 0;
+#elif defined(__EMSCRIPTEN__)
+    int w = 0, h = 0;
+    SDL_GetWindowSize(window, &w, &h);
+    const std::string orientation = settings::get("web_orientation", "auto");
+    if (orientation == "landscape" && h > w) return 1;
+    if (orientation == "portrait" && w > h) return 3;
+    return 0;
 #else
     return 0;
 #endif

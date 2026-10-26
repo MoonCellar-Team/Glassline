@@ -1,6 +1,11 @@
 #include <math.h>
+#include <stdio.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#endif
 
 #include <atomic>
+#include <cmath>
 
 #include "game/PhotoPicker.h"
 #include "platform/PhotoPickerImpl.h"
@@ -100,7 +105,18 @@ void accelerate(float tilt) {
     s_delegate->owner->accelerate(0.0f, -sinf(a), -cosf(a));
 }
 
-void runAccelerometer() { accelerate(s_tilt); }
+void runAccelerometer() {
+#ifdef __EMSCRIPTEN__
+    double t = MAIN_THREAD_EM_ASM_DOUBLE({ return Module.medecompTilt; });
+    if (!std::isnan(t)) {
+        static bool told;
+        if (!told) fprintf(stderr, "medecomp: наклон — от устройства (deviceorientation), сейчас %.2f\n", t);
+        told = true;
+        setTilt(float(t));
+    }
+#endif
+    accelerate(s_tilt);
+}
 
 }
 }

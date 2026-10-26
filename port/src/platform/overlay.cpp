@@ -21,6 +21,7 @@
 #include "launcher.h"
 #include "levels.h"
 #include "mcui.h"
+#include "port/platform.h"
 #include "settings.h"
 
 namespace port {
@@ -277,7 +278,7 @@ static void drawSplash(double now, float w, float h, float scale) {
 }
 
 bool coverActive() {
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     return helperRun();
 #else
     return helperRun() && getenv("MEDECOMP_PREVIEW_COVER");

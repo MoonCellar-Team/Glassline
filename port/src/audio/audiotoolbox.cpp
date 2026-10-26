@@ -94,7 +94,7 @@ struct Queue {
 extern "C" {
 void* alcOpenDevice(const char*);
 void* alcCreateContext(void*, const int*);
-void alcMakeContextCurrent(void*);
+char alcMakeContextCurrent(void*);
 void* alcGetCurrentContext();
 void* alcGetProcAddress(void*, const char*);
 void alcDestroyContext(void*);

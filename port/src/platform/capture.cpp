@@ -46,6 +46,7 @@ std::string s_videoPath, s_wavPath;
 
 struct Pending {
     int kind, x, y, px, py, tap;
+    bool mouse;
 };
 std::mutex s_pendingMu;
 std::vector<Pending> s_pending;
@@ -277,10 +278,10 @@ bool active() { return s_mode != Off; }
 
 bool replaying() { return s_mode == Replay; }
 
-void postPointer(int kind, int x, int y, int px, int py, int tap) {
+void postPointer(int kind, int x, int y, int px, int py, int tap, bool mouse) {
     if (s_mode != Record) return;
     std::lock_guard<std::mutex> lock(s_pendingMu);
-    s_pending.push_back({kind, x, y, px, py, tap});
+    s_pending.push_back({kind, x, y, px, py, tap, mouse});
 }
 
 int frameBegin() {
@@ -292,7 +293,7 @@ int frameBegin() {
             pending.swap(s_pending);
         }
         for (const Pending& p : pending) {
-            int pointer = pointerCall(p.kind, p.x, p.y, p.px, p.py, p.tap);
+            int pointer = pointerCall(p.kind, p.x, p.y, p.px, p.py, p.tap, p.mouse);
             if (s_frame >= 0 && !s_ended)
                 fprintf(s_record, "p %lld %d %d %d %d %d\n", s_frame, p.kind, p.x, p.y, pointer, p.tap);
         }

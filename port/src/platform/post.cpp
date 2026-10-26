@@ -907,9 +907,11 @@ extern "C" void medecomp_post_world(float fovy, float aspect, float nearPlane, f
         s_godRays = !original && godRaysSetting();
         s_motion = !original && motionBlurSetting();
         s_ssrStrength = original ? 0.0f : ssrSetting();
-        if (s_ssrStrength > 0 && underWine()) {
+        if (s_ssrStrength > 0 && underWine() && !nativeShaderCompiler()) {
             fprintf(stderr, "medecomp: отражения выключены — Wine или Proton (компилятор шейдеров Wine)\n");
             s_ssrStrength = 0.0f;
+        } else if (s_ssrStrength > 0 && underWine()) {
+            fprintf(stderr, "medecomp: отражения — под Wine с компилятором шейдеров от Microsoft (C41)\n");
         }
         s_flare = !original && lensFlareSetting();
         s_grade = original ? 0 : gradeSetting();

@@ -1,0 +1,7 @@
+version: 2
+updates:
+  # Actions are pinned by commit in .github/workflows: Dependabot proposes new versions with their commits
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

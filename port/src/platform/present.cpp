@@ -1,4 +1,9 @@
 #include <SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#include <emscripten/html5.h>
+#include <emscripten/html5_webgl.h>
+#endif
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
@@ -21,7 +26,9 @@
 #include "capture.h"
 #include "fsr.h"
 #include "../gfx/attribs.h"
+#include "../gfx/gl_proc.h"
 #include "overlay.h"
+#include "process.h"
 #include "gl_shared.h"
 #include "settings.h"
 #include "turn.h"
@@ -36,10 +43,22 @@ GLint s_attrPos = -1, s_attrUV = -1;
 
 namespace {
 
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_WEBGL_CONTEXT_HANDLE s_webgl;
+#endif
+
+void* glProcAddress(const char* name) {
+#ifdef __EMSCRIPTEN__
+    return emscripten_webgl_get_proc_address(name);
+#else
+    return SDL_GL_GetProcAddress(name);
+#endif
+}
+
 bool loadGL() {
     bool ok = true;
 #define GL_LOAD(U, N)                                                                   \
-    gl.N = reinterpret_cast<PFNGL##U##PROC>(SDL_GL_GetProcAddress("gl" #N));            \
+    gl.N = reinterpret_cast<PFNGL##U##PROC>(glProcAddress("gl" #N));                    \
     if (!gl.N) {                                                                        \
         fprintf(stderr, "medecomp: в драйвере GL нет gl" #N "\n");                      \
         ok = false;                                                                     \
@@ -51,8 +70,8 @@ bool loadGL() {
     if (version) sscanf(version, "OpenGL ES %d", &major);
     if (major >= 3) {
         glRenderbufferStorageMultisample_ = reinterpret_cast<PfnRenderbufferStorageMultisample>(
-            SDL_GL_GetProcAddress("glRenderbufferStorageMultisample"));
-        glBlitFramebuffer_ = reinterpret_cast<PfnBlitFramebuffer>(SDL_GL_GetProcAddress("glBlitFramebuffer"));
+            glProcAddress("glRenderbufferStorageMultisample"));
+        glBlitFramebuffer_ = reinterpret_cast<PfnBlitFramebuffer>(glProcAddress("glBlitFramebuffer"));
     }
     return ok;
 }
@@ -627,9 +646,69 @@ float displayScale(SDL_Window* window, int drawableWidth) {
     return dpi / 96.0f > 4.0f ? 4.0f : dpi / 96.0f;
 }
 
+bool makeCurrent(bool on) {
+#ifdef __EMSCRIPTEN__
+    port::gfx::t_glCurrent = on;
+    return emscripten_webgl_make_context_current(on ? s_webgl : 0) == EMSCRIPTEN_RESULT_SUCCESS;
+#else
+    return SDL_GL_MakeCurrent(s_window, on ? s_context : nullptr) == 0;
+#endif
+}
+
+void swapWindow() {
+#ifndef __EMSCRIPTEN__
+    SDL_GL_SwapWindow(s_window);
+#endif
+}
+
+void drawableSize(int* w, int* h) {
+#ifdef __EMSCRIPTEN__
+    emscripten_get_canvas_element_size("#canvas", w, h);
+#else
+    SDL_GL_GetDrawableSize(s_window, w, h);
+#endif
+}
+
+#ifdef __EMSCRIPTEN__
+SDL_GLContext createWebGL() {
+    EmscriptenWebGLContextAttributes a;
+    emscripten_webgl_init_context_attributes(&a);
+    a.alpha = false;
+    a.depth = false;
+    a.stencil = false;
+    a.antialias = false;
+    a.premultipliedAlpha = false;
+    a.powerPreference = EM_WEBGL_POWER_PREFERENCE_HIGH_PERFORMANCE;
+    a.enableExtensionsByDefault = true;
+    a.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW;
+    for (int major : {2, 1}) {
+        a.majorVersion = major;
+        s_webgl = emscripten_webgl_create_context("#canvas", &a);
+        if (s_webgl > 0 && makeCurrent(true)) {
+            s_requested = major == 2 ? 30 : 20;
+            return reinterpret_cast<SDL_GLContext>(intptr_t(s_webgl));
+        }
+        fprintf(stderr, "medecomp: WebGL %d: нет (%d)\n", major, int(s_webgl));
+    }
+    return nullptr;
+}
+#endif
+
 bool createWindow(const char* title) {
 #ifdef _WIN32
     SDL_SetHint(SDL_HINT_OPENGL_ES_DRIVER, "1");
+#endif
+#ifdef __APPLE__
+    SDL_SetHint(SDL_HINT_OPENGL_ES_DRIVER, "1");
+    {
+        std::string self = process::selfPath();
+        std::string frameworks = self.substr(0, self.rfind('/') + 1) + "../Frameworks/";
+        if (FILE* f = fopen((frameworks + "libEGL.dylib").c_str(), "rb")) {
+            fclose(f);
+            setenv("SDL_VIDEO_EGL_DRIVER", (frameworks + "libEGL.dylib").c_str(), 0);
+            setenv("SDL_VIDEO_GL_DRIVER", (frameworks + "libGLESv2.dylib").c_str(), 0);
+        }
+    }
 #endif
     setAppId();
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) != 0) {
@@ -651,7 +730,18 @@ bool createWindow(const char* title) {
     if (const char* size = getenv("MEDECOMP_WINDOW_SIZE")) sscanf(size, "%dx%d", &forcedW, &forcedH);
     bool forced = forcedW > 0 && forcedH > 0;
     const int screen = displaySetting();
+#ifdef __EMSCRIPTEN__
+    Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+    if (!forced) {
+        double cw = 0, ch = 0;
+        emscripten_get_element_css_size("#canvas", &cw, &ch);
+        forcedW = int(cw);
+        forcedH = int(ch);
+        forced = forcedW > 0 && forcedH > 0;
+    }
+#else
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#endif
 #ifdef _WIN32
     const bool hidden = helperRun();
     if (hidden) flags |= SDL_WINDOW_HIDDEN;
@@ -673,7 +763,7 @@ bool createWindow(const char* title) {
         applyMode(mode);
     } else if (!forced) {
         int dw = 0, dh = 0;
-        SDL_GL_GetDrawableSize(s_window, &dw, &dh);
+        drawableSize(&dw, &dh);
         scale = displayScale(s_window, dw);
         SDL_Rect area;
         int display = SDL_GetWindowDisplayIndex(s_window);
@@ -692,6 +782,9 @@ bool createWindow(const char* title) {
         fprintf(stderr, "medecomp: окно: %s, масштаб экрана %.2f, монитор %d (%s)\n", kModeNames[int(mode)], scale,
                 at, name ? name : "?");
     }
+#ifdef __EMSCRIPTEN__
+    s_context = createWebGL();
+#else
     static const int kVersions[][2] = {{3, 1}, {3, 0}, {2, 0}};
     for (const auto& v : kVersions) {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, v[0]);
@@ -703,6 +796,7 @@ bool createWindow(const char* title) {
         }
         fprintf(stderr, "medecomp: контекст OpenGL ES %d.%d: %s\n", v[0], v[1], SDL_GetError());
     }
+#endif
     if (!s_context) return false;
     s_owner = std::this_thread::get_id();
     s_mainThread = s_owner;
@@ -752,14 +846,29 @@ bool createWindow(const char* title) {
                       : displayRefreshRate(display < 0 ? 0 : display);
     bool vsync = fps == kFrameRateDisplay || (fps != kFrameRateUnlimited && vsyncSetting());
     s_timerRate = fps == kFrameRateUnlimited ? 1000 : fps > 0 ? fps : refresh * 3 / 2;
+#ifdef __EMSCRIPTEN__
+    vsync = true;
+    s_timerRate = 0;
+#else
     if (SDL_GL_SetSwapInterval(vsync ? 1 : 0) != 0)
         fprintf(stderr, "medecomp: вертикальная синхронизация: %s\n", SDL_GetError());
+#endif
     s_upscale = int(upscale);
     s_sharp = exp2f(-2.0f * (1.0f - sharpnessSetting()));
     fprintf(stderr, "medecomp: частота кадров: %s, экран %d Гц, вертикальная синхронизация %s, таймер %d\n",
             fps == kFrameRateDisplay ? "как у экрана" : fps == kFrameRateUnlimited ? "без ограничения" : std::to_string(fps).c_str(),
             refresh, vsync ? "вкл." : "выкл.", s_timerRate.load());
     if (!loadGL()) return false;
+#ifdef __EMSCRIPTEN__
+    GLint attribs = 0;
+    gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &attribs);
+    for (GLint i = 0; i < attribs; i++) gl.DisableVertexAttribArray(GLuint(i));
+    gl.BindBuffer(GL_ARRAY_BUFFER, 0);
+    gl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    gl.UseProgram(0);
+    gl.Disable(GL_BLEND);
+    gl.Disable(GL_SCISSOR_TEST);
+#endif
     fprintf(stderr, "medecomp: %s, %s (запрошен ES %d.%d), окно — %s\n", gl.GetString(GL_VERSION), gl.GetString(GL_RENDERER),
             s_requested / 10, s_requested % 10, SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "?");
     return createProgram() && createFramebuffer();
@@ -785,8 +894,7 @@ void acquireContext() {
     while (!s_ctxFree.wait_for(l, std::chrono::seconds(2), [] { return s_owner == std::thread::id(); }))
         fprintf(stderr, "medecomp: жду контекст GL у другого потока\n");
     --s_waiting;
-    if (SDL_GL_MakeCurrent(s_window, s_context) != 0)
-        fprintf(stderr, "medecomp: контекст GL не сделать текущим: %s\n", SDL_GetError());
+    if (!makeCurrent(true)) fprintf(stderr, "medecomp: контекст GL не сделать текущим: %s\n", SDL_GetError());
     s_owner = me;
 }
 
@@ -799,9 +907,12 @@ void beginFrame() {
 }
 
 void releaseContext() {
+#ifdef __EMSCRIPTEN__
+    return;
+#endif
     std::lock_guard<std::mutex> l(s_ctxMutex);
     if (s_owner != std::this_thread::get_id()) return;
-    SDL_GL_MakeCurrent(s_window, nullptr);
+    makeCurrent(false);
     s_owner = std::thread::id();
     s_ctxFree.notify_all();
 }
@@ -814,12 +925,18 @@ void yieldContext() {
     releaseContext();
 }
 
-bool toScreen(float wx, float wy, int* x, int* y) {
+void toFrame(float wx, float wy, float* x, float* y) {
     int w = kScreenWidth, h = kScreenHeight;
     turn::size(s_window, &w, &h);
     float scale, ox, oy;
     fit(w, h, &scale, &ox, &oy);
-    float sx = (wx - ox) / scale - s_wideExtra, sy = (wy - oy) / scale;
+    *x = (wx - ox) / scale - s_wideExtra;
+    *y = (wy - oy) / scale;
+}
+
+bool toScreen(float wx, float wy, int* x, int* y) {
+    float sx, sy;
+    toFrame(wx, wy, &sx, &sy);
     bool inside = sx >= 0 && sy >= 0 && sx < kScreenWidth && sy < kScreenHeight;
     *x = SDL_clamp(int(sx), 0, kScreenWidth - 1);
     *y = SDL_clamp(int(sy), 0, kScreenHeight - 1);
@@ -888,7 +1005,7 @@ void present() {
         glBlitFramebuffer_(0, 0, fw, fh, 0, 0, fw, fh, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
     int w = kScreenWidth, h = kScreenHeight;
-    SDL_GL_GetDrawableSize(s_window, &w, &h);
+    drawableSize(&w, &h);
     const int pw = w, ph = h, quarter = turn::quarter(s_window);
     const GLuint out = outputTarget(quarter, &w, &h);
     gl.BindFramebuffer(GL_FRAMEBUFFER, out);
@@ -955,7 +1072,7 @@ void present() {
     }
     overlayCover(w, h);
     if (quarter) outputTurned(quarter, pw, ph);
-    SDL_GL_SwapWindow(s_window);
+    swapWindow();
     s_presents++;
 
     gl.DisableVertexAttribArray(s_attrPos);
@@ -997,7 +1114,7 @@ bool presentSplash() {
         gl.Disable(caps[i]);
     }
     int w = kScreenWidth, h = kScreenHeight;
-    SDL_GL_GetDrawableSize(s_window, &w, &h);
+    drawableSize(&w, &h);
     const int pw = w, ph = h, quarter = turn::quarter(s_window);
     gl.BindFramebuffer(GL_FRAMEBUFFER, outputTarget(quarter, &w, &h));
     gl.Viewport(0, 0, w, h);
@@ -1012,7 +1129,7 @@ bool presentSplash() {
         }
     }
     if (quarter) outputTurned(quarter, pw, ph);
-    SDL_GL_SwapWindow(s_window);
+    swapWindow();
     s_presents++;
     gl.DisableVertexAttribArray(s_attrPos);
     gl.DisableVertexAttribArray(s_attrUV);
@@ -1030,7 +1147,12 @@ bool presentSplash() {
 }
 
 void destroyWindow() {
+#ifdef __EMSCRIPTEN__
+    if (s_webgl > 0) emscripten_webgl_destroy_context(s_webgl);
+    s_webgl = 0;
+#else
     if (s_context) SDL_GL_DeleteContext(s_context);
+#endif
     if (s_window) SDL_DestroyWindow(s_window);
     s_context = nullptr;
     s_window = nullptr;
@@ -1085,6 +1207,10 @@ void startTextInput() { SDL_StartTextInput(); }
 void stopTextInput() { SDL_StopTextInput(); }
 
 void openURL(const char* url) {
+#ifdef __EMSCRIPTEN__
+    MAIN_THREAD_EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url);
+    return;
+#endif
     if (SDL_OpenURL(url) != 0) fprintf(stderr, "medecomp: не открыть %s: %s\n", url, SDL_GetError());
 }
 

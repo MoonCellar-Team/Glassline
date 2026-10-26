@@ -1473,7 +1473,10 @@ struct PingPlate {
     }
 };
 
+std::atomic<int> s_pingBottom(0);
+
 void renderPing(midp::Graphics* g) {
+    s_pingBottom = 0;
     if (!s_peer) return;
     static PingPlate server, peer;
     SessionInfo info = sessionInfo();
@@ -1482,11 +1485,14 @@ void renderPing(midp::Graphics* g) {
     int y = server.draw(g, info.serverPing < 0 ? std::string()
                                                : replaced(gameText(kTextServerPing), "{ms}", std::to_string(info.serverPing)),
                         kPingY);
-    peer.draw(g, ms < 0 ? std::string()
-                        : replaced(replaced(gameText(kTextPeerPing), "{name}", name.empty() ? "?" : name), "{ms}",
-                                   std::to_string(ms)),
-              y);
+    y = peer.draw(g, ms < 0 ? std::string()
+                            : replaced(replaced(gameText(kTextPeerPing), "{name}", name.empty() ? "?" : name), "{ms}",
+                                       std::to_string(ms)),
+                  y);
+    s_pingBottom = y > kPingY ? y : 0;
 }
+
+int pingBottom() { return s_pingBottom; }
 
 void renderRace(midp::Graphics* g) {
     renderLabels(g);
@@ -1794,6 +1800,10 @@ void raceFrame(int dt) {
         log("соперник на этом уровне");
     }
     if (!map.m_updateObjects.contains(s_remote)) map.addObject(s_remote);
+    if (state == SceneGame::STATE_INTRO_CAM || state == SceneGame::STATE_RACE_START) {
+        s_remote->update(0);
+        s_remote->updateAnimation(0);
+    }
     if (combatChosen() && s_remote->shown() &&
         state == SceneGame::STATE_GAME && player->isAttacking() && !s_remoteImmune && now >= s_hitCooldownUntil &&
         fabsf(player->m_position.x - s_remote->m_position.x) < kHitReachX &&

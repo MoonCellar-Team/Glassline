@@ -10,12 +10,20 @@
 #include "hd_textures.h"
 #include "heroine_tab.h"
 #include "launcher.h"
+#include "touch_device.h"
+#include "launcher_help.h"
 #include "level_file.h"
 #include "overlay.h"
 #include "update.h"
 
 #include <SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#endif
+#ifndef __EMSCRIPTEN__
 #include <fontconfig/fontconfig.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +57,8 @@
 #include "turn.h"
 
 namespace {
+
+using port::platform::launcherHelp;
 
 const char* kVersion = "1.1.48";
 const char* const kTestedNewer[] = {"1.1.52"};
@@ -102,7 +112,11 @@ void checkResources(std::vector<std::string>* missing, int* changed) {
 Check check(const std::string& path) {
     Check c;
     if (path.empty()) {
+#ifdef __EMSCRIPTEN__
+        c.text = L("Выберите свою копию .ipa кнопкой «Обзор»", "Choose your .ipa copy with Browse");
+#else
         c.text = L("Укажите файл .ipa или папку .app", "Choose an .ipa file or an .app folder");
+#endif
         return c;
     }
     if (!port::files::stat(path).exists) {
@@ -264,7 +278,7 @@ void finishDownload(char* buf, size_t size, Check* status, const std::string& ch
 void downloadSection(float scale) {
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("%s", L("Или скачать по ссылке на .ipa (https://): ссылку указываете вы — в порте ни одной нет. "
+    launcherHelp(L("Или скачать по ссылке на .ipa (https://): ссылку указываете вы — в порте ни одной нет. "
                                "Скачанное проверяется так же, как выбранный файл; не подошло — удаляется.",
                                "Or download from a link to the .ipa (https://): you give the link — the port has none. "
                                "The download is checked like a chosen file; if it does not fit, it is deleted."));
@@ -316,6 +330,9 @@ std::string fontFile() {
             }
         }
 #endif
+#ifdef __EMSCRIPTEN__
+    return "/fonts/LiberationSans-Regular.ttf";
+#else
     if (!FcInit()) return out;
     FcPattern* p = FcNameParse(reinterpret_cast<const FcChar8*>("sans-serif:lang=ru"));
     FcConfigSubstitute(nullptr, p, FcMatchPattern);
@@ -331,6 +348,7 @@ std::string fontFile() {
     for (char& ch : ext) ch = char(tolower(ch));
     if (ext != ".ttf" && ext != ".otf" && ext != ".ttc") out.clear();
     return out;
+#endif
 }
 
 struct ArrowFont {
@@ -340,7 +358,9 @@ struct ArrowFont {
 
 ArrowFont arrowFont() {
     ArrowFont out;
-#ifndef _WIN32
+#ifdef __EMSCRIPTEN__
+    out.path = "/fonts/LiberationSans-Regular.ttf";
+#elif !defined(_WIN32)
     if (!FcInit()) return out;
     FcPattern* p = FcNameParse(reinterpret_cast<const FcChar8*>("sans-serif:charset=2192:fontformat=TrueType"));
     if (!p) return out;
@@ -426,7 +446,7 @@ void languageSection(std::string* language, float scale) {
     std::string en = std::string("As in the game — the one chosen in its Language window, the first time — the "
                                  "system language. It can also be changed in the game: Options ") +
                      step + " Language.";
-    ImGui::TextWrapped("%s", L(ru.c_str(), en.c_str()));
+    launcherHelp(L(ru.c_str(), en.c_str()));
     ImGui::PopStyleColor();
 }
 
@@ -447,8 +467,7 @@ void hdSection(float scale) {
     ImGui::BeginDisabled(s_hdGame.empty());
     if (ImGui::Button(L("Сделать HD-текстуры", "Make HD textures"))) hd::start(s_hdGame, s_russian);
     ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("Real-ESRGAN ×4 на видеокарте (Vulkan): полчаса и больше, до 3 ГБ; только у вас",
+    launcherHelp(L("Real-ESRGAN ×4 на видеокарте (Vulkan): полчаса и больше, до 3 ГБ; только у вас",
                                 "Real-ESRGAN ×4 on the GPU (Vulkan): half an hour or more, up to 3 GB; stays on your PC"));
     if (!st.stage.empty()) ImGui::TextDisabled("%s", st.stage.c_str());
     if (!st.error.empty()) ImGui::TextColored(mcui::Color(mcui::tokens::kColorNegative), "%s", st.error.c_str());
@@ -472,10 +491,37 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
     if (ImGui::RadioButton("Original", *original)) *original = true;
     ImGui::SameLine();
     if (ImGui::RadioButton("Remastered", !*original)) *original = false;
-    ImGui::TextDisabled("%s", *original ? L("Кадр как на iPad: 4:3, 768×1024, 30 кадров, по целым пикселям, без улучшений",
+    launcherHelp(*original ? L("Кадр как на iPad: 4:3, 768×1024, 30 кадров, по целым пикселям, без улучшений",
                                              "The frame as on the iPad: 4:3, 768×1024, 30 fps, integer pixels, no enhancements")
                                         : L("Свои настройки — ниже", "Your own settings — below"));
-#ifndef __ANDROID__
+#ifdef __EMSCRIPTEN__
+    mcui::SectionTitle(L("Ориентация", "Orientation"));
+    const std::string orientation = port::platform::settings::get("web_orientation", "auto");
+    for (const auto& option : {std::make_pair("auto", L("По устройству", "Follow device")),
+                               std::make_pair("landscape", L("Альбомная", "Landscape")),
+                               std::make_pair("portrait", L("Книжная", "Portrait"))}) {
+        if (ImGui::RadioButton(option.second, orientation == option.first)) {
+            port::platform::settings::set("web_orientation", option.first);
+            port::platform::settings::save();
+        }
+    }
+    launcherHelp(L("Выберите расположение кадра. Если браузер не умеет фиксировать ориентацию экрана, игра повернёт изображение и управление сама.",
+                   "Choose the frame orientation. If the browser cannot lock the screen orientation, the game rotates its image and input itself."));
+    mcui::SectionTitle(L("Экран браузера", "Browser screen"));
+    const bool supported = MAIN_THREAD_EM_ASM_INT({ return !!Module.medecompFullscreenSupported?.(); }) != 0;
+    bool fullscreen = supported && port::platform::settings::get("web_fullscreen", "0") == "1";
+    ImGui::BeginDisabled(!supported);
+    if (mcui::Toggle(L("Запускать во весь экран", "Start in fullscreen"), &fullscreen)) {
+        port::platform::settings::set("web_fullscreen", fullscreen ? "1" : "0");
+        port::platform::settings::save();
+    }
+    ImGui::EndDisabled();
+    launcherHelp(supported ? L("Браузерный fullscreen включится при нажатии «Играть». Если браузер отклонит запрос, игра продолжит работать во вкладке.",
+                              "Browser fullscreen starts when you press Play. If the browser denies the request, the game continues in the tab.")
+                           : L("Этот браузер не поддерживает полноэкранный режим страницы. Игра работает во вкладке.",
+                               "This browser does not support fullscreen pages. The game runs in the tab."));
+    const int display = screen->display;
+#elif !defined(__ANDROID__)
     int displays = std::max(1, SDL_GetNumVideoDisplays());
     if (screen->display < 0 || screen->display >= displays) screen->display = 0;
     auto displayName = [](int i) {
@@ -502,6 +548,10 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
     const int display = screen->display;
 
     mcui::SectionTitle(L("Режим окна игры", "Game window"));
+#ifndef __ANDROID__
+    launcherHelp(L("В игре F11 или Alt+Enter переключают окно и весь экран — выбор запоминается.",
+                               "In game, F11 or Alt+Enter switch between windowed and fullscreen; the choice is kept."));
+#endif
     struct Option {
         WindowMode mode;
         const char* name;
@@ -516,14 +566,9 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
          L("Окно размером с экран: быстрее переключаться на другие окна.",
            "A screen-sized window: quicker to switch to other windows.")},
     };
-    float column = 0;
-    for (const Option& o : options) column = std::max(column, ImGui::CalcTextSize(o.name).x);
-    column += ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x + ImGui::GetStyle().ItemSpacing.x * 3;
     for (const Option& o : options) {
         ImGui::RadioButton(o.name, mode, int(o.mode));
-        ImGui::SameLine(column);
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("%s", o.note);
+        launcherHelp(o.note);
     }
     {
         SDL_DisplayMode desktop{};
@@ -556,8 +601,6 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
             }
             ImGui::EndCombo();
         }
-        ImGui::SameLine();
-        ImGui::TextDisabled("%s", L("— во весь экран", "— fullscreen"));
         ImGui::EndDisabled();
     }
 #else
@@ -565,8 +608,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
 #endif
     ImGui::BeginDisabled(*original);
     mcui::Toggle(L("Широкий экран", "Widescreen"), wide);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("3D на всю ширину, интерфейс — 4:3 по центру", "3D fills the width, the interface stays 4:3"));
+    launcherHelp(L("3D на всю ширину, интерфейс — 4:3 по центру", "3D fills the width, the interface stays 4:3"));
     ImGui::EndDisabled();
 #ifdef __linux__
     if (getenv("WAYLAND_DISPLAY")) {
@@ -587,20 +629,17 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         const char* current = SDL_GetCurrentVideoDriver();
         std::string note = forced ? std::string(L("задана переменной SDL_VIDEODRIVER", "set by SDL_VIDEODRIVER"))
                                   : std::string(L("сейчас — ", "now — ")) + (current ? current : "?");
-        ImGui::TextDisabled("%s", note.c_str());
+        ImGui::TextWrapped("%s", note.c_str());
         if (!forced)
-            ImGui::TextDisabled("%s", L("Игре — сразу, лаунчеру — со следующего запуска.",
+            launcherHelp(L("Игре — сразу, лаунчеру — со следующего запуска.",
                                         "The game switches at once, the launcher on its next start."));
     }
-#endif
-#ifndef __ANDROID__
-    ImGui::Spacing();
-    ImGui::TextWrapped("%s", L("В игре F11 или Alt+Enter переключают окно и весь экран — выбор запоминается.",
-                               "In game, F11 or Alt+Enter switch between windowed and fullscreen; the choice is kept."));
 #endif
 
     ImGui::BeginDisabled(*original);
     mcui::SectionTitle(L("Частота кадров", "Frame rate"));
+    launcherHelp(L("Время игра считает по часам: скорость от частоты не зависит, выше — только плавнее.",
+                                "The game keeps time by the clock: speed does not depend on the rate, higher is smoother."));
     int refresh = port::platform::displayRefreshRate(display);
     std::vector<int> values = {port::platform::kFrameRateDisplay};
     std::vector<std::string> names = {std::string(L("Как у экрана — ", "Same as the display — ")) +
@@ -627,12 +666,9 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         ImGui::BeginDisabled(!fixed);
         if (mcui::Toggle(L("Вертикальная синхронизация", "Vertical sync"), &on) && fixed) screen->vsync = on;
         ImGui::EndDisabled();
-        ImGui::SameLine();
-        ImGui::TextDisabled("%s", fixed ? L("без неё — разрывы кадра, зато меньше задержка", "without it — tearing, but less lag")
+        launcherHelp(fixed ? L("без неё — разрывы кадра, зато меньше задержка", "without it — tearing, but less lag")
                                         : L("задаёт частота кадров", "set by the frame rate"));
     }
-    ImGui::TextDisabled("%s", L("Время игра считает по часам: скорость от частоты не зависит, выше — только плавнее.",
-                                "The game keeps time by the clock: speed does not depend on the rate, higher is smoother."));
 
     mcui::SectionTitle(L("Увеличение кадра", "Upscaling"));
     using port::platform::Upscale;
@@ -655,8 +691,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
             if (ImGui::Selectable(o.name, &o == chosen)) *upscale = int(o.mode);
         ImGui::EndCombo();
     }
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", chosen->note);
+    launcherHelp(chosen->note);
     ImGui::BeginDisabled(*upscale != int(Upscale::Fsr));
     ImGui::SetNextItemWidth(220 * scale);
     ImGui::SliderFloat(L("Резкость", "Sharpness"), sharpness, 0.0f, 1.0f, "%.2f");
@@ -700,7 +735,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
             if (ImGui::Selectable(o.name, &o == filter0)) *filter = o.level;
         ImGui::EndCombo();
     }
-    ImGui::TextDisabled("%s", *filter ? L("крыши и стены под углом чёткие вдаль, узор не рябит",
+    launcherHelp(*filter ? L("крыши и стены под углом чёткие вдаль, узор не рябит",
                                           "roofs and walls at an angle stay sharp, patterns do not shimmer")
                                       : L("мягче вдаль, мелкий узор рябит на бегу", "softer at a distance, fine patterns shimmer"));
     struct MsaaOption {
@@ -718,8 +753,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         ImGui::EndCombo();
     }
     mcui::Toggle(L("Сглаживание TAA", "TAA anti-aliasing"), taa);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("решётки и провода без мерцания, кадр чуть мягче", "no shimmer on grates and wires, slightly softer"));
+    launcherHelp(L("решётки и провода без мерцания, кадр чуть мягче", "no shimmer on grates and wires, slightly softer"));
     const char* posts[] = {L("Как на iPad", "As on the iPad"), L("Улучшенная", "Enhanced")};
     ImGui::SetNextItemWidth(260 * scale);
     ImGui::Combo(L("Постобработка", "Post-processing"), post, posts, 2);
@@ -727,7 +761,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
     ImGui::SetNextItemWidth(220 * scale);
     ImGui::SliderFloat(L("Сила", "Strength"), postStrength, 0.0f, 1.0f, "%.2f");
     ImGui::EndDisabled();
-    ImGui::TextDisabled("%s", *post ? L("свечение неба и белых стен, мягкие света, цвет по LUT (<папка игрока>/lut.png)",
+    launcherHelp(*post ? L("свечение неба и белых стен, мягкие света, цвет по LUT (<папка игрока>/lut.png)",
                                         "glow of the sky and white walls, soft highlights, LUT grading (<player folder>/lut.png)")
                                     : L("кадр как в оригинале", "the frame as in the original"));
     const char* aos[] = {L("Выкл.", "Off"), "SSAO", "HBAO", "GTAO"};
@@ -740,14 +774,12 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         L("как HBAO, с весом по нормали — ближе к эталону, чуть дороже",
           "like HBAO, cosine-weighted by the normal — closer to reference, a bit slower"),
     };
-    ImGui::TextDisabled("%s", aoHints[*ssao]);
+    launcherHelp(aoHints[*ssao]);
     mcui::Toggle(L("Лучи солнца", "God rays"), godRays);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("против солнца — лучи из-за краёв зданий", "against the sun — rays from behind buildings"));
+    launcherHelp(L("против солнца — лучи из-за краёв зданий", "against the sun — rays from behind buildings"));
     mcui::Toggle(L("Размытие в движении", "Motion blur"), motionBlur);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("на бегу края кадра размываются по движению", "edges of the frame blur when running"));
-    const bool wine = port::platform::underWine();
+    launcherHelp(L("на бегу края кадра размываются по движению", "edges of the frame blur when running"));
+    const bool wine = !port::platform::nativeShaderCompiler();
     ImGui::BeginDisabled(wine);
     mcui::Toggle(L("Отражения на полах", "Floor reflections"), ssr);
     ImGui::SameLine();
@@ -757,16 +789,16 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
     ImGui::EndDisabled();
     ImGui::EndDisabled();
     if (wine)
-        ImGui::TextDisabled("%s", L("под Wine и Proton не работают — на Linux и Steam Deck берите Linux-сборку",
-                                    "not available under Wine and Proton — on Linux and Steam Deck use the Linux build"));
+        launcherHelp(L("под Wine и Proton — только с d3dcompiler_47.dll из сборки рядом с игрой; на Linux и "
+                                    "Steam Deck лучше Linux-сборка",
+                                    "under Wine and Proton — only with d3dcompiler_47.dll from the build next to the game; "
+                                    "on Linux and Steam Deck the Linux build is better"));
     else
-        ImGui::TextDisabled("%s", L("в крышах и полах отражаются дома и бегун", "buildings and the runner reflect in roofs and floors"));
+        launcherHelp(L("в крышах и полах отражаются дома и бегун", "buildings and the runner reflect in roofs and floors"));
     mcui::Toggle(L("Тени от бегунов", "Runner shadows"), shadows);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("тень героини, соперника и полиции на полу и стенах", "shadows of the heroine, rival and police"));
+    launcherHelp(L("тень героини, соперника и полиции на полу и стенах", "shadows of the heroine, rival and police"));
     mcui::Toggle(L("Блик солнца", "Lens flare"), flare);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("ореол и блики объектива, когда солнце в кадре", "glare and lens ghosts when the sun is in view"));
+    launcherHelp(L("ореол и блики объектива, когда солнце в кадре", "glare and lens ghosts when the sun is in view"));
     const char* grades[] = {L("Выкл.", "Off"), L("Тёплая", "Warm"), L("Холодная", "Cold"), L("Как в игре 2008 года", "Like the 2008 game")};
     ImGui::SetNextItemWidth(260 * scale);
     ImGui::Combo(L("Цветокоррекция", "Color grading"), grade, grades, 4);
@@ -777,15 +809,14 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         mkdir(dir.c_str(), 0755);
         port::platform::openURL(("file://" + dir).c_str());
     }
-    ImGui::TextDisabled("%s", L("PNG по имени-хэшу текстуры; оригиналы выгружает medecomp --dump-textures",
+    launcherHelp(L("PNG по имени-хэшу текстуры; оригиналы выгружает medecomp --dump-textures",
                                 "PNG named by the texture hash; medecomp --dump-textures dumps the originals"));
     ImGui::EndDisabled();
     hdSection(scale);
 
     mcui::SectionTitle(L("Масштаб", "Scale"));
     ImGui::Text(L("Масштаб экрана: %.2f", "Display scale: %.2f"), scale);
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("— из системы; вручную — MEDECOMP_UI_SCALE.", "— from the system; by hand — MEDECOMP_UI_SCALE."));
+    launcherHelp(L("— из системы; вручную — MEDECOMP_UI_SCALE.", "— from the system; by hand — MEDECOMP_UI_SCALE."));
 
     ImGui::Spacing();
     if (ImGui::Button(L("Сбросить настройки экрана", "Reset display settings"))) {
@@ -821,8 +852,7 @@ void displayTab(bool* original, int* mode, int* fps, int* upscale, float* sharpn
         screen->vsync = port::platform::vsyncSetting();
         screen->videoDriver = int(port::platform::videoDriverSetting());
     }
-    ImGui::SameLine();
-    ImGui::TextDisabled("%s", L("— как при первом запуске; сохранятся по «Играть»", "— as on the first run; saved on Play"));
+    launcherHelp(L("— как при первом запуске; сохранятся по «Играть»", "— as on the first run; saved on Play"));
 }
 
 struct Sound {
@@ -840,7 +870,7 @@ void soundTab(Sound* s, float scale) {
     ImGui::SetNextItemWidth(260 * scale);
     ImGui::SliderInt(L("Общая", "Master"), &s->volume, 0, 100, "%d %%");
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("%s", L("Всё вместе: звуки, музыка игры и своя. Музыку и эффекты по отдельности — в "
+    launcherHelp(L("Всё вместе: звуки, музыка игры и своя. Музыку и эффекты по отдельности — в "
                                "настройках звука самой игры.",
                                "Everything together: sounds, the game's music and your own. Music and effects "
                                "separately — in the game's own sound settings."));
@@ -882,7 +912,7 @@ void soundTab(Sound* s, float scale) {
         ImGui::SliderInt(L("Громкость музыки", "Music volume"), &s->musicVolume, 0, 100, "%d %%");
         ImGui::EndDisabled();
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::TextWrapped("%s", L("Как музыка iPod на iPad: пока играет своя, музыка игры молчит, а в настройках "
+        launcherHelp(L("Как музыка iPod на iPad: пока играет своя, музыка игры молчит, а в настройках "
                                    "звука игры остаётся только ползунок эффектов. Треки — из папки и вложенных, по "
                                    "кругу; на паузе при сворачивании окна — вместе с игрой.",
                                    "Like iPod music on the iPad: while yours plays, the game's music is silent and "
@@ -895,7 +925,7 @@ void soundTab(Sound* s, float scale) {
     mcui::SectionTitle(L("В фоне", "In the background"));
     mcui::Toggle(L("Пауза звука при сворачивании", "Pause sound when minimised"), &s->backgroundPause);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("%s", s->backgroundPause
+    launcherHelp(s->backgroundPause
                                  ? L("Как на iPad: окно свернули или переключились — игра и звук на паузе, музыка "
                                      "потом продолжается с того же места.",
                                      "As on the iPad: when the window is minimised or loses focus, the game and the "
@@ -910,7 +940,7 @@ void soundTab(Sound* s, float scale) {
     ImGui::SetNextItemWidth(260 * scale);
     ImGui::Combo("##hrtf", hrtf, names, 3);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("%s", L("Звук со всех сторон, как в пространстве. «Авто» — включает сама OpenAL Soft, если "
+    launcherHelp(L("Звук со всех сторон, как в пространстве. «Авто» — включает сама OpenAL Soft, если "
                                "вывод — наушники; некоторые (часто Bluetooth) она не узнаёт — тогда «Вкл». Для "
                                "колонок — «Выкл».",
                                "Sound from every direction, as in space. Auto lets OpenAL Soft turn it on when the "
@@ -1061,14 +1091,14 @@ void cancelSignIn() {
 
 void openUrl(const std::string& url) {
     if (getenv("MEDECOMP_LAUNCHER_SHOT")) return;
+#ifdef __EMSCRIPTEN__
+    MAIN_THREAD_EM_ASM({ window.open(UTF8ToString($0), "_blank"); }, url.c_str());
+    return;
+#endif
     if (SDL_OpenURL(url.c_str()) != 0) fprintf(stderr, "medecomp: не открыть %s: %s\n", url.c_str(), SDL_GetError());
 }
 
-void hint(const char* text) {
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("%s", text);
-    ImGui::PopStyleColor();
-}
+void hint(const char* text) { launcherHelp(text); }
 
 void drawQr(const std::string& text, float size) {
     static std::string encoded;
@@ -1129,7 +1159,6 @@ void accountUpdate(SDL_Renderer* renderer) {
 bool s_cloudChecked = false;
 bool s_cloudInterrupted = false;
 std::string s_cloudHook;
-std::string s_skinsNote;
 
 bool cloudUpdate() {
     namespace cloud = port::online::cloud;
@@ -1179,26 +1208,16 @@ void cloudSection() {
     bool turnOn = s_cloudHook == "skins-on" && !skins;
     if (turnOn) s_cloudHook.clear();
     if (mcui::Toggle(L("Синхронизировать свои скины", "Sync custom skins"), &skins) || turnOn) {
-        int count = cloud::customSkins();
-        if ((skins || turnOn) && count > cloud::kSkinLimit) {
-            skins = false;
-            s_skinsNote = std::string(L("Своих скинов ", "There are ")) + std::to_string(count) +
-                          L(", а в аккаунте их может быть не больше ", " custom skins, and the account holds at most ") +
-                          std::to_string(cloud::kSkinLimit) +
-                          L(": удалите лишние во вкладке «Героиня» — тогда синхронизацию скинов можно включить.",
-                            ": delete the extra ones in the Heroine tab, then skin sync can be turned on.");
-        } else {
-            cloud::setSkinsEnabled(skins || turnOn);
-            s_skinsNote.clear();
-            if (skins || turnOn) cloud::startSync(s_russian);
-        }
+        cloud::setSkinsEnabled(skins || turnOn);
+        if (skins || turnOn) cloud::startSync(s_russian);
     }
     ImGui::EndDisabled();
-    if (!s_skinsNote.empty()) {
-        ImGui::PushStyleColor(ImGuiCol_Text, mcui::Color(mcui::tokens::kColorAttention));
-        ImGui::TextWrapped("%s", s_skinsNote.c_str());
-        ImGui::PopStyleColor();
-    }
+    hint((std::string(L("В облаке — до ", "The cloud holds up to ")) + std::to_string(cloud::kSkinLimit) +
+          L(" своих скинов, остальные остаются только на этом компьютере. Какие отправить и какие убрать из облака — "
+            "во вкладке «Героиня».",
+            " custom skins, the rest stay on this computer only. Choose which ones to send or remove from the cloud "
+            "on the Heroine tab."))
+             .c_str());
     ImGui::BeginDisabled(!on || cloud::busy());
     if (ImGui::Button(L("Синхронизировать сейчас", "Sync now"))) {
         s_cloudInterrupted = false;
@@ -1317,7 +1336,7 @@ void achievementsTab() {
     const std::vector<ach::Entry>& list = ach::catalog();
     mcui::SectionTitle(L("Ачивки", "Achievements"));
     if (list.empty()) {
-        hint(L("Каталога ачивок нет рядом с программой (config/achievements).",
+        ImGui::TextWrapped("%s", L("Каталога ачивок нет рядом с программой (config/achievements).",
                "The achievement catalog is missing next to the program (config/achievements)."));
         return;
     }
@@ -1441,7 +1460,7 @@ void achievementsTab() {
     }
 }
 
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
 bool s_editorPending = false;
 std::string s_editorId;
 #endif
@@ -1640,7 +1659,7 @@ bool publishBusy() {
 void levelsTab(const char* game) {
     static std::string message;
     auto edit = [&](const std::string& id) {
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         s_editorPending = true;
         s_editorId = id;
         return;
@@ -1679,7 +1698,7 @@ void levelsTab(const char* game) {
     }
     bool signedIn = !port::online::token().empty();
     if (!signedIn && !ids.empty())
-        ImGui::TextDisabled("%s", L("Выкладывать и снимать с сервера — после входа во вкладке «Аккаунт»",
+        launcherHelp(L("Выкладывать и снимать с сервера — после входа во вкладке «Аккаунт»",
                                     "Sign in on the Account tab to upload or unpublish"));
     if (static bool once = false; !once) {
         once = true;
@@ -1877,17 +1896,20 @@ void levelsTab(const char* game) {
     ImGui::Spacing();
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 #ifdef __ANDROID__
-    ImGui::TextWrapped("%s", L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
+    launcherHelp(L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
                                "(.glevel) — «Экспорт в файл» в меню ⋯ (в «Загрузки»), «Импорт уровня…» — с этого устройства.",
                                "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
                                "(.glevel): Export to a file in the ⋯ menu (to Downloads), Import level… from this device."));
+#elif defined(__EMSCRIPTEN__)
+    launcherHelp(L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS.",
+                               "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS."));
 #else
-    ImGui::TextWrapped("%s", L("Редактор открывается отдельным окном; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
+    launcherHelp(L("Редактор открывается отдельным окном; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
                                "(.glevel) — «Экспорт в файл» в меню ⋯, «Импорт уровня…» или перетащите файл на окно.",
                                "The editor opens in its own window; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
                                "(.glevel): Export to a file in the ⋯ menu, Import level… or drop the file on this window."));
 #endif
-    ImGui::TextWrapped("%s", dir.c_str());
+    launcherHelp(dir.c_str());
     ImGui::PopStyleColor();
     if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
 }
@@ -1971,7 +1993,7 @@ void accountTab(float scale) {
             return;
         }
     } else {
-        ImGui::TextWrapped("%s", L("Войдите аккаунтом MoonCellar — тогда ваше время попадёт в таблицы лидеров под "
+        launcherHelp(L("Войдите аккаунтом MoonCellar — тогда ваше время попадёт в таблицы лидеров под "
                                    "вашим именем. Без входа игра работает офлайн, таблицы можно только смотреть.",
                                    "Sign in with a MoonCellar account to put your times on the leaderboards under "
                                    "your name. Without it the game works offline and the leaderboards are "
@@ -2002,6 +2024,23 @@ void accountTab(float scale) {
 
 void controlsTab() {
     using port::platform::bindings::Action;
+    mcui::SectionTitle(L("Управление", "Controls"));
+    if (port::platform::defaultTouchInput()) {
+        ImGui::TextWrapped("%s", L("Проводите пальцем в нужную сторону: вверх — прыжок, вниз — подкат или спуск, влево и вправо — бег. Касание экрана останавливает Фейт. Пауза — кнопкой в углу или свайпом вниз двумя пальцами. Наклоняйте устройство для равновесия.",
+                                  "Swipe in the direction you need: up to jump, down to slide or drop, left and right to run. Tap the screen to stop Faith. Pause with the corner button or a two-finger downward swipe. Tilt the device to balance."));
+        if (!ImGui::CollapsingHeader(L("Клавиатура и геймпад", "Keyboard and gamepad"))) return;
+    }
+    launcherHelp(L("Нажмите клетку и клавишу или кнопку. Esc — отмена. Стрелки, Enter и P работают вместе с "
+          "назначенным. Shift со свайпом влево или вправо — двумя пальцами. Крестовина и стик — "
+          "направления всегда. В меню стрелки и крестовина ходят по кнопкам, Enter и A подтверждают, "
+          "Esc и B — назад. Мышь и касание — как на планшете. Второй геймпад — второй игрок. "
+          "F11 — во весь экран, F12 — снимок кадра.",
+          "Click a cell, then a key or button. Esc cancels. Arrows, Enter and P stay alongside the "
+          "binding. Shift with a left or right swipe is two fingers. The D-pad and stick always move. "
+          "In menus the arrows and D-pad move between buttons, Enter and A confirm, Esc and B go back. "
+          "Mouse and touch work as on the tablet. A second gamepad is player two. "
+          "F11 is fullscreen, F12 is a screenshot."));
+
     const char* names[port::platform::bindings::ActCount] = {
         L("Свайп вверх", "Swipe up"),
         L("Свайп вниз", "Swipe down"),
@@ -2045,21 +2084,7 @@ void controlsTab() {
     if (ImGui::SliderFloat(L("Мёртвая зона стика", "Stick deadzone"), &zone, 0.05f, 0.9f, "%.2f"))
         port::platform::bindings::setDeadzone(zone);
     if (ImGui::Button(L("По умолчанию", "Defaults"))) port::platform::bindings::reset();
-    ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped(
-        "%s",
-        L("Нажмите клетку и клавишу или кнопку. Esc — отмена. Стрелки, Enter и P работают вместе с "
-          "назначенным. Shift со свайпом влево или вправо — двумя пальцами. Крестовина и стик — "
-          "направления всегда. В меню стрелки и крестовина ходят по кнопкам, Enter и A подтверждают, "
-          "Esc и B — назад. Мышь и касание — как на планшете. Второй геймпад — второй игрок. "
-          "F11 — во весь экран, F12 — снимок кадра.",
-          "Click a cell, then a key or button. Esc cancels. Arrows, Enter and P stay alongside the "
-          "binding. Shift with a left or right swipe is two fingers. The D-pad and stick always move. "
-          "In menus the arrows and D-pad move between buttons, Enter and A confirm, Esc and B go back. "
-          "Mouse and touch work as on the tablet. A second gamepad is player two. "
-          "F11 is fullscreen, F12 is a screenshot."));
-    ImGui::PopStyleColor();
+
 }
 
 struct BrandTexture {
@@ -2270,13 +2295,11 @@ void updateBanner(float scale) {
         if (st.installable) {
             if (mcui::Button(st.stage == update::Stage::Failed ? L("Ещё раз", "Try again") : L("Обновить", "Update"), mcui::ButtonKind::Accent))
                 update::install(s_russian);
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s", L("скачается, сверится подпись, лаунчер перезапустится; игра и сохранения не трогаются",
+            launcherHelp(L("скачается, сверится подпись, лаунчер перезапустится; игра и сохранения не трогаются",
                                         "downloads, checks the signature and restarts the launcher; your game and saves stay"));
         } else {
             if (mcui::Button(L("Скачать", "Download"), mcui::ButtonKind::Accent)) openUrl(st.page);
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s", L("эту установку лаунчер сам не обновит — страница выпуска",
+            launcherHelp(L("эту установку лаунчер сам не обновит — страница выпуска",
                                         "the launcher can't update this install itself — the release page"));
         }
         const char* later = L("Не сейчас", "Not now");
@@ -2292,21 +2315,26 @@ void updateBanner(float scale) {
 }
 
 void touchScroll(float scale) {
-    static bool scrolling = false;
+    static ImGuiID scrollWindow = 0;
     ImGuiIO& io = ImGui::GetIO();
-    if (io.MouseSource != ImGuiMouseSource_TouchScreen || !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-        scrolling = false;
+    if (ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+        scrollWindow = 0;
         return;
     }
-    if (!scrolling) {
+    if (io.MouseSource != ImGuiMouseSource_TouchScreen || !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+        scrollWindow = 0;
+        return;
+    }
+    ImGuiID window = ImGui::GetCurrentWindow()->ID;
+    if (!scrollWindow) {
         if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
             return;
         ImVec2 drag = ImGui::GetMouseDragDelta(ImGuiMouseButton_Left, 0.0f);
         if (fabsf(drag.y) < 12.0f * scale || fabsf(drag.y) < fabsf(drag.x)) return;
-        scrolling = true;
+        scrollWindow = window;
         ImGui::ClearActiveID();
     }
-    ImGui::SetScrollY(ImGui::GetScrollY() - io.MouseDelta.y);
+    if (scrollWindow == window) ImGui::SetScrollY(ImGui::GetScrollY() - io.MouseDelta.y);
 }
 
 void loadingScreen(float scale, Uint32 ms, bool syncing) {
@@ -2317,7 +2345,7 @@ void loadingScreen(float scale, Uint32 ms, bool syncing) {
     const float logoH = 48.0f * scale, r = 14.0f * scale, gap = 28.0f * scale;
     const char* text = syncing ? L("Сверяю сохранения с аккаунтом…", "Syncing saves with the account…")
                                : L("Запускаю игру…", "Starting the game…");
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     if (port::platform::heroine::previewRequested()) text = L("Готовлю превью скинов…", "Preparing skin previews…");
 #endif
     const ImVec2 textSize = ImGui::CalcTextSize(text);
@@ -2333,12 +2361,6 @@ void loadingScreen(float scale, Uint32 ms, bool syncing) {
     ImGui::SetCursorPos(ImVec2((io.DisplaySize.x - textSize.x) / 2, y));
     ImGui::TextDisabled("%s", text);
     ImGui::End();
-}
-
-bool gamepadConnected() {
-    for (int i = 0; i < SDL_NumJoysticks(); i++)
-        if (SDL_IsGameController(i)) return true;
-    return false;
 }
 
 bool runWindow(std::string* path) {
@@ -2359,11 +2381,21 @@ bool runWindow(std::string* path) {
     }
 #ifdef __ANDROID__
     const Uint32 kFlags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI;
+#elif defined(__EMSCRIPTEN__)
+    const Uint32 kFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     const Uint32 kFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_HIDDEN;
 #endif
-    SDL_Window* window = SDL_CreateWindow(MEDECOMP_PORT_NAME, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWidth,
-                                          kHeight, kFlags);
+    int createW = kWidth, createH = kHeight;
+#ifdef __EMSCRIPTEN__
+    {
+        double cw = 0, ch = 0;
+        emscripten_get_element_css_size("#canvas", &cw, &ch);
+        if (cw > 0 && ch > 0) createW = int(cw), createH = int(ch);
+    }
+#endif
+    SDL_Window* window = SDL_CreateWindow(MEDECOMP_PORT_NAME, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, createW,
+                                          createH, kFlags);
     if (!window) {
         fprintf(stderr, "medecomp: лаунчер: окно: %s\n", SDL_GetError());
         return false;
@@ -2381,6 +2413,9 @@ bool runWindow(std::string* path) {
 #ifdef __ANDROID__
     scale = std::max(1.0f, std::min(port::platform::displayScale(window, pixelW),
                                     std::min(std::max(pixelW, pixelH) / 900.0f, std::min(pixelW, pixelH) / 600.0f)));
+#elif defined(__EMSCRIPTEN__)
+    scale = 0.8f * std::max(1.0f, std::min(createW / 900.0f, createH / 600.0f));
+    (void)userResized;
 #else
     SDL_DisplayMode desktopMode;
     if (port::platform::gamescopeSession() && SDL_GetDesktopDisplayMode(display < 0 ? 0 : display, &desktopMode) == 0) {
@@ -2417,6 +2452,8 @@ bool runWindow(std::string* path) {
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    ImGui::GetCurrentContext()->ConfigNavWindowingKeyNext = 0;
+    ImGui::GetCurrentContext()->ConfigNavWindowingKeyPrev = 0;
     if (!loadLauncherFont()) s_russian = false;
     mcui::ApplyStyle(scale);
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
@@ -2426,7 +2463,9 @@ bool runWindow(std::string* path) {
     s_appIcon = loadBrandTexture(renderer, "app-icon-256.png");
     s_aboutOpen = getenv("MEDECOMP_LAUNCHER_ABOUT") != nullptr;
     port::platform::update::cleanup();
+#ifndef __EMSCRIPTEN__
     port::platform::update::check(s_russian);
+#endif
     const char* browseHook = getenv("MEDECOMP_LAUNCHER_BROWSE");
     s_cloudHook = getenv("MEDECOMP_LAUNCHER_CLOUD") ? getenv("MEDECOMP_LAUNCHER_CLOUD") : "";
     int browseFrames = 0;
@@ -2486,12 +2525,37 @@ bool runWindow(std::string* path) {
     int startTab = getenv("MEDECOMP_LAUNCHER_TAB") ? atoi(getenv("MEDECOMP_LAUNCHER_TAB")) : 0;
     bool firstFrame = true;
     int frames = 0;
+    bool wasFullScroll = false;
+#ifdef __EMSCRIPTEN__
+    Uint32 lastFingerAt = 0;
+#endif
     while (!play && !quit) {
         SDL_Event e;
+#ifdef __EMSCRIPTEN__
+        emscripten_sleep(16);
+        double canvasW = 0, canvasH = 0;
+        emscripten_get_element_css_size("#canvas", &canvasW, &canvasH);
+        int windowW = 0, windowH = 0;
+        SDL_GetWindowSize(window, &windowW, &windowH);
+        if (canvasW > 0 && canvasH > 0 && (windowW != int(canvasW) || windowH != int(canvasH)))
+            SDL_SetWindowSize(window, int(canvasW), int(canvasH));
+        if (SDL_PollEvent(&e)) {
+#else
         if (SDL_WaitEventTimeout(&e, port::online::cloud::busy() || s_cloudHook == "busy" || s_download.busy || s_skeletonShown ? 33 : 250)) {
+#endif
             do {
                 port::platform::turn::event(&e);
-                if (!(port::platform::bindings::capturing() && port::platform::bindings::takeEvent(e)))
+                bool mouseFromBrowser = false;
+#ifdef __EMSCRIPTEN__
+                if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP)
+                    lastFingerAt = SDL_GetTicks();
+                if (lastFingerAt && SDL_GetTicks() - lastFingerAt < 800) {
+                    if (e.type == SDL_MOUSEMOTION) mouseFromBrowser = e.motion.which != SDL_TOUCH_MOUSEID;
+                    if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP)
+                        mouseFromBrowser = e.button.which != SDL_TOUCH_MOUSEID;
+                }
+#endif
+                if (!mouseFromBrowser && !(port::platform::bindings::capturing() && port::platform::bindings::takeEvent(e)))
                     ImGui_ImplSDL2_ProcessEvent(&e);
                 if (e.type == SDL_QUIT) quit = true;
                 if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE) quit = true;
@@ -2527,6 +2591,12 @@ bool runWindow(std::string* path) {
         if (checked != buf) {
             checked = buf;
             status = check(checked);
+#ifdef __EMSCRIPTEN__
+            if (status.ok) {
+                port::platform::settings::set("game", checked);
+                port::platform::settings::save();
+            }
+#endif
             focusPlay = status.ok;
             s_hdGame = status.ok ? checked : std::string();
         }
@@ -2542,10 +2612,18 @@ bool runWindow(std::string* path) {
             sound.backgroundPause = port::audio::backgroundPauseSetting();
         }
         port::platform::heroine::update(renderer, s_hdGame);
+        const bool copyingGame = port::platform::dialog::busy() && port::platform::dialog::copyProgress() >= 0;
         ImGui_ImplSDLRenderer2_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         port::platform::turn::imgui(window);
         ImGui::NewFrame();
+#ifdef __EMSCRIPTEN__
+        ImVec4 browserBrowse(0, 0, 0, 0), browserPlay(0, 0, 0, 0);
+        bool browserPlayFocused = false;
+        if (!port::platform::dialog::busy() && MAIN_THREAD_EM_ASM_INT({ return !!Module.medecompFilePending; }))
+            port::platform::dialog::pick(port::platform::dialog::Ipa, buf,
+                                         L("Копия Mirror's Edge (.ipa)", "Mirror's Edge copy (.ipa)"));
+#endif
         if (browseHook && ++browseFrames == 3) {
             bool music = strcmp(browseHook, "music") == 0;
             port::platform::dialog::pick(music ? port::platform::dialog::MusicFolder : port::platform::dialog::Ipa,
@@ -2555,9 +2633,45 @@ bool runWindow(std::string* path) {
         }
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(io.DisplaySize);
-        ImGui::Begin("##launcher", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-                         ImGuiWindowFlags_NoBringToFrontOnFocus);
+        const bool fullScroll = io.DisplaySize.y < 600 * scale || io.DisplaySize.x < 720 * scale;
+        bool fixedFooter = false;
+        float safeBottom = 0;
+#ifdef __EMSCRIPTEN__
+        fixedFooter = fullScroll;
+        safeBottom = float(MAIN_THREAD_EM_ASM_DOUBLE({ return document.getElementById("safe-area").getBoundingClientRect().height; }));
+#endif
+        const ImGuiStyle& layout = ImGui::GetStyle();
+        const float buttonHeight = ImGui::GetFrameHeight() + (fixedFooter ? 0.0f : 8 * scale);
+        const float playWidth = (fixedFooter ? 120.0f : 160.0f) * scale;
+        const float bottomPadding = fixedFooter ? 6 * scale : layout.WindowPadding.y;
+        const float footer = buttonHeight + layout.ItemSpacing.y * 2 + 1;
+        std::string summary = status.text.substr(0, status.text.find('\n'));
+        if (!status.ok && !checked.empty()) summary = L("Копия игры не подходит — вкладка «Игра»",
+                                                        "The game copy does not fit — see the Game tab");
+        if (copyingGame) summary = L("Копирую игру в хранилище браузера…", "Copying the game into browser storage…");
+        const float availableWidth = io.DisplaySize.x - layout.WindowPadding.x * 2;
+        const float besideButton = availableWidth - playWidth - layout.ItemSpacing.x;
+        const bool stackFooter = besideButton < 220 * scale;
+        const float summaryHeight = ImGui::CalcTextSize(summary.c_str(), nullptr, false,
+                                                       std::max(1.0f, stackFooter ? availableWidth : besideButton)).y;
+        const float footerBody = stackFooter ? buttonHeight + layout.ItemSpacing.y + summaryHeight
+                                             : std::max(buttonHeight, summaryHeight);
+        const float footerTop = io.DisplaySize.y - bottomPadding - safeBottom - footerBody;
+        ImGuiWindowFlags launcherFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
+        if (fullScroll && !fixedFooter) launcherFlags &= ~ImGuiWindowFlags_NoScrollbar;
+        if (fixedFooter) launcherFlags |= ImGuiWindowFlags_NoScrollWithMouse;
+        if (fixedFooter) ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(layout.WindowPadding.x, bottomPadding));
+        ImGui::Begin("##launcher", nullptr, launcherFlags);
+        if (fixedFooter) {
+            ImGui::PopStyleVar();
+            ImGui::SetCursorPosY(layout.WindowPadding.y);
+            ImGui::BeginChild("##launcher-content", ImVec2(0, std::max(1.0f, footerTop - ImGui::GetCursorPosY() - layout.ItemSpacing.y)),
+                              ImGuiChildFlags_None, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBackground);
+        }
+        if (fullScroll != wasFullScroll) ImGui::SetScrollY(0);
+        wasFullScroll = fullScroll;
+        if (fullScroll) touchScroll(scale);
         const char* aboutLabel = L("О порте", "About");
         const float aboutW = ImGui::CalcTextSize(aboutLabel).x + ImGui::GetStyle().FramePadding.x * 2;
         const float headerY = ImGui::GetCursorPosY();
@@ -2580,12 +2694,14 @@ bool runWindow(std::string* path) {
             ImGui::SameLine(0, 8.0f * scale);
             ImGui::SetCursorPosY(y);
         }
+        ImGui::PushTextWrapPos(0);
 #ifdef MEDECOMP_VERSION
         ImGui::TextDisabled("%s — %s %s · %s", MEDECOMP_PORT_NAME, portDescription(),
                             L("от MoonCellar Team", "by MoonCellar Team"), MEDECOMP_VERSION);
 #else
         ImGui::TextDisabled("%s — %s %s", MEDECOMP_PORT_NAME, portDescription(), L("от MoonCellar Team", "by MoonCellar Team"));
 #endif
+        ImGui::PopTextWrapPos();
         ImGui::Separator();
         updateBanner(scale);
         if (long long here = 0, there = 0; !s_cloudInterrupted && !port::online::cloud::busy() &&
@@ -2616,33 +2732,83 @@ bool runWindow(std::string* path) {
             ImGui::Separator();
         }
 
-        float buttonHeight = ImGui::GetFrameHeight() + 8 * scale;
-        float footer = buttonHeight + ImGui::GetStyle().ItemSpacing.y * 2 + 1;
         static int s_tab = 0;
         if (firstFrame) s_tab = std::min(std::max(startTab, 0), 7);
         if (s_showLevels) s_tab = 6, s_showLevels = false;
         const char* tabs[] = {L("Игра", "Game"),       L("Экран", "Display"),   L("Управление", "Controls"),
                               L("Звук", "Sound"),      L("Аккаунт", "Account"), L("Героиня", "Heroine"),
                               L("Уровни", "Levels"),   L("Ачивки", "Achievements")};
-        mcui::Segmented("##tabs", tabs, 8, &s_tab, true);
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Tab) && !ImGui::IsAnyItemActive() &&
+            !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) {
+            s_tab = (s_tab + (io.KeyShift ? 7 : 1)) % 8;
+            ImGui::SetKeyboardFocusHere(s_tab);
+        }
+        int previousTab = s_tab;
+        if (ImGui::GetContentRegionAvail().x < 680 * scale) {
+            ImGui::SetNextItemWidth(-1);
+            if (ImGui::BeginCombo("##tabs", tabs[s_tab])) {
+                for (int i = 0; i < 8; i++) {
+                    if (ImGui::Selectable(tabs[i], s_tab == i)) s_tab = i;
+                    if (s_tab == i) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        } else {
+            mcui::Segmented("##tabs", tabs, 8, &s_tab, true);
+        }
+        if (fullScroll && s_tab != previousTab) ImGui::SetScrollY(0);
         const char* panels[] = {"##game",    "##display", "##controls", "##sound",
                                 "##account", "##heroine", "##levels",   "##achievements"};
         s_skeletonShown = false;
-        if (mcui::BeginPanel(panels[s_tab], ImVec2(0, -footer))) {
-            touchScroll(scale);
+        float below = s_tab == 5 ? port::platform::heroine::barHeight(scale) + ImGui::GetStyle().ItemSpacing.y : 0.0f;
+        if (fullScroll) {
+            ImGui::SetNextWindowSizeConstraints(ImVec2(0, 340 * scale), ImVec2(FLT_MAX, FLT_MAX),
+                [](ImGuiSizeCallbackData* data) {
+                    data->DesiredSize.y = ceilf(data->DesiredSize.y) + 1.0f;
+                });
+        }
+        if (mcui::BeginPanel(panels[s_tab], ImVec2(0, fullScroll ? 0 : -(footer + below)))) {
+            if (!fullScroll) touchScroll(scale);
             if (shot && getenv("MEDECOMP_LAUNCHER_SCROLL")) ImGui::SetScrollY(float(atof(getenv("MEDECOMP_LAUNCHER_SCROLL"))) * scale);
             switch (s_tab) {
             case 0: {
                 mcui::SectionTitle(L("Копия игры", "Game copy"));
+                const char* browse = L("Обзор…", "Browse…");
+                float browseWidth = ImGui::CalcTextSize(browse).x + ImGui::GetStyle().FramePadding.x * 2;
+                ImGui::SetNextItemWidth(-browseWidth - port::platform::launcherHelpButtonSize() -
+                                         ImGui::GetStyle().ItemSpacing.x * 2);
+                ImGui::InputText("##game", buf, sizeof buf);
+                ImGui::SameLine();
+                ImGui::BeginDisabled(port::platform::dialog::busy());
+                if (ImGui::Button(browse))
+#ifdef __EMSCRIPTEN__
+                    if (ImGui::GetCurrentContext()->NavActivateId == ImGui::GetItemID())
+#endif
+                    port::platform::dialog::pick(port::platform::dialog::Ipa, buf,
+                                                 L("Копия Mirror's Edge (.ipa)", "Mirror's Edge copy (.ipa)"));
+#ifdef __EMSCRIPTEN__
+                if (!port::platform::dialog::busy() && !s_aboutOpen && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) {
+                    ImRect rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                    rect.ClipWith(ImGui::GetCurrentWindow()->ClipRect);
+                    if (!rect.IsInverted()) browserBrowse = ImVec4(rect.Min.x / io.DisplaySize.x, rect.Min.y / io.DisplaySize.y,
+                                                                   rect.Max.x / io.DisplaySize.x, rect.Max.y / io.DisplaySize.y);
+                }
+#endif
+                ImGui::EndDisabled();
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 #ifdef __ANDROID__
-                ImGui::TextWrapped("%s", L("Файл .ipa Mirror's Edge для iPad, версия 1.1.48 или новее. Ресурсы игры порт читает из "
+                launcherHelp(L("Файл .ipa Mirror's Edge для iPad, версия 1.1.48 или новее. Ресурсы игры порт читает из "
                                            "него: в порт они не входят. Выбранный файл копируется в папку приложения.",
                                            "The .ipa of Mirror's Edge for iPad, version 1.1.48 or newer. The port reads the game's "
                                            "assets from it and contains none. The chosen file is copied into the "
                                            "app's folder."));
+#elif defined(__EMSCRIPTEN__)
+                launcherHelp(L("Выберите .ipa Mirror's Edge для iPad, версия 1.1.48 или новее, кнопкой «Обзор». "
+                                           "Копия сохранится только в этом браузере и никуда не отправляется.",
+                                           "Use Browse to choose your .ipa of Mirror's Edge for iPad, version 1.1.48 or newer. "
+                                           "The copy stays in this browser and is never uploaded."));
 #else
-                ImGui::TextWrapped("%s", L("Файл .ipa (Mirror's Edge для iPad, версия 1.1.48 или новее) или распакованная папка .app. Ресурсы "
+                launcherHelp(L("Файл .ipa (Mirror's Edge для iPad, версия 1.1.48 или новее) или распакованная папка .app. Ресурсы "
                                            "игры читаются прямо из неё: в порт они не входят. Файл можно перетащить "
                                            "в это окно.",
                                            "An .ipa file (Mirror's Edge for iPad, version 1.1.48 or newer) or an unpacked .app folder. Game "
@@ -2650,18 +2816,17 @@ bool runWindow(std::string* path) {
                                            "the file onto this window."));
 #endif
                 ImGui::PopStyleColor();
-                const char* browse = L("Обзор…", "Browse…");
-                float browseWidth = ImGui::CalcTextSize(browse).x + ImGui::GetStyle().FramePadding.x * 2;
-                ImGui::SetNextItemWidth(-browseWidth - ImGui::GetStyle().ItemSpacing.x);
-                ImGui::InputText("##game", buf, sizeof buf);
-                ImGui::SameLine();
-                ImGui::BeginDisabled(port::platform::dialog::busy());
-                if (ImGui::Button(browse))
-                    port::platform::dialog::pick(port::platform::dialog::Ipa, buf,
-                                                 L("Копия Mirror's Edge (.ipa)", "Mirror's Edge copy (.ipa)"));
-                ImGui::EndDisabled();
+#ifdef __EMSCRIPTEN__
+                if (port::platform::dialog::busy() && port::platform::dialog::copyProgress() >= 0) {
+                    ImGui::TextUnformatted(L("Копирую игру в хранилище браузера…", "Copying the game into browser storage…"));
+                    ImGui::ProgressBar(port::platform::dialog::copyProgress() / 100.0f);
+                }
+                if (port::platform::dialog::copyFailed())
+                    ImGui::TextWrapped("%s", L("Не удалось скопировать файл. Проверьте свободное место и выберите .ipa ещё раз.",
+                                               "Could not copy the file. Check available storage and choose the .ipa again."));
+#endif
                 ImGui::PushStyleColor(ImGuiCol_Text, statusColor(status));
-                ImGui::TextWrapped("%s", status.text.c_str());
+                if (!copyingGame) ImGui::TextWrapped("%s", status.text.c_str());
                 ImGui::PopStyleColor();
                 {
                     if (port::platform::dialog::noDialog())
@@ -2670,6 +2835,9 @@ bool runWindow(std::string* path) {
                                                    "файл.",
                                                    "The Windows file dialog did not open: type the path or drop the "
                                                    "file."));
+#elif defined(__EMSCRIPTEN__)
+                        ImGui::TextWrapped("%s", L("В браузере этот файл пока не выбрать.",
+                                                   "This file cannot be chosen in the browser yet."));
 #else
                         ImGui::TextWrapped("%s", L("Диалог выбора файла не найден (kdialog или zenity): впишите путь "
                                                    "или перетащите файл.",
@@ -2677,15 +2845,28 @@ bool runWindow(std::string* path) {
                                                    "the file."));
 #endif
                 }
+#ifndef __EMSCRIPTEN__
                 downloadSection(scale);
+#endif
                 languageSection(&language, scale);
+                {
+                    static bool slowMotion = port::platform::slowMotionSetting();
+                    mcui::SectionTitle(L("Игровой процесс", "Gameplay"));
+                    if (mcui::Toggle(L("Замедление в бою", "Combat slow motion"), &slowMotion)) {
+                        port::platform::settings::set("slow_motion", slowMotion ? "on" : "off");
+                        port::platform::settings::save();
+                    }
+                    launcherHelp(L("Замедляет время и приближает камеру при ударах, в том числе в бою с боссом. "
+                                               "По сети замедления нет. Применяется при запуске игры.",
+                                               "Slows time and zooms the camera during attacks, including the boss fight. "
+                                               "Online play has no slow motion. Applies when the game starts."));
+                }
                 {
                     static bool splash = port::platform::splashSetting();
                     mcui::SectionTitle(L("При запуске", "On start"));
                     if (mcui::Toggle(L("Заставка MoonCellar Team", "MoonCellar Team splash"), &splash))
                         port::platform::setSplashSetting(splash);
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("%s", L("1,5 с перед заставками игры, любая кнопка пропускает",
+                    launcherHelp(L("1,5 с перед заставками игры, любая кнопка пропускает",
                                                 "1.5 s before the game's own splash, any button skips it"));
                     static bool checkUpdates = port::platform::settings::get("check_updates", "on") != "off";
                     if (mcui::Toggle(L("Проверять обновления", "Check for updates"), &checkUpdates)) {
@@ -2693,13 +2874,13 @@ bool runWindow(std::string* path) {
                         port::platform::settings::save();
                         if (checkUpdates) port::platform::update::check(s_russian);
                     }
-                    ImGui::SameLine();
-                    ImGui::TextDisabled(L("новая версия — полосой вверху, у вас %s", "a new version shows up on top; you have %s"),
-                                        port::platform::update::currentVersion().c_str());
+                    launcherHelp((std::string(L("Новая версия появится полосой вверху. Сейчас установлена ",
+                                                               "A new version appears in the bar above. Currently installed: ")) +
+                                  port::platform::update::currentVersion()).c_str());
                 }
                 mcui::SectionTitle(L("Сохранения", "Saves"));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                ImGui::TextWrapped("%s/Documents", port::files::dataDir().c_str());
+                launcherHelp((port::files::dataDir() + "/Documents").c_str());
                 ImGui::PopStyleColor();
                 break;
             }
@@ -2715,35 +2896,58 @@ bool runWindow(std::string* path) {
             }
         }
         mcui::EndPanel();
+        if (s_tab == 5) port::platform::heroine::bar(scale);
+
+        if (fixedFooter) {
+            ImGui::Dummy(ImVec2(0, layout.ItemSpacing.y));
+            ImGui::EndChild();
+            ImGui::SetCursorPosY(footerTop);
+            const ImVec2 at = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x, at.y - layout.ItemSpacing.y / 2),
+                                                ImVec2(at.x + availableWidth, at.y - layout.ItemSpacing.y / 2),
+                                                ImGui::GetColorU32(ImGuiCol_Separator));
+        }
 
         float bottom = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - buttonHeight;
-        if (ImGui::GetCursorPosY() < bottom) ImGui::SetCursorPosY(bottom);
-        ImGui::BeginDisabled(!status.ok);
-        if (mcui::Button(L("Играть", "Play"), mcui::ButtonKind::Accent, ImVec2(160 * scale, buttonHeight))) play = true;
+        if (!fullScroll && ImGui::GetCursorPosY() < bottom) ImGui::SetCursorPosY(bottom);
+        bool canPlay = status.ok && !port::platform::dialog::busy();
+        ImGui::BeginDisabled(!canPlay);
+        if (mcui::Button(L("Играть", "Play"), mcui::ButtonKind::Accent, ImVec2(playWidth, buttonHeight))) play = true;
+#ifdef __EMSCRIPTEN__
+        if (canPlay && !s_aboutOpen && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) {
+            const ImRect rect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+            browserPlay = ImVec4(rect.Min.x / io.DisplaySize.x, rect.Min.y / io.DisplaySize.y,
+                                 rect.Max.x / io.DisplaySize.x, rect.Max.y / io.DisplaySize.y);
+            browserPlayFocused = ImGui::IsItemFocused();
+        }
+#endif
         if (focusPlay) {
             ImGui::SetKeyboardFocusHere(-1);
-            if (gamepadConnected()) ImGui::SetNavCursorVisible(true);
+            ImGui::SetNavCursorVisible(true);
             focusPlay = false;
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
+#ifndef __EMSCRIPTEN__
         if (mcui::Button(L("Выход", "Quit"), mcui::ButtonKind::Default, ImVec2(120 * scale, buttonHeight))) quit = true;
-        ImGui::SameLine();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (buttonHeight - ImGui::GetTextLineHeight()) / 2);
-        ImGui::PushStyleColor(ImGuiCol_Text, status.ok ? ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
+#endif
+        if (fixedFooter ? stackFooter : ImGui::GetContentRegionAvail().x < 400 * scale) ImGui::NewLine();
+        else ImGui::SameLine();
+        if (!fixedFooter || !stackFooter)
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + std::max(0.0f,
+                (fixedFooter ? footerBody - summaryHeight : buttonHeight - ImGui::GetTextLineHeight()) / 2));
+        ImGui::PushStyleColor(ImGuiCol_Text, status.ok || copyingGame ? ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)
                                                        : statusColor(status));
-        std::string summary = status.text.substr(0, status.text.find('\n'));
-        if (!status.ok && !checked.empty()) summary = L("Копия игры не подходит — вкладка «Игра»",
-                                                        "The game copy does not fit — see the Game tab");
-        ImGui::TextUnformatted(summary.c_str());
+        ImGui::TextWrapped("%s", summary.c_str());
         ImGui::PopStyleColor();
+        static bool popupBefore = false;
+        bool popupNow = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
         if (!s_aboutOpen && !ImGui::IsAnyItemActive() && !io.WantTextInput) {
-            if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) quit = true;
-            if (status.ok && (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) ||
-                              ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false)))
-                play = true;
+            if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) && !popupBefore && !popupNow) quit = true;
+            if (canPlay && ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false)) play = true;
         }
-#ifdef __ANDROID__
+        popupBefore = popupNow;
+#ifdef MEDECOMP_ONE_PROCESS
         if (s_editorPending && status.ok) play = true;
         else s_editorPending = false;
         if (port::platform::heroine::previewRequested()) play = true;
@@ -2751,7 +2955,6 @@ bool runWindow(std::string* path) {
         if (quit) play = false;
         aboutWindow(scale);
         ImGui::End();
-        firstFrame = false;
 
         ImGui::Render();
         SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
@@ -2760,6 +2963,22 @@ bool runWindow(std::string* path) {
         SDL_RenderClear(renderer);
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         port::platform::turn::end(renderer, window);
+#ifdef __EMSCRIPTEN__
+        MAIN_THREAD_EM_ASM({ Module.medecompBrowseRect = ([$0, $1, $2, $3]); },
+                           browserBrowse.x, browserBrowse.y, browserBrowse.z, browserBrowse.w);
+        MAIN_THREAD_EM_ASM({
+            Module.medecompPlayRect = ([$0, $1, $2, $3]);
+            Module.medecompPlayFocused = !!$4;
+            Module.medecompTurnQuarter = $5;
+            Module.medecompPlayOptions = ({ fullscreen: !!$6, orientation: UTF8ToString($7) });
+        }, browserPlay.x, browserPlay.y, browserPlay.z, browserPlay.w, browserPlayFocused,
+           port::platform::turn::quarter(window), port::platform::settings::get("web_fullscreen", "0") == "1",
+           port::platform::settings::get("web_orientation", "auto").c_str());
+        if (play && !s_editorPending && !port::platform::heroine::previewRequested())
+            MAIN_THREAD_EM_ASM({ Module.medecompLaunchDisplay?.(); });
+        if (firstFrame) MAIN_THREAD_EM_ASM({ Module.medecompLauncherReady(); });
+#endif
+        firstFrame = false;
         bool settled = true;
         if (shot && getenv("MEDECOMP_LAUNCHER_SIGNIN")) {
             std::lock_guard<std::mutex> lock(s_account->mu);
@@ -2795,6 +3014,45 @@ bool runWindow(std::string* path) {
                       !port::online::cloud::busy();
         }
 #endif
+        {
+            static std::vector<std::pair<SDL_Keycode, Uint16>> keys;
+            static size_t keyAt = 0;
+            static int keyFrames = -1;
+            if (keyFrames < 0) {
+                keyFrames = 0;
+                std::string list = getenv("MEDECOMP_LAUNCHER_KEYS") ? getenv("MEDECOMP_LAUNCHER_KEYS") : "";
+                for (size_t at = 0; at < list.size();) {
+                    size_t comma = std::min(list.find(',', at), list.size());
+                    std::string name = list.substr(at, comma - at);
+                    Uint16 mod = 0;
+                    for (size_t plus; (plus = name.find('+')) != std::string::npos && plus + 1 < name.size(); name.erase(0, plus + 1)) {
+                        std::string m = name.substr(0, plus);
+                        mod |= m == "Ctrl" ? KMOD_LCTRL : m == "Shift" ? KMOD_LSHIFT : m == "Alt" ? KMOD_LALT : 0;
+                    }
+                    SDL_Keycode key = SDL_GetKeyFromName(name.c_str());
+                    if (key != SDLK_UNKNOWN) keys.push_back({key, mod});
+                    at = comma + 1;
+                }
+            }
+            if (keyAt < keys.size() && ++keyFrames % 3 == 0) {
+                auto push = [&](Uint32 type, SDL_Keycode key, Uint16 mod) {
+                    SDL_Event press = {};
+                    press.type = type;
+                    press.key.windowID = SDL_GetWindowID(window);
+                    press.key.state = type == SDL_KEYDOWN ? SDL_PRESSED : SDL_RELEASED;
+                    press.key.keysym.sym = key;
+                    press.key.keysym.scancode = SDL_GetScancodeFromKey(key);
+                    press.key.keysym.mod = mod;
+                    SDL_PushEvent(&press);
+                };
+                push(SDL_KEYDOWN, keys[keyAt].first, keys[keyAt].second);
+                push(SDL_KEYUP, keys[keyAt].first, keys[keyAt].second);
+                if (keys[keyAt].second) push(SDL_KEYUP, SDLK_LCTRL, 0);
+                keyAt++;
+            }
+            if (keyAt < keys.size()) settled = false;
+            else if (!keys.empty() && keyFrames++ < int(keys.size()) * 3 + 6) settled = false;
+        }
         if (shot && ++frames >= 4 && settled && frames < 100000) {
             frames = 100000;
             int w = 0, h = 0;
@@ -2846,6 +3104,9 @@ bool runWindow(std::string* path) {
         }
     }
     cancelSignIn();
+#ifdef __EMSCRIPTEN__
+    MAIN_THREAD_EM_ASM({ Module.medecompBrowseRect = null; Module.medecompPlayRect = null; Module.medecompPlayFocused = false; Module.medecompInLauncher = false; });
+#endif
     if (s_download.thread.joinable()) {
         s_download.cancel = true;
         s_download.thread.join();
@@ -3109,7 +3370,7 @@ bool chooseGame(int argc, char** argv) {
         if (path.empty() && getenv(var)) path = getenv(var);
     if (path.empty()) path = settings::get("game");
     bool scripted = getenv("MEDECOMP_SCRIPT") || getenv("MEDECOMP_SHOT") || getenv("MEDECOMP_SKIN_PREVIEWS");
-#if defined(_WIN32) || defined(__APPLE__) || defined(__ANDROID__)
+#if defined(_WIN32) || defined(__APPLE__) || defined(__ANDROID__) || defined(__EMSCRIPTEN__)
     bool display = true;
 #else
     bool display = getenv("DISPLAY") || getenv("WAYLAND_DISPLAY");
@@ -3131,10 +3392,14 @@ bool chooseGame(int argc, char** argv) {
     if (!runWindow(&path)) return false;
     settings::set("game", path);
     if (!settings::save()) fprintf(stderr, "medecomp: не записать %s\n", settings::path().c_str());
-    return port::files::openGame(path, nullptr);
+    bool opened = port::files::openGame(path, nullptr);
+#ifdef __EMSCRIPTEN__
+    if (opened) webGameSelected();
+#endif
+    return opened;
 }
 
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
 bool takeEditorRequest(std::string* id) {
     if (!s_editorPending) return false;
     s_editorPending = false;

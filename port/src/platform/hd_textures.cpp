@@ -1,4 +1,5 @@
 #include "hd_textures.h"
+#include "process.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -307,11 +308,7 @@ bool run(const std::vector<std::string>& args, const std::vector<std::string>& e
 }
 #endif
 
-std::string selfPath() {
-    char buf[4096];
-    ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
-    return n > 0 ? std::string(buf, size_t(n)) : std::string();
-}
+std::string selfPath() { return process::selfPath(); }
 
 bool ensureDump(const std::string& game) {
     std::string dump = files::dataDir() + "/textures/dump";

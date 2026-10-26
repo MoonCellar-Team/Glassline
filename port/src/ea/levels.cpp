@@ -521,16 +521,24 @@ bool deleteLevel(const std::string& serverId, std::string* error) {
     return true;
 }
 
-bool rateLevel(const std::string& id, int stars, std::string* error) {
-    return ok(request("PUT", serverUrl() + kLevels + "/" + id + "/rating", "{\"stars\":" + std::to_string(stars) + "}",
-                      auth()),
-              200, "оценка", nullptr, error);
+bool rateLevel(const std::string& id, int stars, std::string* error, NetLevel* updated) {
+    Json body;
+    Response r = request("PUT", serverUrl() + kLevels + "/" + id + "/rating", "{\"stars\":" + std::to_string(stars) + "}",
+                         auth());
+    if (!ok(r, 200, "оценка", &body, error)) {
+        if (r.status == 0) error->clear();
+        return false;
+    }
+    if (updated) *updated = levelOf(body);
+    return true;
 }
 
 bool reportLevel(const std::string& id, const std::string& reason, std::string* error) {
-    return ok(request("POST", serverUrl() + kLevels + "/" + id + "/report", "{\"reason\":" + jsonString(reason) + "}",
-                      auth()),
-              200, "жалоба", nullptr, error);
+    Response r = request("POST", serverUrl() + kLevels + "/" + id + "/report", "{\"reason\":" + jsonString(reason) + "}",
+                         auth());
+    if (ok(r, 200, "жалоба", nullptr, error)) return true;
+    if (r.status == 0) error->clear();
+    return false;
 }
 
 bool levelLeaderboard(const std::string& board, int limit, std::vector<std::pair<std::string, int>>* out,

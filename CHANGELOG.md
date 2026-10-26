@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3 — 2026-10-26
+
+- **Browser version:** play with your own iPad game copy, stored locally in the browser. Includes audio, MoonCellar services, skin previews, the level editor, and online races with desktop players.
+- **Mobile browsers:** touch and tilt controls, gesture-based help, a compact launcher with an accessible Play footer, and a smaller level editor. Added orientation selection and browser fullscreen where supported.
+- **Launcher:** redesigned Heroine cards show custom skins’ cloud status. Added info tooltips and improved keyboard navigation, focus outlines, Esc handling, and Ctrl+Tab switching.
+- **Gameplay:** combat slow motion can now be switched off on the Game tab.
+- **Graphics:** floor reflections work again under Wine and Proton. The sky fills ultrawide screens without exposing the backdrop’s edges.
+- **Player levels:** explicit star ratings with confirmation, clearer server errors, readable Russian labels, and easier page navigation. Players cannot rate their own levels.
+- **Cloud skins:** additional skins can stay local when cloud storage is full. Resetting cloud storage no longer deletes local skins.
+- **Controls:** added an on-screen pause button for touch input. Improved running hints, gamepad dismissal of level hints, and mouse dragging of scrollbars.
+- **Fixed:** camera drift after hard landings, combat and final-boss freezes, and bouncing by the door in 5-2 at high frame rates.
+- **Fixed:** network players and hazards remain still until both players are ready and the countdown ends, preventing movement and deaths while waiting.
+- **Fixed:** crashes when quitting during startup or level loading, and an invisible focus target on the Wallpapers screen.
+- **Security:** updated bundled network, image, and font libraries on Linux and Android; restricted decoding of untrusted image formats.
+
 ## 1.2 — 2026-10-24
 
 - **Network play:** a takedown on your opponent now shows at once — you hear the hit and the opponent

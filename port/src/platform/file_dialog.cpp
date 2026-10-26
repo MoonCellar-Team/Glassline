@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#endif
 #include "file_dialog.h"
 
 #include <SDL.h>
@@ -6,10 +9,13 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "port/files.h"
 #include "port/platform.h"
@@ -34,6 +40,49 @@ std::string s_picked;
 Kind s_kind = Ipa;
 std::atomic<bool> s_busy(false), s_done(false);
 bool s_noDialog = false;
+std::atomic<int> s_copyProgress(-1);
+std::atomic<bool> s_copyFailed(false);
+
+#ifdef __EMSCRIPTEN__
+std::string browserPick() {
+    MAIN_THREAD_EM_ASM({ Module.medecompPickFile(); });
+    auto wait = [] {
+        int state;
+        while ((state = MAIN_THREAD_EM_ASM_INT({ return Module.medecompFile.state; })) == 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        return state;
+    };
+    int state = wait();
+    if (state != 1) {
+        s_copyFailed = state < 0;
+        MAIN_THREAD_EM_ASM({ Module.medecompFile = null; });
+        return std::string();
+    }
+    double size = MAIN_THREAD_EM_ASM_DOUBLE({ return Module.medecompFile.file.size; });
+    std::string dir = port::files::dataDir() + "/game-imports";
+    mkdir(dir.c_str(), 0777);
+    static unsigned serial;
+    auto stamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::string path = dir + "/game-" + std::to_string(stamp) + "-" + std::to_string(++serial) + ".ipa";
+    FILE* out = fopen(path.c_str(), "wb");
+    bool ok = out && size > 0;
+    std::vector<unsigned char> chunk(1024 * 1024);
+    s_copyProgress = 0;
+    for (double at = 0; ok && at < size;) {
+        size_t count = size_t(std::min(double(chunk.size()), size - at));
+        MAIN_THREAD_EM_ASM({ Module.medecompReadFile($0, HEAPU8.subarray($1, $1 + $2)); }, at, chunk.data(), count);
+        ok = wait() == 1 && fwrite(chunk.data(), 1, count, out) == count;
+        at += count;
+        s_copyProgress = int(at / size * 100);
+    }
+    if (out && fclose(out) != 0) ok = false;
+    MAIN_THREAD_EM_ASM({ Module.medecompFile = null; document.getElementById("file").value = ""; });
+    s_copyFailed = !ok;
+    if (!ok) { remove(path.c_str()); return std::string(); }
+    return path;
+}
+#endif
 
 std::string shellQuote(const std::string& s) {
     std::string out = "'";
@@ -142,6 +191,8 @@ bool windowsPick(Kind kind, const std::string& current, const std::string& title
 
 void pick(Kind kind, const std::string& current, const std::string& title) {
     if (s_busy.exchange(true)) return;
+    s_copyProgress = -1;
+    s_copyFailed = false;
     bool folder = kind == MusicFolder;
     std::string start = current;
     if (!start.empty() && !port::files::stat(start).dir) start = start.substr(0, start.find_last_of('/') + 1);
@@ -165,6 +216,12 @@ void pick(Kind kind, const std::string& current, const std::string& title) {
         bool ran = false;
 #if defined(_WIN32)
         ran = windowsPick(kind, current, title, HWND(owner), &result);
+#elif defined(__EMSCRIPTEN__)
+        if (kind == Ipa) {
+            result = browserPick();
+            ran = true;
+        }
+        (void)folder;
 #elif defined(__ANDROID__)
         ran = true;
         const std::string data = port::files::dataDir();
@@ -216,6 +273,8 @@ void pick(Kind kind, const std::string& current, const std::string& title) {
 }
 
 bool busy() { return s_busy.load(); }
+int copyProgress() { return s_copyProgress.load(); }
+bool copyFailed() { return s_copyFailed.load(); }
 
 bool take(Kind* kind, std::string* path, bool* noDialog) {
     if (!s_done.exchange(false)) return false;

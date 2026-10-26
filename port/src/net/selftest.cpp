@@ -171,7 +171,7 @@ int runRoomJoin(const std::string& code) {
         while (sessionPoll(&r)) {
             if (r.event == Event::Connected) {
                 connected = true;
-                printf("сеть: соединение с %s через P2P (%s)\n", info.peerName.c_str(), r.text.c_str());
+                printf("сеть: соединение с %s (%s)\n", info.peerName.c_str(), r.text.c_str());
                 fflush(stdout);
             } else if (r.event == Event::Message) {
                 if (r.data.size() >= 2 && r.data[1] == 0x10) reliableBack++;
@@ -181,6 +181,7 @@ int runRoomJoin(const std::string& code) {
         if (connected && !sent) {
             for (int i = 0; i < kReliable; i++) {
                 std::string m = "\x10" + std::to_string(i);
+                if (i == 2) m += std::string(10000, 'x');
                 sessionSend(m.data(), m.size(), true);
             }
             sent = true;
@@ -223,11 +224,6 @@ int selfTest(bool hostMode, const std::string& argument) {
 }
 
 int selfTestRoom(bool hostMode, const std::string& argument) {
-    std::string why;
-    if (!available(&why)) {
-        fprintf(stderr, "сеть недоступна: %s\n", why.c_str());
-        return 2;
-    }
     return hostMode ? runRoomHost() : runRoomJoin(argument);
 }
 

@@ -254,6 +254,8 @@ void androidRestart() {
     env->DeleteLocalRef(activity);
 }
 
+void appRestart() { androidRestart(); }
+
 void androidStartup() {
     const char* internal = SDL_AndroidGetInternalStoragePath();
     const std::string files = internal ? internal : "/data/local/tmp/medecomp";

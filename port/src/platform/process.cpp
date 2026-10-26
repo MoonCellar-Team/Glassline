@@ -12,6 +12,11 @@
 #include <unistd.h>
 extern char** environ;
 #endif
+#ifdef __APPLE__
+#include <limits.h>
+#include <mach-o/dyld.h>
+#include <stdlib.h>
+#endif
 
 namespace port {
 namespace platform {
@@ -90,6 +95,13 @@ int poll(long id) {
     return int(code);
 }
 
+#elif defined(__APPLE__)
+std::string selfPath() {
+    char buf[PATH_MAX], real[PATH_MAX];
+    uint32_t size = sizeof buf;
+    if (_NSGetExecutablePath(buf, &size) != 0) return std::string();
+    return realpath(buf, real) ? std::string(real) : std::string(buf);
+}
 #else
 std::string selfPath() {
     char buf[4096];

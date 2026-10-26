@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <deque>
@@ -18,6 +20,8 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 const int kConnectTimeoutMs = 25000;
+const size_t kRelayPart = 3000;
+const int kRelayPingMs = 2000;
 
 SessionState s_state = SessionState::Idle;
 bool s_host;
@@ -32,6 +36,16 @@ std::string s_openError;
 std::deque<Received> s_gameEvents;
 std::deque<std::vector<uint8_t>> s_lobby;
 std::deque<Received> s_early;
+bool s_relayMine;
+bool s_relay;
+std::vector<uint8_t> s_relayPartial;
+long long s_relayPingAt;
+long long s_relayPingNext;
+int s_relayRtt = -1;
+
+long long nowMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count();
+}
 
 void deliver(const Received& r) {
     if (!r.data.empty() && r.data[0] >= kLobbyMessage)
@@ -55,14 +69,6 @@ SessionError roomError(const std::string& message) {
     return SessionError::ConnectFailed;
 }
 
-void failUnavailable() {
-    std::string why;
-    if (available(&why))
-        fail(SessionError::NoP2P, "в библиотеке сети нет P2P (ICE)");
-    else
-        fail(libraryFound() ? SessionError::Setup : SessionError::NoLibrary, why);
-}
-
 void openSignal() {
     s_opened = 0;
     s_openError.clear();
@@ -72,6 +78,71 @@ void openSignal() {
         s_openError = error;
         s_opened = ok ? 1 : -1;
     }).detach();
+}
+
+bool relayOnly() {
+    const char* forced = getenv("MEDECOMP_NET_RELAY");
+    return (forced && *forced && strcmp(forced, "0") != 0) || !p2pAvailable();
+}
+
+void startRelay() {
+    if (s_relay) return;
+    s_relay = true;
+    s_peer = kRelayPeer;
+    s_state = SessionState::Connected;
+    s_relayPingNext = 0;
+    Received r;
+    r.event = Event::Connected;
+    r.peer = kRelayPeer;
+    r.text = "ретранслятор";
+    s_gameEvents.push_back(r);
+    log("соединение через ретранслятор комнаты (%s)", s_relayMine ? "у себя P2P нет" : "у соперника P2P нет");
+}
+
+bool relayReceived(const std::string& text) {
+    if (text.compare(0, 2, "r:") == 0 || text.compare(0, 2, "R:") == 0) {
+        std::string bytes;
+        if (!port::online::base64Decode(text.substr(2), &bytes)) {
+            log("ретранслятор: кусок не разобрать (%zu знаков)", text.size());
+            return true;
+        }
+        s_relayPartial.insert(s_relayPartial.end(), bytes.begin(), bytes.end());
+        if (text[0] == 'R') return true;
+        Received r;
+        r.event = Event::Message;
+        r.peer = kRelayPeer;
+        r.data.swap(s_relayPartial);
+        if (s_state == SessionState::Connected)
+            deliver(r);
+        else if (s_early.size() < 256)
+            s_early.push_back(r);
+        return true;
+    }
+    if (text.compare(0, 3, "rp:") == 0) {
+        signalSend("ro:" + text.substr(3));
+        return true;
+    }
+    if (text.compare(0, 3, "ro:") == 0) {
+        if (s_relayPingAt && atoll(text.c_str() + 3) == s_relayPingAt) {
+            s_relayRtt = int(nowMs() - s_relayPingAt);
+            s_relayPingAt = 0;
+        }
+        return true;
+    }
+    return false;
+}
+
+void relayLost(SessionError kind, const std::string& detail) {
+    Received r;
+    r.event = Event::Disconnected;
+    r.peer = kRelayPeer;
+    r.text = detail;
+    s_gameEvents.push_back(r);
+    s_peer = 0;
+    s_relay = false;
+    s_state = SessionState::Failed;
+    s_error = kind;
+    log("ретранслятор: %s", detail.c_str());
 }
 
 void startP2P() {
@@ -98,10 +169,11 @@ void onSignal(const SignalReceived& s) {
         s_state = SessionState::Connecting;
         s_since = Clock::now();
         signalSend("ver:" + std::to_string(kNetVersion));
-        signalSend("id:" + identity());
+        signalSend(s_relayMine ? std::string("id:relay") : "id:" + identity());
         break;
     case SignalEvent::Message:
         if (s_state == SessionState::Failed) break;
+        if (relayReceived(s.text)) break;
         if (s.text.compare(0, 4, "ver:") == 0) {
             s_peerVersion = atoi(s.text.c_str() + 4);
             if (s_peerVersion != kNetVersion)
@@ -113,13 +185,20 @@ void onSignal(const SignalReceived& s) {
                 break;
             }
             s_peerIdentity = s.text.substr(3);
-            startP2P();
+            if (s_relayMine || s_peerIdentity == "relay")
+                startRelay();
+            else
+                startP2P();
         } else if (s.text.compare(0, 4, "ice:") == 0) {
             std::string blob;
             if (port::online::base64Decode(s.text.substr(4), &blob)) receivedSignal(blob);
         }
         break;
     case SignalEvent::Left:
+        if (s_relay) {
+            relayLost(SessionError::PeerLeft, "соперник вышел из комнаты");
+            break;
+        }
         if (s_state != SessionState::Connected) {
             s_state = SessionState::WaitingGuest;
             s_peerIdentity.clear();
@@ -128,6 +207,13 @@ void onSignal(const SignalReceived& s) {
         }
         break;
     case SignalEvent::Closed:
+        if (s_relay) {
+            if (s.text.empty())
+                relayLost(SessionError::PeerLeft, "хост закрыл комнату");
+            else
+                relayLost(SessionError::ServerLost, "связь с сервером: " + s.text);
+            break;
+        }
         if (s_state != SessionState::Connected) {
             if (s.text.empty())
                 fail(SessionError::HostLeft, "хост закрыл комнату");
@@ -164,14 +250,15 @@ const char* sessionErrorName(SessionError error) {
 
 bool sessionHost() {
     sessionClose();
-    if (!p2pAvailable()) {
-        failUnavailable();
-        return false;
-    }
+    s_relayMine = relayOnly();
     std::string error;
-    if (!listenP2P(&error)) {
+    if (!s_relayMine && !listenP2P(&error)) {
         fail(SessionError::Setup, error);
         return false;
+    }
+    if (s_relayMine) {
+        std::string why;
+        if (!available(&why)) log("%s — соперник только через ретранслятор", why.c_str());
     }
     s_host = true;
     s_state = SessionState::Opening;
@@ -181,10 +268,7 @@ bool sessionHost() {
 
 bool sessionJoin(const std::string& code) {
     sessionClose();
-    if (!p2pAvailable()) {
-        failUnavailable();
-        return false;
-    }
+    s_relayMine = relayOnly();
     s_host = false;
     s_joinCode = code;
     s_state = SessionState::Opening;
@@ -213,6 +297,10 @@ void sessionClose() {
     s_gameEvents.clear();
     s_lobby.clear();
     s_early.clear();
+    s_relayMine = s_relay = false;
+    s_relayPartial.clear();
+    s_relayPingAt = 0;
+    s_relayRtt = -1;
 }
 
 SessionInfo sessionInfo() {
@@ -249,6 +337,14 @@ void sessionFrame() {
     }
     std::string blob;
     while (takeSignal(&blob)) signalSend("ice:" + port::online::base64Encode(blob.data(), blob.size()));
+    if (s_relay && s_state == SessionState::Connected) {
+        long long now = nowMs();
+        if (now >= s_relayPingNext && (!s_relayPingAt || now - s_relayPingAt > 5000)) {
+            s_relayPingAt = now;
+            s_relayPingNext = now + kRelayPingMs;
+            signalSend("rp:" + std::to_string(now));
+        }
+    }
 
     Received r;
     while (poll(&r)) {
@@ -303,6 +399,21 @@ bool sessionSend(const void* data, size_t size, bool reliable) {
     Peer peer = sessionPeer();
     return peer && send(peer, data, size, reliable);
 }
+
+bool relaySend(const void* data, size_t size) {
+    if (!s_relay || s_state != SessionState::Connected) return false;
+    const char* bytes = static_cast<const char*>(data);
+    size_t at = 0;
+    do {
+        size_t n = std::min(kRelayPart, size - at);
+        bool last = at + n >= size;
+        if (!signalSend((last ? "r:" : "R:") + port::online::base64Encode(bytes + at, n))) return false;
+        at += n;
+    } while (at < size);
+    return true;
+}
+
+int relayPing() { return s_relayRtt; }
 
 }
 }

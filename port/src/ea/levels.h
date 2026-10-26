@@ -24,7 +24,7 @@ bool getLevel(const std::string& id, NetLevel* out, bool* missing, std::string* 
 bool downloadLevel(const NetLevel& level, std::string* localId, std::string* error);
 bool uploadLevel(const std::string& localId, std::string* error);
 bool uploadable(const std::string& localId);
-bool rateLevel(const std::string& id, int stars, std::string* error);
+bool rateLevel(const std::string& id, int stars, std::string* error, NetLevel* updated = nullptr);
 bool deleteLevel(const std::string& serverId, std::string* error);
 std::string uploadedId(const std::string& localId);
 bool reportLevel(const std::string& id, const std::string& reason, std::string* error);

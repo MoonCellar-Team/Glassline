@@ -21,29 +21,29 @@ fetch() {
 }
 
 lib_zlib() {
-	fetch https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz 9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
-	(cd $S/zlib-1.3.1 && ./configure --prefix=$P && make -j$JOBS && make install)
-	licenses $S/zlib-1.3.1 zlib
+	fetch https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
+	(cd $S/zlib-1.3.2 && ./configure --prefix=$P && make -j$JOBS && make install)
+	licenses $S/zlib-1.3.2 zlib
 }
 
 lib_libpng() {
-	fetch https://download.sourceforge.net/libpng/libpng-1.6.44.tar.xz 60c4da1d5b7f0aa8d158da48e8f8afa9773c1c8baa5d21974df61f1886b8ce8e
-	(cd $S/libpng-1.6.44 && ./configure --prefix=$P --disable-static && make -j$JOBS && make install)
-	licenses $S/libpng-1.6.44 libpng
+	fetch https://download.sourceforge.net/libpng/libpng-1.6.59.tar.xz d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389
+	(cd $S/libpng-1.6.59 && ./configure --prefix=$P --disable-static && make -j$JOBS && make install)
+	licenses $S/libpng-1.6.59 libpng
 }
 
 lib_freetype() {
-	fetch https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz 0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289
-	(cd $S/freetype-2.13.3 && ./configure --prefix=$P --disable-static --with-zlib=yes --with-png=yes \
+	fetch https://download.savannah.gnu.org/releases/freetype/freetype-2.15.0.tar.xz 93cd47eb719c325107f2d3cf087d06299e944c3b48a40b55537302304dea1dd5
+	(cd $S/freetype-2.15.0 && ./configure --prefix=$P --disable-static --with-zlib=yes --with-png=yes \
 		--with-harfbuzz=no --with-bzip2=no --with-brotli=no && make -j$JOBS && make install)
-	licenses $S/freetype-2.13.3 freetype
+	licenses $S/freetype-2.15.0 freetype
 }
 
 lib_expat() {
-	fetch https://github.com/libexpat/libexpat/releases/download/R_2_6_4/expat-2.6.4.tar.xz a695629dae047055b37d50a0ff4776d1d45d0a4c842cf4ccee158441f55ff7ee
-	(cd $S/expat-2.6.4 && ./configure --prefix=$P --disable-static --without-docbook --without-examples --without-tests \
+	fetch https://github.com/libexpat/libexpat/releases/download/R_2_9_0/expat-2.9.0.tar.xz 1e6371862cc31999b368c3b89b49994f0677e1bab5f1b2b85ae3741f5d803051
+	(cd $S/expat-2.9.0 && ./configure --prefix=$P --disable-static --without-docbook --without-examples --without-tests \
 		&& make -j$JOBS && make install)
-	licenses $S/expat-2.6.4 expat
+	licenses $S/expat-2.9.0 expat
 }
 
 lib_fontconfig() {
@@ -61,11 +61,11 @@ lib_pixman() {
 }
 
 lib_cairo() {
-	fetch https://cairographics.org/releases/cairo-1.18.2.tar.xz a62b9bb42425e844cc3d6ddde043ff39dbabedd1542eba57a2eb79f85889d45a
-	(cd $S/cairo-1.18.2 && meson setup b --prefix=$P --libdir=lib --buildtype=release -Dxlib=disabled -Dxcb=disabled \
+	fetch https://cairographics.org/releases/cairo-1.18.6.tar.xz 1c767308174337a74694da0f3ec069c271452163a1ef4540964c50c301f157d4
+	(cd $S/cairo-1.18.6 && meson setup b --prefix=$P --libdir=lib --buildtype=release -Dxlib=disabled -Dxcb=disabled \
 		-Dglib=disabled -Dtests=disabled -Dspectre=disabled -Dsymbol-lookup=disabled -Dgtk_doc=false \
 		-Dfreetype=enabled -Dfontconfig=enabled -Dpng=enabled -Dzlib=enabled && ninja -C b install)
-	licenses $S/cairo-1.18.2 cairo
+	licenses $S/cairo-1.18.6 cairo
 }
 
 lib_sdl2() {
@@ -85,16 +85,16 @@ lib_openal() {
 }
 
 lib_curl() {
-	fetch https://github.com/openssl/openssl/releases/download/openssl-3.0.15/openssl-3.0.15.tar.gz 23c666d0edf20f14249b3d8f0368acaee9ab585b09e1de82107c66e1f3ec9533
-	(cd $S/openssl-3.0.15 && ./Configure linux-x86_64 no-shared no-tests --prefix=$S/ssl --libdir=lib \
+	fetch https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+	(cd $S/openssl-3.5.9 && ./Configure linux-x86_64 no-shared no-tests --prefix=$S/ssl --libdir=lib \
 		--openssldir=/etc/ssl && make -j$JOBS && make install_sw)
-	fetch https://curl.se/download/curl-8.11.0.tar.xz db59cf0d671ca6e7f5c2c5ec177084a33a79e04c97e71cf183a5cdea235054eb
-	(cd $S/curl-8.11.0 && LDFLAGS="$LDFLAGS -Wl,--exclude-libs,ALL" ./configure --prefix=$P --disable-static \
+	fetch https://curl.se/download/curl-8.23.0.tar.xz 8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5
+	(cd $S/curl-8.23.0 && LDFLAGS="$LDFLAGS -Wl,--exclude-libs,ALL" ./configure --prefix=$P --disable-static \
 		--with-openssl=$S/ssl --with-zlib=$P --without-ca-bundle --without-ca-path --without-libpsl --without-brotli \
 		--without-zstd --without-nghttp2 --without-libidn2 --without-libssh2 --without-librtmp --disable-ldap \
 		--disable-ldaps --disable-manual --disable-docs && make -j$JOBS && make install)
-	licenses $S/curl-8.11.0 curl
-	licenses $S/openssl-3.0.15 openssl
+	licenses $S/curl-8.23.0 curl
+	licenses $S/openssl-3.5.9 openssl
 }
 
 lib_qrencode() {

@@ -38,16 +38,16 @@ void draw() {
 
 extern "C" {
 
-int HostView_getGLESMajorVersion(void* self) __asm__("_ZN12_GLOBAL__N_18HostView19getGLESMajorVersionEv");
+int HostView_getGLESMajorVersion(void* self) MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_18HostView19getGLESMajorVersionEv");
 int HostView_getGLESMajorVersion(void* self) { return static_cast<port::platform::View*>(self)->glesMajor; }
 
-int HostView_getGLESMinorVersion(void* self) __asm__("_ZN12_GLOBAL__N_18HostView19getGLESMinorVersionEv");
+int HostView_getGLESMinorVersion(void* self) MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_18HostView19getGLESMinorVersionEv");
 int HostView_getGLESMinorVersion(void* self) { return static_cast<port::platform::View*>(self)->glesMinor; }
 
-void* HostView_getGL(void* self) __asm__("_ZN12_GLOBAL__N_18HostView5getGLEv");
+void* HostView_getGL(void* self) MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_18HostView5getGLEv");
 void* HostView_getGL(void* self) { return static_cast<port::platform::View*>(self)->gl; }
 
-void HostView_draw(void* self) __asm__("_ZN12_GLOBAL__N_18HostView4drawEv");
+void HostView_draw(void* self) MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_18HostView4drawEv");
 void HostView_draw(void*) { port::platform::draw(); }
 
 }

@@ -11,8 +11,16 @@ void setEnabled(bool on);
 bool skinsEnabled();
 void setSkinsEnabled(bool on);
 constexpr int kSkinLimit = 10;
-int customSkins();
-bool skinLimitActive();
+bool skinsActive();
+enum class SkinPlace { Off, Here, New, Changed, Saved };
+SkinPlace skinPlace(const std::string& id);
+int skinsForCloud();
+bool placeNewSkin(const std::string& id);
+bool sendSkin(const std::string& id, bool russian);
+void keepSkinHere(const std::string& id, bool russian);
+std::string newSkinId();
+void syncSkins(bool russian);
+std::string skinsNotice();
 
 void startSync(bool russian, bool afterGame = false, bool withSave = true);
 void syncLevels();

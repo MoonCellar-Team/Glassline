@@ -6,7 +6,9 @@
 #include <vector>
 
 #include <SDL.h>
+#ifndef __EMSCRIPTEN__
 #include <fontconfig/fontconfig.h>
+#endif
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "imstb_truetype.h"
@@ -157,17 +159,17 @@ extern "C" void medecomp_line_close(const void* owner) {
 
 extern "C" {
 
-void* TextBoxDelegate_alloc() __asm__("_ZN12_GLOBAL__N_115TextBoxDelegate5allocEv");
+void* TextBoxDelegate_alloc() MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_115TextBoxDelegate5allocEv");
 void* TextBoxDelegate_alloc() { return new DelegateObject(); }
 
 void* TextBoxDelegate_initWithImplementation(void* self, midp::TextBoxImplementationIPhone* impl)
-    __asm__("_ZN12_GLOBAL__N_115TextBoxDelegate22initWithImplementationEPN4midp27TextBoxImplementationIPhoneE");
+    MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_115TextBoxDelegate22initWithImplementationEPN4midp27TextBoxImplementationIPhoneE");
 void* TextBoxDelegate_initWithImplementation(void* self, midp::TextBoxImplementationIPhone* impl) {
     static_cast<DelegateObject*>(self)->impl = impl;
     return self;
 }
 
-void* UITextField_text(void* self) __asm__("_ZN12_GLOBAL__N_111UITextField4textEv");
+void* UITextField_text(void* self) MEDECOMP_SYMBOL("_ZN12_GLOBAL__N_111UITextField4textEv");
 void* UITextField_text(void* self) {
     FieldObject* field = static_cast<FieldObject*>(self);
     if (field->cached) CFRelease(field->cached);
@@ -227,6 +229,10 @@ stbtt_fontinfo* fieldFont() {
     static int state = 0;
     if (state != 0) return state == 1 ? &info : nullptr;
     state = 2;
+#ifdef __EMSCRIPTEN__
+    const char* file = "/fonts/LiberationSans-Regular.ttf";
+    {
+#else
     if (!FcInit()) return nullptr;
     FcPattern* pattern = FcNameParse(reinterpret_cast<const FcChar8*>("sans-serif:lang=ru"));
     FcConfigSubstitute(nullptr, pattern, FcMatchPattern);
@@ -235,6 +241,7 @@ stbtt_fontinfo* fieldFont() {
     FcPattern* match = FcFontMatch(nullptr, pattern, &result);
     FcChar8* file = nullptr;
     if (match && FcPatternGetString(match, FC_FILE, 0, &file) == FcResultMatch) {
+#endif
         FILE* f = fopen(reinterpret_cast<const char*>(file), "rb");
         if (f) {
             fseek(f, 0, SEEK_END);
@@ -249,8 +256,10 @@ stbtt_fontinfo* fieldFont() {
             fclose(f);
         }
     }
+#ifndef __EMSCRIPTEN__
     if (match) FcPatternDestroy(match);
     FcPatternDestroy(pattern);
+#endif
     return state == 1 ? &info : nullptr;
 }
 

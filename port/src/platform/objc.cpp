@@ -205,7 +205,7 @@ void objc_msgSend_stret(void* result, void* self, const char* sel, ...) {
 }
 
 void NSObject_performSelectorOnMainThread(void* self, const char* sel, void* arg, bool wait)
-    __asm__("_ZN8NSObject52performSelectorOnMainThread_withObject_waitUntilDoneEP13objc_selectorPvb");
+    MEDECOMP_SYMBOL("_ZN8NSObject52performSelectorOnMainThread_withObject_waitUntilDoneEP13objc_selectorPvb");
 void NSObject_performSelectorOnMainThread(void* self, const char* sel, void* arg, bool wait) {
     port::objc::perform(self, sel, arg, wait);
 }

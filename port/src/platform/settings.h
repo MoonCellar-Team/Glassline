@@ -4,6 +4,8 @@
 
 namespace port {
 namespace platform {
+bool slowMotionSetting();
+
 namespace settings {
 
 std::string get(const char* key, const std::string& fallback = std::string());

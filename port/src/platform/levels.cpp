@@ -20,6 +20,7 @@
 #include "game/ResourceManager.h"
 #include "port/cf.h"
 #include "port/files.h"
+#include "port/platform.h"
 #include "runtime/midp/ByteArrayInputStream.h"
 #include "runtime/midp/String.h"
 
@@ -395,7 +396,7 @@ void playerLevelFrame() {
         s_base = -1;
         s_entered = false;
         fprintf(stderr, "medecomp: уровень игрока %s закрыт\n", s_id.c_str());
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         if (s_test) medecomp_back_to_launcher();
 #else
         if (s_test) medecomp_quit_game();

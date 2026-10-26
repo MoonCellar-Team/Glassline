@@ -37,6 +37,7 @@
 #include "piece_surface.h"
 #include "skins.h"
 
+extern "C" void medecomp_sky_follow(m3g::Node* dome);
 namespace {
 
 const int kSceneMenu = 2, kSceneGame = 3;
@@ -108,8 +109,8 @@ void bounds(m3g::Node* node, m3g::Node* root, float* lo, float* hi) {
 }
 
 [[noreturn]] void finish(int code) {
-#ifdef __ANDROID__
-    port::platform::androidRestart();
+#ifdef MEDECOMP_ONE_PROCESS
+    port::platform::appRestart();
 #endif
     _exit(code);
 }
@@ -435,7 +436,10 @@ bool mapPreview(midp::Graphics* g, const char* out) {
     scene->getMap().cullView(*frustum);
     scene->getMap().updateObjectCulling(0);
     if (m3g::Node* node = player->getObjectNode()) node->setRenderingEnable(false);
-    if (m3g::Node* dome = scene->getMap().getSkyDomeNode()) dome->setTranslation(from[0], from[1], from[2]);
+    if (m3g::Node* dome = scene->getMap().getSkyDomeNode()) {
+        dome->setTranslation(from[0], from[1], from[2]);
+        medecomp_sky_follow(dome);
+    }
     m3g::Graphics3D* g3d = app->getGraphics3D();
     g3d->bindTarget(g);
     g3d->setViewport(0, 0, app->getWidth(), app->getHeight());

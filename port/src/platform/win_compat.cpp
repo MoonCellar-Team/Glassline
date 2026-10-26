@@ -125,7 +125,59 @@ extern "C" void* valloc(size_t size) { return malloc(size); }
 namespace port {
 namespace platform {
 
+namespace {
+
+std::wstring exePath() {
+    wchar_t path[MAX_PATH * 4];
+    DWORD n = GetModuleFileNameW(nullptr, path, MAX_PATH * 4);
+    return std::wstring(path, n);
+}
+
+std::wstring folderOf(const std::wstring& path) { return path.substr(0, path.find_last_of(L"\\/")); }
+
+std::wstring overridesKey() {
+    std::wstring exe = exePath();
+    return L"Software\\Wine\\AppDefaults\\" + exe.substr(exe.find_last_of(L"\\/") + 1) + L"\\DllOverrides";
+}
+
+bool nativeRule() {
+    wchar_t value[32];
+    DWORD size = sizeof value;
+    return RegGetValueW(HKEY_CURRENT_USER, overridesKey().c_str(), L"d3dcompiler_47", RRF_RT_REG_SZ, nullptr, value, &size) ==
+               ERROR_SUCCESS &&
+           _wcsicmp(value, L"native") == 0;
+}
+
+bool compilerBeside() {
+    return GetFileAttributesW((folderOf(exePath()) + L"\\d3dcompiler_47.dll").c_str()) != INVALID_FILE_ATTRIBUTES;
+}
+
+void wineShaderCompiler() {
+    if (!underWine() || !compilerBeside() || nativeRule()) return;
+    HKEY key;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, overridesKey().c_str(), 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) !=
+        ERROR_SUCCESS)
+        return;
+    static const wchar_t kNative[] = L"native";
+    LONG written = RegSetValueExW(key, L"d3dcompiler_47", 0, REG_SZ, reinterpret_cast<const BYTE*>(kNative), sizeof kNative);
+    RegCloseKey(key);
+    if (written != ERROR_SUCCESS || getenv("MEDECOMP_WINE_RELAUNCHED")) return;
+    _putenv_s("MEDECOMP_WINE_RELAUNCHED", "1");
+    std::wstring command = GetCommandLineW();
+    STARTUPINFOW start = {};
+    start.cb = sizeof start;
+    PROCESS_INFORMATION child;
+    if (!CreateProcessW(nullptr, &command[0], nullptr, nullptr, TRUE, 0, nullptr, nullptr, &start, &child)) return;
+    WaitForSingleObject(child.hProcess, INFINITE);
+    DWORD code = 0;
+    GetExitCodeProcess(child.hProcess, &code);
+    ExitProcess(code);
+}
+
+}
+
 void windowsStartup() {
+    wineShaderCompiler();
     HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
     bool child = getenv("MEDECOMP_LOG_FILE") != nullptr;
     _putenv_s("MEDECOMP_LOG_FILE", "-");
@@ -159,6 +211,16 @@ bool underWine() {
         return ntdll && GetProcAddress(ntdll, "wine_get_version") != nullptr;
     }();
     return wine;
+}
+
+bool nativeShaderCompiler() {
+    if (!underWine()) return true;
+    if (HMODULE loaded = GetModuleHandleW(L"d3dcompiler_47.dll")) {
+        wchar_t path[MAX_PATH * 4];
+        DWORD n = GetModuleFileNameW(loaded, path, MAX_PATH * 4);
+        return _wcsicmp(folderOf(std::wstring(path, n)).c_str(), folderOf(exePath()).c_str()) == 0;
+    }
+    return compilerBeside() && nativeRule();
 }
 
 }

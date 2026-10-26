@@ -14,17 +14,40 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 NM = os.environ.get("NM") or "nm"
 UNDEF = re.compile(r"undefined reference to [`'](.+?)'|undefined symbol: (\S+)")
+UNDEF_MACHO = re.compile(r"undefined symbol: (.+?)\s*$|^\s+\"(.+?)\", referenced from:", re.M)
+PREFIX = ""
+MACHO_MAGIC = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce")
+
+def bare(name):
+    return name[len(PREFIX):] if PREFIX and name.startswith(PREFIX) else name
 C_DATA = re.compile(r"^(k[A-Z]\w*|cfstr_\w+|cf_\w+|g_\w+|__CFConstantStringClassReference|\w+Key|\w+Notification)$")
 
 def undefined(cxx, flags, objects):
     with tempfile.TemporaryDirectory() as tmp:
-        cmd = [cxx, *objects, *flags, "-o", str(Path(tmp) / "probe"), "-Wl,--no-demangle"]
+        cmd = [cxx, *objects, *flags, "-o", str(Path(tmp) / "probe")]
+        if not PREFIX:
+            cmd.append("-Wl,--no-demangle")
         r = subprocess.run(cmd, capture_output=True, text=True)
-    names = sorted({a or b for a, b in UNDEF.findall(r.stderr)})
+    if PREFIX:
+        said = {re.sub(r"\s+", "", a or b) for a, b in UNDEF_MACHO.findall(r.stderr)}
+        own = sorted(own_undefined(objects))
+        names = sorted(n for n, p in zip(own, demangle(own)) if re.sub(r"\s+", "", p) in said)
+    else:
+        names = sorted({a or b for a, b in UNDEF.findall(r.stderr)})
     if r.returncode != 0 and not names:
         sys.stderr.write(r.stderr)
         raise SystemExit("port_stubs: компоновка упала не из-за неопределённых символов")
     return names
+
+def own_undefined(objects):
+    undef, defined = set(), set()
+    for args, into in ((["-u"], undef), (["--defined-only"], defined)):
+        r = subprocess.run([NM, *args, *objects], capture_output=True, text=True)
+        for line in r.stdout.splitlines():
+            parts = line.split()
+            if parts and not line.endswith(":"):
+                into.add(bare(parts[-1]))
+    return undef - defined
 
 def demangle(names):
     r = subprocess.run(["c++filt"], input="\n".join(names), capture_output=True, text=True)
@@ -60,12 +83,12 @@ def render(names):
            "",
            'extern "C" {']
     for i, (m, p) in enumerate(funcs):
-        out.append(f"void port_stub_{i}() __asm__({c_string(m)});")
+        out.append(f"void port_stub_{i}() __asm__({c_string(PREFIX + m)});")
         out.append(f"void port_stub_{i}() {{ missing({c_string(p)}); }}")
     out.append("")
     for i, (m, p) in enumerate(data):
         out.append(f"// {p}")
-        out.append(f"alignas(16) char port_data_{i}[256] __asm__({c_string(m)});")
+        out.append(f"alignas(16) char port_data_{i}[256] __asm__({c_string(PREFIX + m)});")
     out.append("}")
     return "\n".join(out) + "\n", len(funcs), len(data)
 
@@ -155,7 +178,7 @@ def defined_in(objects):
     for line in r.stdout.splitlines():
         m = re.match(r"^(.+?):[0-9a-fA-F]*\s+[A-Za-z]\s+(\S+)$", line)
         if m:
-            out.setdefault(m.group(2), unit_of_object(m.group(1)))
+            out.setdefault(bare(m.group(2)), unit_of_object(m.group(1)))
     return out
 
 def references(objects, names):
@@ -163,8 +186,8 @@ def references(objects, names):
     r = subprocess.run([NM, "-u", "-A", *objects], capture_output=True, text=True)
     for line in r.stdout.splitlines():
         m = re.match(r"^(.+?):\s+U\s+(\S+)$", line)
-        if m and m.group(2) in want:
-            refs[m.group(2)].add(unit_of_object(m.group(1)))
+        if m and bare(m.group(2)) in want:
+            refs[bare(m.group(2))].add(unit_of_object(m.group(1)))
     return refs
 
 def class_units():
@@ -222,6 +245,9 @@ def main():
     ap.add_argument("--status", help="записать сводку для страницы статуса (JSON)")
     ap.add_argument("objects", nargs="+")
     a = ap.parse_args()
+    global PREFIX
+    with open(a.objects[0], "rb") as fh:
+        PREFIX = "_" if fh.read(4) in MACHO_MAGIC else ""
     names = undefined(a.cxx, a.flag, a.objects)
     if a.status and (ROOT / "symbols" / "functions.csv").exists():
         bits = 32 if "-m32" in a.flag else 64

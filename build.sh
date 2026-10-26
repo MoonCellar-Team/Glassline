@@ -3,13 +3,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-	echo "./build.sh [linux|windows|windows-check|android|all] [номер] — например: ./build.sh windows или ./build.sh all 1.0" >&2
+	echo "./build.sh [linux|windows|windows-check|android|mac|web|all] [номер] — например: ./build.sh windows или ./build.sh all 1.0" >&2
 	exit 1
 }
 
 TARGET=${1:-linux}
 NUMBER=${2:-}
-case "$TARGET" in linux | windows | windows-check | android | all) ;; *) usage ;; esac
+case "$TARGET" in linux | windows | windows-check | android | mac | web | all) ;; *) usage ;; esac
 [ -z "$NUMBER" ] || [[ "$NUMBER" =~ ^[0-9A-Za-z._-]+$ ]] || { echo "номер — буквы, цифры, «.», «_», «-»: $NUMBER" >&2; exit 1; }
 LABEL=${NUMBER:-dev}
 SUFFIX=${NUMBER:+-$NUMBER}
@@ -85,11 +85,48 @@ android() {
 	echo "-> $OUT/$FILE-android$SUFFIX.apk"
 }
 
+mac() {
+	local arch dir
+	for arch in arm64 x86_64; do
+		dir=$OUT/mac-$arch-build
+		echo "== macOS $arch ($LABEL)"
+		python3 -I tools/mac_deps.py --arch "$arch"
+		cmake -S port -B "$dir" "-DCMAKE_TOOLCHAIN_FILE=$PWD/port/cmake/macos.cmake" "-DMEDECOMP_MAC_ARCH=$arch" \
+			-DMEDECOMP_FFMPEG_BUNDLE=OFF "-DMEDECOMP_VERSION=$LABEL" > /dev/null
+		build "$dir"
+		[ -f "$dir/medecomp" ] || { echo "нет $dir/medecomp — сборка под macOS не прошла" >&2; exit 1; }
+		python3 -I tools/mac_dist.py --arch "$arch" --build "$dir"
+		rm -f "$OUT"/*-macos-$arch*.zip
+		cp "$dir/$FILE-macos-$arch.zip" "$OUT/$FILE-macos-$arch$SUFFIX.zip"
+		echo "-> $OUT/$FILE-macos-$arch$SUFFIX.zip"
+	done
+}
+
+web() {
+	local dir=$OUT/web-build
+	echo "== Браузер ($LABEL)"
+	command -v emcc > /dev/null || { echo "нужен emsdk: source ~/emsdk/emsdk_env.sh (README, шаг 6)" >&2; exit 1; }
+	python3 -I tools/web_deps.py
+	cmake -S port -B "$dir" "-DCMAKE_TOOLCHAIN_FILE=$PWD/port/cmake/web.cmake" "-DMEDECOMP_VERSION=$LABEL" > /dev/null
+	build "$dir"
+	[ -f "$dir/medecomp.wasm" ] || { echo "нет $dir/medecomp.wasm — сборка для браузера не прошла" >&2; exit 1; }
+	rm -rf "$OUT/web"
+	mkdir -p "$OUT/web"
+	cp "$dir/medecomp.js" "$dir/medecomp.wasm" "$dir/medecomp.data" "$dir/manifest.webmanifest" "$OUT/web/"
+	cp "$dir/medecomp.html" "$OUT/web/index.html"
+	cp -r "$dir/icons" "$OUT/web/"
+	rm -f "$OUT"/*-web*.zip
+	(cd "$OUT/web" && zip -qr "../$FILE-web$SUFFIX.zip" .)
+	echo "-> $OUT/web, $OUT/$FILE-web$SUFFIX.zip"
+}
+
 case "$TARGET" in
 linux) linux ;;
 windows) windows ;;
 windows-check) windows && tools/win_check.sh ;;
 android) android ;;
+mac) mac ;;
+web) web ;;
 all) linux && windows && android ;;
 esac
 

@@ -1,5 +1,9 @@
 #pragma once
 
+#define MEDECOMP_SYMBOL_STR2_(x) #x
+#define MEDECOMP_SYMBOL_STR_(x) MEDECOMP_SYMBOL_STR2_(x)
+#define MEDECOMP_SYMBOL(name) __asm__(MEDECOMP_SYMBOL_STR_(__USER_LABEL_PREFIX__) name)
+
 #if defined(MEDECOMP_PORT) && defined(_WIN32)
 #include "port/win_compat.h"
 #endif
@@ -10,13 +14,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include <machine/endian.h>
+#else
 #include <endian.h>
+#endif
 #undef BIG_ENDIAN
 #undef LITTLE_ENDIAN
 #undef PDP_ENDIAN
 #undef BYTE_ORDER
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(__APPLE__)
 inline int isnumber(int c) { return isdigit(c); }
 #endif
 

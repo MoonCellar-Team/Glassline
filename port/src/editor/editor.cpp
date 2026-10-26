@@ -1,6 +1,12 @@
 #include "editor.h"
+#include "../platform/touch_device.h"
+#include "imgui_internal.h"
 
 #include <SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#endif
 #include <math.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -45,6 +51,13 @@ namespace {
 
 bool s_ru = true;
 const char* L(const char* ru, const char* en) { return s_ru ? ru : en; }
+
+#ifdef __EMSCRIPTEN__
+float webEditorScale(float width, float height) {
+    if (width < 900 || height < 620) return 0.7f;
+    return std::max(1.0f, std::min(width / 1280.0f, height / 800.0f));
+}
+#endif
 
 const float kSnap = 0.25f;
 const float kLongPressSec = 0.5f;
@@ -230,9 +243,8 @@ std::string selfExe(const char* argv0) {
     DWORD n = GetModuleFileNameA(nullptr, buf, sizeof buf);
     return n ? std::string(buf, n) : std::string(argv0);
 #else
-    char buf[4096];
-    ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
-    return n > 0 ? std::string(buf, size_t(n)) : std::string(argv0);
+    std::string self = port::platform::process::selfPath();
+    return self.empty() ? std::string(argv0) : self;
 #endif
 }
 
@@ -256,7 +268,7 @@ long long launch(const std::vector<std::string>& args, const char* argv0) {
 
 namespace {
 
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
 std::string s_testLevel;
 bool s_service = false;
 std::vector<std::string> s_serviceEnv;
@@ -273,7 +285,7 @@ std::string resumePath() { return port::files::dataDir() + "/cache/editor-resume
 
 long long startTest(Doc* doc, const char* argv0) {
     if (!save(doc).empty()) return -1;
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     s_testLevel = doc->id;
     return 0;
 #endif
@@ -648,7 +660,19 @@ std::vector<int> soundChoices(bool music) {
 
 class Editor {
 public:
-    Editor(const char* argv0, float scale, SDL_Renderer* renderer) : m_argv0(argv0), m_scale(scale), m_renderer(renderer) {}
+    Editor(const char* argv0, float scale, SDL_Renderer* renderer) : m_argv0(argv0), m_scale(scale), m_renderer(renderer) {
+        m_touchSeen = port::platform::defaultTouchInput();
+#ifdef __EMSCRIPTEN__
+        if (scale < 1.0f) m_levelOpen = false;
+#endif
+    }
+
+    void uiScale(float scale) {
+        if (scale == m_scale) return;
+        if (scale < 1.0f && m_scale >= 1.0f) m_levelOpen = false;
+        view.zoom *= scale / m_scale;
+        m_scale = scale;
+    }
 
     Doc doc;
     Sel sel;
@@ -666,7 +690,7 @@ public:
         if (!m.starts.empty()) view.cx = toF(m.starts[0].pos[0]) + 30, view.cy = toF(m.starts[0].pos[1]);
         view.zoom = 8 * m_scale;
     }
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     void resume() {
         if (!s_resume.valid) return;
         s_resume.valid = false;
@@ -1019,17 +1043,35 @@ public:
         return out;
     }
 
+    bool compactWeb() const {
+#ifdef __EMSCRIPTEN__
+        return ImGui::GetIO().DisplaySize.x < 900 || ImGui::GetIO().DisplaySize.y < 620;
+#else
+        return false;
+#endif
+    }
+
     void frame(bool* quit) {
         ImGuiIO& io = ImGui::GetIO();
+        float safeBottom = 0;
+#ifdef __EMSCRIPTEN__
+        safeBottom = float(MAIN_THREAD_EM_ASM_DOUBLE({
+            const area = document.getElementById("safe-area");
+            return area ? area.getBoundingClientRect().height : 0;
+        }));
+#endif
         const bool editing = doc.open;
         ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(io.DisplaySize);
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, std::max(1.0f, io.DisplaySize.y - safeBottom)));
         if (editing) ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("##editor", nullptr,
                      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
                          (editing ? ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse : 0));
         if (editing) ImGui::PopStyleVar();
-        if (!editing) levelList(quit);
+        if (!editing) {
+            if (compactWeb()) port::platform::panelTouchScroll(m_scale);
+            levelList(quit);
+        }
         else editorView();
         ImGui::End();
         if (editing && doc.open) overlays();
@@ -1065,7 +1107,7 @@ private:
     Tool m_tool = Tool::Select;
     int m_piece = -1;
     bool m_levelOpen = true;
-    float m_levelBottom = 0, m_actionsBottom = 0, m_inspectorH = 0, m_viewBarW = 0;
+    float m_levelBottom = 0, m_actionsBottom = 0, m_inspectorH = 0, m_viewBarW = 0, m_viewBarH = 0;
     ImVec2 m_inspectorMin, m_inspectorMax;
     std::string m_openInfo;
     int m_openInfoFrame = 0;
@@ -1102,7 +1144,7 @@ private:
     SDL_Texture* m_mapTex = nullptr;
     ImVec2 m_mapSize;
     bool m_mapOpen = false;
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     std::vector<std::string> m_piecesEnv;
 
     bool writeResume(const char* what) {
@@ -1241,7 +1283,7 @@ public:
         forgetShapes();
     }
     void test() {
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         if (!writeResume("test")) return;
 #endif
         testPid = startTest(&doc, m_argv0);
@@ -1639,7 +1681,7 @@ private:
         std::vector<unsigned char> stamp;
         bool fresh = port::files::read(m_piecesDir + "/stamp", &stamp) && std::string(stamp.begin(), stamp.end()) == previewStamp() &&
                      port::files::stat(m_piecesDir + "/done").exists;
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         m_piecesEnv.clear();
 #endif
         if (fresh || m_piecesChild || m_paletteIds.empty()) return loadBoxes();
@@ -1651,7 +1693,7 @@ private:
             "MEDECOMP_PIECE_PREVIEWS=" + m_piecesDir,
             "MEDECOMP_PIECE_PALETTE=" + std::to_string(chapter.palette) + "," + std::to_string(chapter.modelSet),
             "MEDECOMP_PIECE_IDS=" + ids, "MEDECOMP_PIECE_STAMP=" + previewStamp(), "ALSOFT_DRIVERS=null"};
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         m_piecesEnv = env;
         return loadBoxes();
 #endif
@@ -2065,7 +2107,7 @@ private:
         snprintf(region, sizeof region, "%.2f,%.2f,%.2f,%.2f", a[0], a[1], a[2], a[3]);
         mkdir(cacheDir().c_str(), 0755);
         remove((cacheDir() + "/map.png").c_str());
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         requestService({"MEDECOMP_MAP_PREVIEW=" + cacheDir() + "/map.png", std::string("MEDECOMP_MAP_REGION=") + region,
                         "ALSOFT_DRIVERS=null"},
                        doc.id, "map");
@@ -2230,7 +2272,7 @@ private:
         if (bg) dl->AddRectFilled(p, ImVec2(p.x + size, p.y + size), faded(bg), std::min(12 * m_scale, size / 3));
         float is = std::min(20 * m_scale, size * 0.62f);
         mcui::DrawIcon(dl, icon, ImVec2(p.x + (size - is) / 2, p.y + (size - is) / 2), is, faded(color));
-        if (tip && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", tip);
+        if (tip && !m_touchSeen && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", tip);
         return pressed;
     }
 
@@ -2253,13 +2295,7 @@ private:
     }
 
     void rail() {
-        const float s = m_scale, w = 64 * s, b = 44 * s;
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, mcui::Color(mcui::tokens::kColorBgSecondary));
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2((w - b) / 2, 12 * s));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 6 * s));
-        ImGui::BeginChild("##rail", ImVec2(w, 0), ImGuiChildFlags_AlwaysUseWindowPadding,
-                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        const float s = m_scale, w = 64 * s;
         const Icons& ic = icons();
         const ImU32 text = tok(mcui::tokens::kColorTextSecondary);
         struct Item {
@@ -2279,7 +2315,19 @@ private:
                               {Tool::Swing, &ic.swing, text, L(" — повиснуть и раскачаться (сама точка не видна)", " — hang and swing (the point itself is invisible)")},
                               {Tool::Music, &ic.music, text, L(" — невидимая", " — invisible")},
                               {Tool::Piece, &ic.piece, text, L(" — видимая модель из главы уровня", " — a visible model from the level's chapter")}};
-        for (size_t i = 0; i < sizeof items / sizeof items[0]; i++) {
+        const size_t count = sizeof items / sizeof items[0];
+        const float gap = (compactWeb() ? 2 : 6) * s;
+        const float fitButton = (ImGui::GetContentRegionAvail().y - 28 * s - (count + 1) * gap) / (count + 1);
+        const float b = compactWeb() ? std::min(44 * s, std::max(20.0f, fitButton)) : 44 * s;
+        const bool scrollRail = compactWeb() && fitButton < 20;
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, mcui::Color(mcui::tokens::kColorBgSecondary));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2((w - b) / 2, 12 * s));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, gap));
+        ImGui::BeginChild("##rail", ImVec2(w, 0), ImGuiChildFlags_AlwaysUseWindowPadding,
+                          scrollRail ? 0 : ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        if (scrollRail) port::platform::panelTouchScroll(s);
+        for (size_t i = 0; i < count; i++) {
             if (i == 3) {
                 ImVec2 p = ImGui::GetCursorScreenPos();
                 ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x + 8 * s, p.y + 2 * s), ImVec2(p.x + b - 8 * s, p.y + 2 * s),
@@ -2288,7 +2336,7 @@ private:
             }
             const Item& it = items[i];
             const bool on = m_tool == it.tool;
-            std::string tip = std::string(toolName(it.tool)) + it.key;
+            std::string tip = std::string(toolName(it.tool)) + (m_touchSeen ? "" : it.key);
             ImGui::PushID(int(i));
             if (iconButton("##tool", *it.icon, b, on ? IM_COL32_WHITE : it.color, on ? tok(mcui::tokens::kColorAccent) : 0, tip.c_str()))
                 setTool(it.tool);
@@ -2377,13 +2425,17 @@ private:
                   "Looks only: the blocks and ramps you run on stay as they are. Game versions before this one do not show such a piece."));
     }
     bool depthShown() const { return showDepth && showGraphics && doc.open && view.size.x >= 232 * m_scale && view.size.y >= 360 * m_scale; }
-    float depthReserve() const { return depthShown() ? (56 + 120 + 12) * m_scale : 0.0f; }
+    float depthHeight() const { return compactWeb() ? std::min(120 * m_scale, view.size.y * .18f) : 120 * m_scale; }
+    float viewBarReserve() const { return std::max(56 * m_scale, m_viewBarH + 12 * m_scale); }
+    float depthReserve() const {
+        return depthShown() ? viewBarReserve() + depthHeight() + 12 * m_scale : compactWeb() ? viewBarReserve() : 0.0f;
+    }
     void depthStrip() {
         if (!depthShown()) return;
         Map& m = doc.map;
-        const float sc = m_scale, edge = 16 * sc, h = 120 * sc;
+        const float sc = m_scale, edge = 16 * sc, h = depthHeight();
         const float left = view.origin.x + edge + (m_tool == Tool::Piece ? (kPaletteWidth + 12) * sc : 0);
-        const ImVec2 at(left, view.origin.y + view.size.y - edge - 56 * sc);
+        const ImVec2 at(left, view.origin.y + view.size.y - edge - viewBarReserve());
         const float w = view.origin.x + view.size.x - edge - left;
         if (w < 200 * sc) return;
         ImGui::SetNextWindowPos(at, ImGuiCond_Always, ImVec2(0, 1));
@@ -2611,7 +2663,7 @@ private:
             previewProgress(ImGui::GetContentRegionAvail().x);
             return;
         }
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         if (!m_piecesEnv.empty()) {
             if (mcui::Button(L("Подготовить картинки кусков", "Prepare piece previews"), mcui::ButtonKind::Accent, ImVec2(-FLT_MIN, 0)))
                 requestService(m_piecesEnv, "", "pieces");
@@ -2631,11 +2683,28 @@ private:
                                         "No piece of this chapter has a facade: none of them makes a surface."));
     }
 
-    void beginFloat(const char* id, ImVec2 pos, ImVec2 pivot, float width, float pad, float height = 0, bool through = false) {
+    void beginFloat(const char* id, ImVec2 pos, ImVec2 pivot, float width, float pad, float height = 0, bool through = false, float maxHeight = 0) {
         const float s = m_scale;
+        const bool compact = compactWeb();
+        const float edge = 16 * s, maxW = std::max(1.0f, view.size.x - 2 * edge), maxH = std::max(1.0f, std::min(view.size.y - 2 * edge, maxHeight > 0 ? maxHeight : FLT_MAX));
+        if (compact) {
+            width = width > 0 ? std::min(width, maxW) : 0;
+            height = height > 0 ? std::min(height, maxH) : 0;
+            ImGuiWindow* previous = ImGui::FindWindowByName(id);
+            const ImVec2 estimate(width > 0 ? width : previous ? std::min(previous->Size.x, maxW) : maxW,
+                                   height > 0 ? height : previous ? std::min(previous->Size.y, maxH) : 40 * s);
+            pos.x -= pivot.x * estimate.x;
+            pos.y -= pivot.y * estimate.y;
+            pos.x = std::max(view.origin.x + edge, std::min(view.origin.x + view.size.x - edge - estimate.x, pos.x));
+            pos.y = std::max(view.origin.y + edge, std::min(view.origin.y + view.size.y - edge - estimate.y, pos.y));
+            pivot = ImVec2(0, 0);
+        }
         ImGui::SetNextWindowPos(pos, ImGuiCond_Always, pivot);
         if (height > 0) ImGui::SetNextWindowSize(ImVec2(width, height));
-        else if (width > 0) ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, FLT_MAX));
+        else if (width > 0 || compact) {
+            ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width > 0 ? width : maxW, compact ? maxH : FLT_MAX),
+                compact ? +[](ImGuiSizeCallbackData* data) { data->DesiredSize.y = ceilf(data->DesiredSize.y) + 1.0f; } : nullptr);
+        }
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 18 * s);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(pad * s, pad * s));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
@@ -2644,11 +2713,12 @@ private:
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                                  ImGuiWindowFlags_NoFocusOnAppearing;
         if (height <= 0) flags |= ImGuiWindowFlags_AlwaysAutoResize;
-        else flags &= ~ImGuiWindowFlags_NoScrollbar;
+        if (height > 0 || compact) flags &= ~ImGuiWindowFlags_NoScrollbar;
         if (through) flags |= ImGuiWindowFlags_NoInputs;
         ImGui::Begin(id, nullptr, flags);
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(3);
+        if (compact && !through) port::platform::panelTouchScroll(s);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8 * s, 8 * s));
     }
     void endFloat() {
@@ -2732,21 +2802,24 @@ private:
 
     void actionsBar() {
         const float s = m_scale, h = 36 * s;
-        beginFloat("##actions", ImVec2(view.origin.x + view.size.x - 16 * s, view.origin.y + 16 * s), ImVec2(1, 0), 0, 6);
+        const bool stacked = compactWeb() && view.size.x < 560 * s;
+        const float top = stacked ? m_levelBottom + 8 * s : view.origin.y + 16 * s;
+        beginFloat("##actions", ImVec2(view.origin.x + view.size.x - 16 * s, top), ImVec2(1, 0), 0, 6);
         ImGui::BeginDisabled(doc.undo.empty());
         if (iconButton("##undo", icons().undo, h, tok(mcui::tokens::kColorTextSecondary), 0, L("Отменить · Ctrl+Z", "Undo · Ctrl+Z"))) undo();
         ImGui::EndDisabled();
         ImGui::SameLine();
         if (mcui::Button(L("Сохранить", "Save"), mcui::ButtonKind::Default, ImVec2(0, h))) doSave();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Ctrl+S");
+        if (!m_touchSeen && ImGui::IsItemHovered()) ImGui::SetTooltip("Ctrl+S");
         ImGui::SameLine();
         if (mcui::Button(L("Проверить", "Test"), mcui::ButtonKind::Accent, ImVec2(0, h))) test();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", L("F5 — сохранить и запустить в игре", "F5 — save and run in the game"));
+        if (!m_touchSeen && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", L("F5 — сохранить и запустить в игре", "F5 — save and run in the game"));
         m_actionsBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
         endFloat();
         if (doc.status.empty() || doc.status == m_statusClosed) return;
         beginFloat("##status", ImVec2(view.origin.x + view.size.x - 16 * s, m_actionsBottom + 8 * s), ImVec2(1, 0), 0, 10);
-        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 320 * s);
+        const float statusWidth = compactWeb() ? std::min(320 * s, std::max(1.0f, view.size.x - 82 * s - ImGui::GetStyle().ItemSpacing.x)) : 320 * s;
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + statusWidth);
         ImGui::TextUnformatted(doc.status.c_str());
         ImGui::PopTextWrapPos();
         ImGui::SameLine();
@@ -2870,7 +2943,8 @@ private:
         const float s = m_scale, w = 312 * s, gap = 14 * s, edge = 16 * s, h = m_inspectorH;
         ImVec2 lo, hi;
         selBounds(&lo, &hi);
-        const float x0 = view.origin.x + edge, y0 = view.origin.y + edge;
+        const float x0 = view.origin.x + edge;
+        const float y0 = compactWeb() ? std::max(m_levelBottom, m_actionsBottom) + 8 * s : view.origin.y + edge;
         const float x1 = std::max(x0, view.origin.x + view.size.x - edge - w),
                     y1 = std::max(y0, view.origin.y + view.size.y - edge - h - depthReserve());
         const float cx = (lo.x + hi.x - w) / 2, cy = (lo.y + hi.y - h) / 2;
@@ -2884,7 +2958,8 @@ private:
         }
         const bool ghost = ImGui::GetIO().KeyCtrl && !ImGui::GetIO().WantTextInput;
         if (ghost) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.25f);
-        beginFloat("##inspector", pos, ImVec2(0, 0), w, 14, 0, ghost);
+        const float maxHeight = compactWeb() ? std::max(1.0f, view.origin.y + view.size.y - viewBarReserve() - y0) : 0;
+        beginFloat("##inspector", pos, ImVec2(0, 0), w, 14, 0, ghost, maxHeight);
         inspectorBody();
         m_inspectorH = ImGui::GetWindowSize().y;
         m_inspectorMin = ImGui::GetWindowPos();
@@ -2903,7 +2978,9 @@ private:
             ImGui::SameLine(ImGui::GetContentRegionMax().x - 28 * s);
             if (iconButton("##delete", icons().trash, 28 * s, kDanger, 0, L("Удалить все · Del", "Delete all · Del"))) deleteSelected();
             caption(groupSummary().c_str());
-            caption(L("Тяните любое из них — сдвинется вся группа. Ctrl+щелчок — добавить или убрать, щелчок по одному — выбрать "
+            if (m_touchSeen) caption(L("Тяните любой объект — сдвинется вся группа. Коснитесь объекта, чтобы выбрать его одного. Кнопка ниже снимает выделение.",
+                                      "Drag any object to move the group. Tap an object to select it alone. Use the button below to clear the selection."));
+            else caption(L("Тяните любое из них — сдвинется вся группа. Ctrl+щелчок — добавить или убрать, щелчок по одному — выбрать "
                       "только его, Esc — снять.",
                       "Drag any of them — the whole group moves. Ctrl+click — add or remove, click one — select only it, Esc — "
                       "clear."));
@@ -2997,31 +3074,37 @@ private:
         area(a);
         ImVec2 top = view.toScreen((a[0] + a[2]) / 2, a[3]), bottom = view.toScreen((a[0] + a[2]) / 2, a[1]);
         const bool above = top.y - 60 * s > view.origin.y + 16 * s;
-        beginFloat("##area", above ? ImVec2(top.x, top.y - 12 * s) : ImVec2(bottom.x, bottom.y + 12 * s), ImVec2(0.5f, above ? 1.0f : 0.0f), 0, 8);
+        const float width = compactWeb() ? std::min(650 * s, std::max(1.0f, view.size.x - 32 * s)) : 0;
+        beginFloat("##area", above ? ImVec2(top.x, top.y - 12 * s) : ImVec2(bottom.x, bottom.y + 12 * s), ImVec2(0.5f, above ? 1.0f : 0.0f), width, 8);
+        auto next = [&](const char* label, float fixedWidth = 0) {
+            const float needed = fixedWidth > 0 ? fixedWidth : ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2 + 4 * s;
+            if (!compactWeb() || ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + needed <= ImGui::GetCurrentWindow()->WorkRect.Max.x)
+                ImGui::SameLine();
+        };
         ImGui::AlignTextToFramePadding();
         ImGui::Text("%.2f × %.2f", a[2] - a[0], a[3] - a[1]);
-        ImGui::SameLine();
+        next(L("Заполнить выбранным", "Fill with selected"));
         ImGui::BeginDisabled(sel.kind != Kind::Shape && sel.kind != Kind::Node);
         if (mcui::Button(L("Заполнить выбранным", "Fill with selected"))) fillArea();
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             ImGui::SetTooltip("%s", L("копии выбранной коробки или куска — шагом их размера", "copies of the selected block or piece, at their size"));
-        ImGui::SameLine();
+        next(L("Удалить тайлы", "Remove tiles"));
         if (mcui::Button(L("Удалить тайлы", "Remove tiles"))) clearArea();
-        ImGui::SameLine();
+        next(L("Выделить всё внутри", "Select all inside"));
         if (mcui::Button(L("Выделить всё внутри", "Select all inside"))) selectInArea();
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", L("коробки, рампы, куски и объекты целиком в области — тянуть группой",
                                       "blocks, ramps, pieces and objects wholly inside — to drag as a group"));
-        ImGui::SameLine();
+        next(L("Как в игре", "As in the game"));
         ImGui::BeginDisabled(m_mapChild != 0);
         if (mcui::Button(L("Как в игре", "As in the game"))) previewArea();
         ImGui::EndDisabled();
-        ImGui::SameLine();
+        next(nullptr, ImGui::GetFrameHeight());
         if (iconButton("##clear", icons().close, ImGui::GetFrameHeight(), tok(mcui::tokens::kColorTextMuted), 0, L("Снять область", "Clear the area")))
             m_hasArea = false;
         if (m_mapChild) caption(L("игра рисует область…", "the game is drawing the area…"));
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         caption(L("«Как в игре»: область рисует игра — редактор закроется и вернётся к этому месту",
                   "As in the game: the game draws the area — the editor closes and comes back here"));
 #endif
@@ -3031,44 +3114,66 @@ private:
     void zoomBy(float k) { view.zoom = std::max(0.2f, std::min(200.0f, view.zoom * k)); }
 
     void viewBar() {
-        const float s = m_scale, h = 32 * s;
-        beginFloat("##viewbar", ImVec2(view.origin.x + view.size.x / 2, view.origin.y + view.size.y - 16 * s), ImVec2(0.5f, 1.0f), 0, 6);
+        const float s = m_scale, h = 32 * s, gap = ImGui::GetStyle().ItemSpacing.x;
+        auto buttonWidth = [&](const char* label) {
+            ImGui::PushFont(mcui::GetFonts().medium, 0.0f);
+            const float width = ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2 + 2 * s;
+            ImGui::PopFont();
+            return width;
+        };
+        const std::string percent = std::to_string(int(roundf(100 * view.zoom / (8 * m_scale)))) + "%";
+        const float zoomWidth = h * 2 + ImGui::CalcTextSize(percent.c_str()).x + buttonWidth(L("Вписать", "Fit")) + gap * 3;
+        const float fullWidth = buttonWidth(L("Формы", "Shapes")) + buttonWidth(L("Графика", "Graphics")) +
+                                buttonWidth(L("Объекты", "Objects")) + buttonWidth(L("Сверху", "Top")) +
+                                zoomWidth + 4 * s + gap * 5 + 12 * s;
+        const float width = compactWeb() ? std::min(fullWidth, std::max(1.0f, view.size.x - 32 * s)) : 0;
+        beginFloat("##viewbar", ImVec2(view.origin.x + view.size.x / 2, view.origin.y + view.size.y - 16 * s), ImVec2(0.5f, 1.0f), width, 6);
+        bool hasItem = false;
         auto pill = [&](const char* label, bool* on) {
+            if (hasItem && (!compactWeb() || ImGui::GetItemRectMax().x + gap + buttonWidth(label) <= ImGui::GetCurrentWindow()->WorkRect.Max.x))
+                ImGui::SameLine();
             if (mcui::Button(label, *on ? mcui::ButtonKind::Accent : mcui::ButtonKind::Default, ImVec2(0, h))) *on = !*on;
-            ImGui::SameLine();
+            hasItem = true;
         };
         pill(L("Формы", "Shapes"), &showShapes);
         pill(L("Графика", "Graphics"), &showGraphics);
         pill(L("Объекты", "Objects"), &showObjects);
         pill(L("Сверху", "Top"), &showDepth);
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x + 2 * s, p.y + 6 * s), ImVec2(p.x + 2 * s, p.y + h - 6 * s), tok(mcui::tokens::kColorBgHover));
-        ImGui::Dummy(ImVec2(4 * s, h));
-        ImGui::SameLine();
+        if (compactWeb() && ImGui::GetItemRectMax().x + gap * 2 + 4 * s + zoomWidth > ImGui::GetCurrentWindow()->WorkRect.Max.x) {
+            ImGui::Spacing();
+        } else {
+            ImGui::SameLine();
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x + 2 * s, p.y + 6 * s), ImVec2(p.x + 2 * s, p.y + h - 6 * s), tok(mcui::tokens::kColorBgHover));
+            ImGui::Dummy(ImVec2(4 * s, h));
+            ImGui::SameLine();
+        }
         if (mcui::Button("−", mcui::ButtonKind::Ghost, ImVec2(h, h))) zoomBy(1 / 1.25f);
         ImGui::SameLine();
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("%d%%", int(roundf(100 * view.zoom / (8 * m_scale))));
+        ImGui::TextUnformatted(percent.c_str());
         ImGui::SameLine();
         if (mcui::Button("+", mcui::ButtonKind::Ghost, ImVec2(h, h))) zoomBy(1.25f);
         ImGui::SameLine();
         if (mcui::Button(L("Вписать", "Fit"), mcui::ButtonKind::Default, ImVec2(0, h))) fit();
         if (m_piecesChild) {
-            ImGui::SameLine();
+            if (!compactWeb() || ImGui::GetItemRectMax().x + gap + 200 * s <= ImGui::GetCurrentWindow()->WorkRect.Max.x) ImGui::SameLine();
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (h - ImGui::GetFrameHeight()) / 2);
             previewProgress(200 * s);
         }
         m_viewBarW = ImGui::GetWindowSize().x;
+        m_viewBarH = ImGui::GetWindowSize().y;
         endFloat();
     }
 
     void piecesFlyout() {
         const float s = m_scale, edge = 16 * s;
-        const float top = std::max(view.origin.y + edge, m_levelBottom) + 12 * s;
-        const float h = view.origin.y + view.size.y - edge - 64 * s - top;
+        const float panelBottom = compactWeb() && view.size.x < 560 * s ? std::max(m_levelBottom, m_actionsBottom) : m_levelBottom;
+        const float top = std::max(view.origin.y + edge, panelBottom) + 12 * s;
+        const float h = view.origin.y + view.size.y - edge - (compactWeb() ? viewBarReserve() : 64 * s) - top;
         if (h < 140 * s) return;
         beginFloat("##pieces", ImVec2(view.origin.x + edge, top), ImVec2(0, 0), kPaletteWidth * s, 14, h);
-        port::platform::panelTouchScroll(m_scale);
+        if (!compactWeb()) port::platform::panelTouchScroll(m_scale);
         ImGui::PushFont(mcui::GetFonts().bold, 0.0f);
         ImGui::TextUnformatted(L("Куски палитры", "Palette pieces"));
         ImGui::PopFont();
@@ -3076,7 +3181,7 @@ private:
                  L(" · выберите кусок, потом щелчок по полю", " · pick a piece, then click the map"))
                     .c_str());
         if (m_piecesChild) previewProgress(ImGui::GetContentRegionAvail().x);
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         if (!m_piecesEnv.empty()) {
             if (mcui::Button(L("Подготовить картинки кусков", "Prepare piece previews"))) requestService(m_piecesEnv, "", "pieces");
             caption(L("Картинки рисует игра: редактор закроется на время и вернётся к этому уровню",
@@ -3907,11 +4012,21 @@ int run(const std::string& id, const char* argv0) {
     const int kWidth = 1280, kHeight = 800;
 #ifdef __ANDROID__
     const Uint32 kFlags = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_ALLOW_HIGHDPI;
+#elif defined(__EMSCRIPTEN__)
+    const Uint32 kFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     const Uint32 kFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_HIDDEN;
 #endif
+    int createW = kWidth, createH = kHeight;
+#ifdef __EMSCRIPTEN__
+    {
+        double cw = 0, ch = 0;
+        emscripten_get_element_css_size("#canvas", &cw, &ch);
+        if (cw > 0 && ch > 0) createW = int(cw), createH = int(ch);
+    }
+#endif
     SDL_Window* window = SDL_CreateWindow(L(MEDECOMP_PORT_NAME " — редактор уровней", MEDECOMP_PORT_NAME " — level editor"),
-                                          SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, kWidth, kHeight, kFlags);
+                                          SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, createW, createH, kFlags);
     if (!window) {
         fprintf(stderr, "medecomp: редактор: окно: %s\n", SDL_GetError());
         return 1;
@@ -3921,6 +4036,8 @@ int run(const std::string& id, const char* argv0) {
     float scale = port::platform::displayScale(window, pixelW);
 #ifdef __ANDROID__
     scale = std::max(1.0f, std::min(scale, std::min(pixelW / float(kWidth), pixelH / float(kHeight))));
+#elif defined(__EMSCRIPTEN__)
+    scale = webEditorScale(float(createW), float(createH));
 #else
     SDL_SetWindowSize(window, int(kWidth * scale), int(kHeight * scale));
     SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
@@ -3952,7 +4069,7 @@ int run(const std::string& id, const char* argv0) {
         std::string error;
         if (openLevel(id, &editor.doc, &error)) editor.fit(), editor.loadPalette();
         else fprintf(stderr, "medecomp: редактор: %s\n", error.c_str());
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         editor.resume();
 #endif
     }
@@ -4002,8 +4119,31 @@ int run(const std::string& id, const char* argv0) {
     ImVec2 l19Center, l19Mouse;
     int frames = 0, code = 0;
     bool quit = false, demoStarted = false;
+#ifdef __EMSCRIPTEN__
+    Uint32 lastFingerAt = 0;
+#endif
     while (!quit) {
         SDL_Event e;
+#ifdef __EMSCRIPTEN__
+        emscripten_sleep(16);
+        double canvasW = 0, canvasH = 0;
+        emscripten_get_element_css_size("#canvas", &canvasW, &canvasH);
+        int windowW = 0, windowH = 0;
+        SDL_GetWindowSize(window, &windowW, &windowH);
+        if (canvasW > 0 && canvasH > 0) {
+            if (windowW != int(canvasW) || windowH != int(canvasH)) SDL_SetWindowSize(window, int(canvasW), int(canvasH));
+            int logicalW = 0, logicalH = 0;
+            port::platform::turn::size(window, &logicalW, &logicalH);
+            const float nextScale = webEditorScale(float(logicalW), float(logicalH));
+            if (nextScale != scale) {
+                editor.uiScale(nextScale);
+                scale = nextScale;
+                mcui::ApplyStyle(scale);
+                ImGui::GetStyle().WindowPadding = ImVec2(16 * scale, 16 * scale);
+                ImGui::GetStyle().ItemSpacing = ImVec2(8 * scale, 8 * scale);
+            }
+        }
+#endif
         while (SDL_PollEvent(&e)) {
             port::platform::turn::event(&e);
             if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
@@ -4011,11 +4151,23 @@ int run(const std::string& id, const char* argv0) {
                 port::platform::turn::size(window, &w, &h);
                 editor.finger(e.tfinger, w, h);
             }
+            bool mouseFromBrowser = false;
+#ifdef __EMSCRIPTEN__
+            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.which == SDL_TOUCH_MOUSEID)
+                ImGui::GetIO().AddMousePosEvent(float(e.button.x), float(e.button.y));
+            if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP)
+                lastFingerAt = SDL_GetTicks();
+            if (lastFingerAt && SDL_GetTicks() - lastFingerAt < 800) {
+                if (e.type == SDL_MOUSEMOTION) mouseFromBrowser = e.motion.which != SDL_TOUCH_MOUSEID;
+                if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP)
+                    mouseFromBrowser = e.button.which != SDL_TOUCH_MOUSEID;
+            }
+#endif
             const bool pointer = e.type == SDL_MOUSEMOTION || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
                                  e.type == SDL_MOUSEWHEEL ||
                                  (e.type == SDL_WINDOWEVENT && (e.window.event == SDL_WINDOWEVENT_ENTER || e.window.event == SDL_WINDOWEVENT_LEAVE ||
                                                                 e.window.event == SDL_WINDOWEVENT_FOCUS_LOST));
-            if (!((demoL17 || demoL19 || demoL33 || (demoL46 && strcmp(demoL46, "drag") == 0)) && pointer)) ImGui_ImplSDL2_ProcessEvent(&e);
+            if (!mouseFromBrowser && !((demoL17 || demoL19 || demoL33 || (demoL46 && strcmp(demoL46, "drag") == 0)) && pointer)) ImGui_ImplSDL2_ProcessEvent(&e);
             if (e.type == SDL_QUIT || (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_CLOSE)) quit = true;
         }
         ImGui_ImplSDLRenderer2_NewFrame();
@@ -4023,7 +4175,7 @@ int run(const std::string& id, const char* argv0) {
         port::platform::turn::imgui(window);
         ImGui::NewFrame();
         editor.frame(&quit);
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
         if (!s_testLevel.empty() || s_service) quit = true;
 #endif
         ImGui::Render();
@@ -4457,7 +4609,7 @@ int run(const std::string& id, const char* argv0) {
     return code;
 }
 
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
 bool takeTestLevel(std::string* id) {
     if (s_testLevel.empty()) return false;
     *id = s_testLevel;

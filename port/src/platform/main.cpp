@@ -1,5 +1,8 @@
 #include <SDL.h>
-#ifndef _WIN32
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 #include <fontconfig/fontconfig.h>
 #endif
 #include <errno.h>
@@ -9,10 +12,14 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#if !defined(_WIN32) && !defined(__ANDROID__)
+#if !defined(_WIN32) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
 #include <execinfo.h>
 #include <signal.h>
+#ifdef __APPLE__
+#include <pthread.h>
+#else
 #include <sys/prctl.h>
+#endif
 #endif
 
 #include <atomic>
@@ -165,8 +172,8 @@ void handle(const SDL_Event& e, bool* running) {
 std::atomic<bool> s_quitDone(false);
 
 void openLauncher() {
-#if defined(__ANDROID__)
-    port::platform::androidRestart();
+#ifdef MEDECOMP_ONE_PROCESS
+    port::platform::appRestart();
 #else
     std::string self = port::platform::process::selfPath();
     if (self.empty()) return;
@@ -194,12 +201,67 @@ void quitWatchdog() {
     }).detach();
 }
 
+bool s_running = true;
+Uint32 s_lastAccel;
+
+void mainPass(bool wait) {
+    NSAutoreleasePool* pool = NSAutoreleasePool::alloc()->init();
+    SDL_Event e;
+    bool got;
+    if (wait) {
+        int timeout = msUntilNextTimer(), poll = inputPollMs();
+        if (timeout < 0 || timeout > poll) timeout = poll;
+        got = SDL_WaitEventTimeout(&e, timeout);
+    } else {
+        got = SDL_PollEvent(&e);
+    }
+    if (got) {
+        port::platform::turn::event(&e);
+        handle(e, &s_running);
+        while (s_running && SDL_PollEvent(&e)) {
+            port::platform::turn::event(&e);
+            handle(e, &s_running);
+        }
+    }
+    inputUpdate();
+    if (textInputActive()) presentTextField();
+    port::objc::runMainThreadQueue();
+    runTimers();
+    Uint32 now = SDL_GetTicks();
+    if (now - s_lastAccel >= 33 && !capture::active()) {
+        s_lastAccel = now;
+        runAccelerometer();
+    }
+    yieldContext();
+    pool->release();
+}
+
+void shutdown() {
+    quitWatchdog();
+    resignActive();
+    runtime()->applicationWillTerminate(nullptr);
+    destroyWindow();
+}
+
+#ifdef __EMSCRIPTEN__
+void webFrame() {
+    mainPass(false);
+    port::platform::webGameFrame();
+    if (s_running) return;
+    emscripten_cancel_main_loop();
+    shutdown();
+    s_quitDone = true;
+    if (s_toLauncher) openLauncher();
+}
+#endif
+
 int run() {
     std::string documents = port::files::dataDir() + "/Documents";
     if (mkdir(documents.c_str(), 0755) != 0 && errno != EEXIST)
         fprintf(stderr, "medecomp: не создать %s\n", documents.c_str());
     runtime()->resumeAudio();
     if (!createWindow(MEDECOMP_PORT_NAME)) return 1;
+    port::online::startCheck();
     splashBegin();
     port::objc::setMainThreadWaker(wakeMainLoop);
 
@@ -217,47 +279,25 @@ int run() {
     becomeActive();
     releaseContext();
 
-    bool running = true;
-    Uint32 lastAccel = 0;
-    while (running) {
-        NSAutoreleasePool* pool = NSAutoreleasePool::alloc()->init();
-        int wait = msUntilNextTimer(), poll = inputPollMs();
-        if (wait < 0 || wait > poll) wait = poll;
-        SDL_Event e;
-        if (SDL_WaitEventTimeout(&e, wait)) {
-            port::platform::turn::event(&e);
-            handle(e, &running);
-            while (running && SDL_PollEvent(&e)) {
-                port::platform::turn::event(&e);
-                handle(e, &running);
-            }
-        }
-        inputUpdate();
-        if (textInputActive()) presentTextField();
-        port::objc::runMainThreadQueue();
-        runTimers();
-        Uint32 now = SDL_GetTicks();
-        if (now - lastAccel >= 33 && !capture::active()) {
-            lastAccel = now;
-            runAccelerometer();
-        }
-        yieldContext();
-        pool->release();
-    }
-
-    quitWatchdog();
-    resignActive();
-    runtime()->applicationWillTerminate(nullptr);
-    destroyWindow();
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(webFrame, 0, true);
+#else
+    while (s_running) mainPass(true);
+    shutdown();
+#endif
     return 0;
 }
 
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 void bundledFonts() {
     std::string self = port::platform::process::selfPath();
+#ifdef __APPLE__
+    std::string dir = self.substr(0, self.find_last_of('/') + 1) + "../Resources/fonts";
+#else
     std::string dir = self.substr(0, self.find_last_of('/') + 1) + "fonts";
+#endif
     struct stat st;
     if (self.empty() || stat(dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) return;
     if (!getenv("FONTCONFIG_FILE") && stat("/etc/fonts/fonts.conf", &st) != 0 && stat((dir + "/fonts.conf").c_str(), &st) == 0)
@@ -287,12 +327,16 @@ void logToFile() {
 }
 #endif
 
-#if !defined(_WIN32) && !defined(__ANDROID__)
+#if !defined(_WIN32) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
 void crashSignal(int sig, siginfo_t* info, void*) {
     const char* name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGFPE ? "SIGFPE"
                      : sig == SIGILL ? "SIGILL" : sig == SIGABRT ? "SIGABRT" : "?";
     char thread[17] = {};
+#ifdef __APPLE__
+    pthread_getname_np(pthread_self(), thread, sizeof thread);
+#else
     prctl(PR_GET_NAME, thread, 0, 0, 0);
+#endif
     char where[2 + 16 + 1] = "0x";
     uintptr_t at = info ? reinterpret_cast<uintptr_t>(info->si_addr) : 0;
     for (int i = 0; i < 16; i++) where[2 + i] = "0123456789abcdef"[(at >> (60 - 4 * i)) & 15];
@@ -319,7 +363,7 @@ void crashHandlers() {
 }
 #endif
 
-#if defined(_WIN32) || defined(__ANDROID__)
+#if defined(_WIN32) || defined(__ANDROID__) || defined(__EMSCRIPTEN__)
 void systemLanguage() {
     for (const char* var : {"MEDECOMP_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"})
         if (const char* v = getenv(var); v && *v) return;
@@ -346,6 +390,9 @@ int main(int argc, char** argv) {
 #elif defined(_WIN32)
     port::platform::windowsStartup();
     systemLanguage();
+#elif defined(__EMSCRIPTEN__)
+    port::platform::webStartup();
+    systemLanguage();
 #else
     logToFile();
     crashHandlers();
@@ -356,15 +403,44 @@ int main(int argc, char** argv) {
         std::string a = argv[i];
         if (a == "--sign-in") return port::online::consoleSignIn();
         if (a == "--sign-out") return port::online::consoleSignOut();
+        if (a == "--cloud-sync") {
+            namespace cloud = port::online::cloud;
+            if (!cloud::allowed()) return fprintf(stderr, "medecomp: облако — не вошли или сверка выключена\n"), 1;
+            cloud::syncNow(true);
+            cloud::applyDownloadedPrefs();
+            printf("%s\n", cloud::status().c_str());
+            return 0;
+        }
     }
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
         std::string next = i + 1 < argc ? argv[i + 1] : "";
         if (a == "--net-host" || a == "--net-connect") return port::net::selfTest(a == "--net-host", next);
         if (a == "--net-room" || a == "--net-join") return port::net::selfTestRoom(a == "--net-room", next);
+        if (a == "--http-check") {
+            port::online::Response r = port::online::request("GET", next);
+            if (r.error.empty())
+                printf("%s: %d\n", next.c_str(), r.status);
+            else
+                printf("%s: %s\n", next.c_str(), r.error.c_str());
+            return r.error.empty() ? 0 : 1;
+        }
+        if (a == "--image-check") {
+            int accepted = 0;
+            for (int j = i + 1; j < argc; j++) {
+                std::vector<unsigned char> bytes;
+                std::vector<uint8_t> rgba;
+                int w = 0, h = 0;
+                bool ok = port::files::read(argv[j], &bytes) &&
+                          port::online::decodeImage(std::string(bytes.begin(), bytes.end()), &w, &h, &rgba);
+                printf(ok ? "%s: %dx%d\n" : "%s: отказ\n", argv[j], w, h);
+                accepted += ok;
+            }
+            return accepted ? 0 : 1;
+        }
     }
     bool opened = false;
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     std::string resume;
     if (port::editor::takeResume(&resume)) {
         char noLauncher[] = "--no-launcher";
@@ -378,7 +454,7 @@ int main(int argc, char** argv) {
     LocaleManager* locales = LocaleManager::getInstance();
     locales->~LocaleManager();
     new (locales) LocaleManager();
-#ifdef __ANDROID__
+#ifdef MEDECOMP_ONE_PROCESS
     {
         std::string id;
         std::vector<std::string> env;
@@ -399,7 +475,7 @@ int main(int argc, char** argv) {
             } else if (port::editor::takeTestLevel(&level)) {
                 port::platform::setTestRun(true);
             } else {
-                port::platform::androidRestart();
+                port::platform::appRestart();
                 return code;
             }
             if (!level.empty() && !port::platform::preparePlayerLevel(level, &error)) {

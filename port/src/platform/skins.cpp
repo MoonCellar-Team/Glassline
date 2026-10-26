@@ -1,6 +1,7 @@
 #include "skins.h"
 #include "settings.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,6 +107,27 @@ const GameModel* baseOf(const std::string& text) {
     return nullptr;
 }
 
+bool naturalLess(const std::string& a, const std::string& b) {
+    size_t i = 0, j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (isdigit(static_cast<unsigned char>(a[i])) && isdigit(static_cast<unsigned char>(b[j]))) {
+            size_t ei = i, ej = j;
+            while (ei < a.size() && isdigit(static_cast<unsigned char>(a[ei]))) ei++;
+            while (ej < b.size() && isdigit(static_cast<unsigned char>(b[ej]))) ej++;
+            std::string x = a.substr(i, ei - i), y = b.substr(j, ej - j);
+            x.erase(0, std::min(x.find_first_not_of('0'), x.size()));
+            y.erase(0, std::min(y.find_first_not_of('0'), y.size()));
+            if (x.size() != y.size()) return x.size() < y.size();
+            if (x != y) return x < y;
+            i = ei, j = ej;
+            continue;
+        }
+        if (a[i] != b[j]) return a[i] < b[j];
+        i++, j++;
+    }
+    return a.size() - i < b.size() - j;
+}
+
 void scan() {
     if (s_scanned) return;
     s_scanned = true;
@@ -132,7 +154,7 @@ void scan() {
         s_skins.push_back(skin);
     }
     closedir(dir);
-    std::sort(s_skins.begin(), s_skins.end(), [](const Skin& a, const Skin& b) { return a.id < b.id; });
+    std::sort(s_skins.begin(), s_skins.end(), [](const Skin& a, const Skin& b) { return naturalLess(a.id, b.id); });
 }
 
 const Skin* skinOf(const std::string& id) {

@@ -140,6 +140,8 @@ void load() {
 
 namespace port {
 namespace platform {
+bool slowMotionSetting() { return settings::get("slow_motion", "on") != "off"; }
+
 namespace settings {
 
 std::string path() { return port::files::dataDir() + "/settings.json"; }

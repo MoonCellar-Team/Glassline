@@ -7,8 +7,11 @@
 
 #include <string>
 
+#include "../platform/launcher.h"
+#include "../platform/overlay.h"
 #include "cg.h"
 #include "port/brand.h"
+#include "port/platform.h"
 #include "port/objc.h"
 #include "sdk/UIKit.h"
 
@@ -115,10 +118,18 @@ extern "C" void UIImageWriteToSavedPhotosAlbum(UIImage* image, void* target, SEL
     CGImage* cg = image ? obj(image)->image : nullptr;
     std::string path = albumPath();
     bool ok = cg && writePNG(cg, path);
+#ifdef __ANDROID__
+    if (ok) {
+        std::string shown = port::platform::androidSaveToDownloads(path, path.substr(path.find_last_of('/') + 1), "image/png");
+        if (!shown.empty()) path = shown;
+    }
+#endif
     if (ok)
         fprintf(stderr, "medecomp: фото сохранено: %s\n", path.c_str());
     else
         fprintf(stderr, "medecomp: фото не сохранено: %s\n", path.c_str());
+    const bool ru = port::platform::launcherRussian();
+    port::platform::notify(ok ? (ru ? "Обои сохранены" : "Wallpaper saved") : (ru ? "Обои не сохранены" : "Wallpaper not saved"), path);
     if (!target || !selector) return;
     const char* sel = reinterpret_cast<const char*>(selector);
     if (image) CFRetain(image);

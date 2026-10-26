@@ -4,17 +4,18 @@ on:
   push:
     tags: ["v*"]
 
+# Builds only read the repository; writing (the GitHub Release) is the release job's alone
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   linux:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - name: Build
         run: ./build.sh linux "${GITHUB_REF_NAME#v}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: linux
           path: |
@@ -25,10 +26,10 @@ jobs:
   windows:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - name: Build
         run: ./build.sh windows "${GITHUB_REF_NAME#v}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: windows
           path: build/release/*-windows-x64-*.zip
@@ -37,11 +38,11 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - name: Free disk space
         # The Android SDK with the NDK and the build take about 12 GB; the runner's own SDKs are not used
         run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
       - name: Release signing key
         env:
           KEYSTORE: ${{ secrets.GLASSLINE_ANDROID_KEYSTORE }}
@@ -57,18 +58,44 @@ jobs:
         run: |
           python3 -I tools/android_deps.py --accept-licenses > /dev/null
           ./build.sh android "${GITHUB_REF_NAME#v}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: android
           path: build/release/*-android-*.apk
           if-no-files-found: error
 
-  release:
-    needs: [linux, windows, android]
+  web:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - name: Emscripten and meson
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q meson ninja-build zip
+          # emsdk at the 6.0.13 tag, checked against its commit: a moved tag stops the build
+          git clone -q --branch 6.0.13 --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          test "$(git -C "$RUNNER_TEMP/emsdk" rev-parse HEAD)" = 35659964bc2762fffec0d257997fb61475f765b7
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.13
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.13
+      - name: Build
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          ./build.sh web "${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: web
+          path: build/release/*-web-*.zip
+
+  release:
+    needs: [linux, windows, android, web]
+    runs-on: ubuntu-24.04
+    # The update signature is trusted by the launcher's updater: the job waits for a person to approve it (the
+    # environment's required reviewers) after the builds, and the key is the environment's secret
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           path: dist
           merge-multiple: true

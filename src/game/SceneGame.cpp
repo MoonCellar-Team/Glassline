@@ -44,6 +44,7 @@
 #include "game/UI/WindowStore.h"
 #ifdef MEDECOMP_PORT
 #include "port/net.h"
+#include "../../port/src/platform/settings.h"
 extern "C" int medecomp_solo_bags(void);
 extern "C" void medecomp_solo_bags_result(int collected, int total, int timeLeft);
 extern "C" int medecomp_player_level_test(void);
@@ -51,6 +52,27 @@ extern "C" void medecomp_capture_level_start(void);
 extern "C" int medecomp_capture_autostart(void);
 extern "C" int medecomp_player_level_playing(void);
 extern "C" int medecomp_player_level_no_board(void);
+#include <atomic>
+static std::atomic<int> s_loadingRuns(0);
+
+static float s_gameDtCarry;
+static float s_raceTimeCarry;
+static bool s_networkStart;
+
+static bool networkStartFrozen(SceneGame* scene) {
+    if (port::net::raceOpponent()) s_networkStart = true;
+    if (!s_networkStart) return false;
+    int state = scene->getStateBehindMenu();
+    return state == SceneGame::STATE_INTRO_CAM || state == SceneGame::STATE_RACE_START;
+}
+
+static int scaledDt(int dt, float factor, float* carry) {
+    if (dt >= 33) return (int)(dt * factor);
+    float exact = dt * factor + *carry;
+    int whole = (int)exact;
+    *carry = exact - whole;
+    return whole;
+}
 #endif
 #include "m3g/Appearance.h"
 #include "m3g/AppearanceBase.h"
@@ -274,6 +296,9 @@ void SceneGame::setGameTimeFactor(float factor) {
 void SceneGame::clearGameTimeFactor() {
     m_gameTimeFactor.setTargetValue(1.0f);
     m_gameTimeFactor.setSteadyState(1.0f);
+#ifdef MEDECOMP_PORT
+    s_gameDtCarry = s_raceTimeCarry = 0.0f;
+#endif
 }
 
 float SceneGame::getGameTimeFactor() {
@@ -1182,7 +1207,8 @@ void SceneGame::updateBehindMenu(int dt) {
     m_sfxVolume.setTargetValue(m_engine->getSoundManager().getVolumeSFX());
     QuadManager& quads = m_engine->getQuadManager();
     m_gameTimeFactor.update(dt);
-    int gameDt = (int)(dt * getGameTimeFactor());
+    bool frozen = networkStartFrozen(this);
+    int gameDt = frozen ? 0 : scaledDt(dt, getGameTimeFactor(), &s_gameDtCarry);
     updateSound(gameDt);
     m_achievementData->update(gameDt);
     for (int i = 0; i != m_gameScreens.m_length; i++) {
@@ -1190,12 +1216,15 @@ void SceneGame::updateBehindMenu(int dt) {
     }
     quads.updateAnim(1, dt);
     updateCamera(dt);
-    m_map.updateObjects(gameDt);
-    m_map.updateObjectCollisions();
+    if (!frozen) {
+        m_map.updateObjects(gameDt);
+        m_map.updateObjectCollisions();
+    }
     m_map.updateChunkVisibility(gameDt);
     if (m_combatTime > 0) {
         m_combatTime -= dt;
-        setGameTimeFactor(1.0f);
+        bool slow = m_combatTime > 0 && !port::net::raceOpponent() && port::platform::slowMotionSetting();
+        setGameTimeFactor(slow ? 0.3f : 1.0f);
     }
     if (under == STATE_INTRO_CAM && isMenuOverGame() && !m_gameScreens[0]->getGameCamera()->isAnimating() &&
         !port::net::raceHoldStart()) {
@@ -1275,11 +1304,19 @@ void SceneGame::updateRaceTime(int dt) {
     int mode = AppEngine::getLevelData()->getGameMode();
     int prevTime = m_raceTime;
     if (mode != LevelData::GAME_MODE_MULTIPLAYER_TIMED) {
+#ifdef MEDECOMP_PORT
+        m_raceTime = prevTime + scaledDt(dt, getGameTimeFactor(), &s_raceTimeCarry);
+#else
         m_raceTime = (int)(prevTime + dt * getGameTimeFactor());
+#endif
         return;
     }
 
+#ifdef MEDECOMP_PORT
+    m_raceTime = prevTime - scaledDt(dt, getGameTimeFactor(), &s_raceTimeCarry);
+#else
     m_raceTime = (int)(prevTime - dt * getGameTimeFactor());
+#endif
 #ifdef MEDECOMP_PORT
     port::net::rivalsSyncTime(&m_raceTime);
 #endif
@@ -1367,7 +1404,12 @@ void SceneGame::updateGame(int dt) {
     m_sfxVolume.setTargetValue(m_engine->getSoundManager().getVolumeSFX());
     QuadManager& quads = m_engine->getQuadManager();
     m_gameTimeFactor.update(dt);
+#ifdef MEDECOMP_PORT
+    bool frozen = networkStartFrozen(this);
+    int gameDt = frozen ? 0 : scaledDt(dt, getGameTimeFactor(), &s_gameDtCarry);
+#else
     int gameDt = (int)(dt * getGameTimeFactor());
+#endif
     updateSound(gameDt);
     m_achievementData->update(gameDt);
     for (int i = 0; i != m_gameScreens.m_length; i++) {
@@ -1379,10 +1421,19 @@ void SceneGame::updateGame(int dt) {
         GameScreen* screen = m_gameScreens[i];
         screen->updatePointers(dt);
         screen->applyGestures();
+#ifdef MEDECOMP_PORT
+        if (frozen) screen->getPlayerObject()->clearAllGestures();
+#endif
     }
     updateCamera(dt);
-    m_map.updateObjects(gameDt);
-    m_map.updateObjectCollisions();
+#ifdef MEDECOMP_PORT
+    if (!frozen) {
+#endif
+        m_map.updateObjects(gameDt);
+        m_map.updateObjectCollisions();
+#ifdef MEDECOMP_PORT
+    }
+#endif
     m_map.updateChunkVisibility(gameDt);
     if (m_state == STATE_LEVEL_COMPLETE_SINGLE) {
         return;
@@ -1391,7 +1442,7 @@ void SceneGame::updateGame(int dt) {
         m_combatTime -= dt;
         bool slow = m_combatTime > 0;
 #ifdef MEDECOMP_PORT
-        slow = slow && !port::net::raceOpponent();
+        slow = slow && !port::net::raceOpponent() && port::platform::slowMotionSetting();
 #endif
         setGameTimeFactor(slow ? 0.3f : 1.0f);
     }
@@ -1401,6 +1452,9 @@ void SceneGame::updateGame(int dt) {
 }
 
 void SceneGame::resetLevel(GameState next) {
+#ifdef MEDECOMP_PORT
+    s_networkStart = port::net::raceOpponent();
+#endif
     LevelData* levelData = AppEngine::getLevelData();
     const Level* level = levelData->getCurrentLevelObject();
     m_sfxVolume.setSteadyState(m_engine->getSoundManager().getVolumeSFX());
@@ -1672,6 +1726,9 @@ void SceneGame::updateLoading(int dt) {
         }
         m_loadingThread = new midp::Thread(this);
         m_loadingThreadState = 0;
+#ifdef MEDECOMP_PORT
+        s_loadingRuns++;
+#endif
         m_loadingThread->start();
     } else {
         midp::Thread::sleep(40);
@@ -1887,6 +1944,9 @@ void SceneGame::run() {
         if (m_loadingThreadState == 0) {
             updateLoadingState(0);
         } else if (m_loadingThreadState == 2) {
+#ifdef MEDECOMP_PORT
+            s_loadingRuns--;
+#endif
             return;
         } else {
             midp::Thread::sleep(1000);
@@ -1901,6 +1961,15 @@ void SceneGame::resetCheckPointsLevel() {
 }
 
 void SceneGame::end() {
+#ifdef MEDECOMP_PORT
+    if (s_loadingRuns > 0) {
+        fprintf(stderr, "medecomp: выход во время загрузки уровня — жду шаг загрузки %d (D8)\n", m_loadingStep);
+        __atomic_store_n(&m_loadingThreadState, 2, __ATOMIC_RELEASE);
+        while (s_loadingRuns > 0) {
+            midp::Thread::sleep(5);
+        }
+    }
+#endif
     unloadSounds();
     QuadManager& quads = m_engine->getQuadManager();
     quads.freeQuads(3);

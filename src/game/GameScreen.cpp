@@ -40,8 +40,10 @@
 
 #ifdef MEDECOMP_PORT
 extern "C" void medecomp_post_world(float fovy, float aspect, float nearPlane, float farPlane);
+extern "C" void medecomp_sky_follow(m3g::Node* dome);
 extern "C" int medecomp_player_level_playing(void);
 extern "C" int medecomp_player_level_best(void);
+extern "C" void medecomp_pause_button(midp::Graphics* g, GameScreen* screen);
 #endif
 
 static const int MESH_COLLECTABLES = 70;
@@ -1269,6 +1271,9 @@ void GameScreen::render(midp::Graphics* g) {
     if (skyDome != NULL) {
         const MathVector& focal = m_frustum.getFocalPoint();
         skyDome->setTranslation(focal.x, focal.y, focal.z);
+#ifdef MEDECOMP_PORT
+        medecomp_sky_follow(skyDome);
+#endif
     }
     if (m_world == NULL) {
         return;
@@ -1350,6 +1355,9 @@ void GameScreen::render(midp::Graphics* g) {
         g3d->setViewport(worldX, viewY, worldWidth, viewHeight);
         quads.render(g3d, m_effectScope);
         g3d->releaseTarget();
+#ifdef MEDECOMP_PORT
+        medecomp_pause_button(g, this);
+#endif
 #ifndef MEDECOMP_SPLIT_STACKED
         if (AppEngine::getLevelData()->getGameMode() == LevelData::GAME_MODE_MULTIPLAYER_TIMED) {
             if (m_type == TYPE_SPLIT_SECOND) {

@@ -13,6 +13,7 @@ endif()
 medecomp_nospace(_cc ${CMAKE_C_COMPILER})
 medecomp_nospace(_cxx ${CMAKE_CXX_COMPILER})
 set(_target --cc=${_cc} --cxx=${_cxx} --enable-pic)
+set(_linkage --enable-shared --disable-static)
 if(WIN32)
     get_filename_component(_mingw_bin ${_cc} DIRECTORY)
     set(_target --enable-cross-compile --target-os=mingw32 --arch=x86_64
@@ -33,6 +34,15 @@ elseif(ANDROID)
                 --cxx=${_cxx} --ar=${_ar} --ranlib=${_ranlib} --nm=${_nm}
                 --strip=${_strip} --extra-cflags=--target=${CMAKE_C_COMPILER_TARGET}
                 --extra-ldflags=--target=${CMAKE_C_COMPILER_TARGET} --enable-pic --disable-asm)
+elseif(EMSCRIPTEN)
+    medecomp_nospace(_ar ${CMAKE_AR})
+    medecomp_nospace(_ranlib ${CMAKE_RANLIB})
+    medecomp_nospace(_nm ${CMAKE_NM})
+    set(_target --enable-cross-compile --target-os=none --arch=x86_32 --cpu=generic --cc=${_cc} --cxx=${_cxx}
+                --ar=${_ar} --ranlib=${_ranlib} --nm=${_nm} --disable-asm --disable-inline-asm --disable-stripping
+                --disable-pthreads --disable-runtime-cpudetect --extra-cflags=-pthread --extra-cxxflags=-pthread
+                --extra-ldflags=-pthread)
+    set(_linkage --enable-static --disable-shared)
 endif()
 set(_demuxers caf mov mp3 ogg flac wav aac asf ape wv matroska aiff)
 set(_decoders aac aac_latm alac mp3float mp3 mp2float flac vorbis opus wmav1 wmav2 wmapro ape wavpack
@@ -53,6 +63,8 @@ foreach(_lib ${MEDECOMP_FFMPEG_LIBS})
     string(REGEX REPLACE "\\..*" "" _name ${_lib})
     if(WIN32)
         list(APPEND _byproducts ${MEDECOMP_FFMPEG_PREFIX}/lib/lib${_name}.dll.a)
+    elseif(EMSCRIPTEN)
+        list(APPEND _byproducts ${MEDECOMP_FFMPEG_PREFIX}/lib/lib${_name}.a)
     else()
         list(APPEND _byproducts ${MEDECOMP_FFMPEG_PREFIX}/lib/lib${_name}.so)
     endif()
@@ -64,7 +76,7 @@ ExternalProject_Add(medecomp_ffmpeg
     PREFIX ${MEDECOMP_EXT_DIR}/ffmpeg-build
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${MEDECOMP_FFMPEG_PREFIX} --libdir=${MEDECOMP_FFMPEG_PREFIX}/lib
         ${_target} --pkg-config=false
-        --enable-shared --disable-static --disable-programs --disable-doc --disable-debug
+        ${_linkage} --disable-programs --disable-doc --disable-debug
         --disable-autodetect --disable-everything --disable-network --disable-x86asm
         --disable-avdevice --disable-avfilter --disable-swscale
         --enable-protocol=file --enable-swresample ${_enable}
@@ -83,7 +95,7 @@ set(_link -L${MEDECOMP_FFMPEG_PREFIX}/lib)
 foreach(_lib ${MEDECOMP_FFMPEG_LIBS})
     string(REGEX REPLACE "\\..*" "" _name ${_lib})
     string(REGEX REPLACE "\\." ".so." _file ${_lib})
-    if(WIN32 OR ANDROID)
+    if(WIN32 OR ANDROID OR EMSCRIPTEN)
         list(APPEND _link -l${_name})
     else()
         list(APPEND _link -l:lib${_file})
@@ -103,7 +115,7 @@ if(ANDROID)
                 ${CMAKE_BINARY_DIR}/lib/FFmpeg-LICENSE.txt
         VERBATIM)
     add_dependencies(medecomp_ffmpeg_libs medecomp_ffmpeg)
-elseif(NOT WIN32)
+elseif(NOT WIN32 AND NOT EMSCRIPTEN)
     set(_copy)
     foreach(_lib ${MEDECOMP_FFMPEG_LIBS})
         string(REGEX REPLACE "\\." ".so." _file ${_lib})

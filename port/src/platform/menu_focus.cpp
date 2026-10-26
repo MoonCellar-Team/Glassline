@@ -472,8 +472,8 @@ void collectWindow(UI::Window* w, std::vector<Target>& out) {
             if (t.ptr == &p->m_decline) t.back = true;
     }
     if (auto* u = one<UI::UnlockableWindow>(w, _ZTVN2UI16UnlockableWindowE)) {
-        addUi(out, &u->m_save, w);
-        addRibbon(out, &u->m_panel, &u->m_left, &u->m_right, w);
+        if (u->m_phase == 2) addUi(out, &u->m_save, w);
+        if (u->m_phase == 0) addRibbon(out, &u->m_panel, &u->m_left, &u->m_right, w);
     }
     if (auto* a = one<UI::AboutMenu>(w, _ZTVN2UI9AboutMenuE)) {
         addRibbon(out, &a->m_panel, &a->m_prevButton, &a->m_nextButton, w);
@@ -686,6 +686,11 @@ int nearest(const std::vector<Target>& ts, int from, int cmd) {
             if (i == from || dx <= 4 || !sameRow(cur, ts[i]) || dx >= bestDx) continue;
             bestDx = dx;
             best = i;
+        }
+        if (best < 0 && sameV(cur.ptr, _ZTVN4port8platform8LevelRowE)) {
+            const char* arrow = cmd == CmdRight ? _ZTVN2UI16RightArrowButtonE : _ZTVN2UI15LeftArrowButtonE;
+            for (int i = 0; i < int(ts.size()); i++)
+                if (ts[i].owner == cur.owner && sameV(ts[i].ptr, arrow)) best = i;
         }
         return best < 0 ? from : best;
     }
@@ -995,6 +1000,7 @@ void menuFocusScroll(int px, int steps) {
 bool menuFocusActive() { return s_count.load() > 0; }
 
 const void* menuFocusTarget() { return s_keyboard && s_frameOn && s_count.load() > 0 ? s_focus : nullptr; }
+void menuFocusSet(const void* target) { s_focus = const_cast<void*>(target); }
 
 void menuFocusApplyFrame();
 

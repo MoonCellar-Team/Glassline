@@ -139,7 +139,9 @@ void MenuMain::create() {
     m_subMenus[3].append(ITEM_ABOUT);
 #ifdef MEDECOMP_PORT
     m_subMenus[3].append(ITEM_LAUNCHER);
+#ifndef __EMSCRIPTEN__
     m_subMenus[3].append(ITEM_QUIT);
+#endif
 #endif
     canvas->getQuadManager().setMeshVisible(MESH_MORE_GAMES, false);
 }

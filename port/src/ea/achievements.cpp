@@ -56,11 +56,12 @@ std::string catalogDir() {
     std::string dir = base ? base : "./";
     SDL_free(base);
     while (!dir.empty() && (dir.back() == '/' || dir.back() == '\\')) dir.pop_back();
-    for (int i = 0; i < 6 && !dir.empty(); i++) {
+    for (int i = 0; i < 6; i++) {
         std::string candidate = dir + "/config/achievements";
         if (files::stat(candidate + "/" + kGame + ".json").exists) return candidate;
+        if (dir.empty()) break;
         size_t slash = dir.find_last_of("/\\");
-        if (slash == std::string::npos || slash == 0) break;
+        if (slash == std::string::npos) break;
         dir.erase(slash);
     }
     return std::string();

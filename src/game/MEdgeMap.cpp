@@ -46,6 +46,9 @@
 #include "runtime/midp/DataInputStream.h"
 #include "runtime/midp/Math.h"
 #ifdef MEDECOMP_PORT
+#include <math.h>
+#include <stdio.h>
+
 #include "port/net.h"
 #endif
 
@@ -101,6 +104,34 @@ const short MEdgeMap::MAP_STRING_IDS[] = {
 const short MEdgeMap::MAP_CUTSCENE_IDS[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 #ifdef MEDECOMP_PORT
+static void snapFloorTops(midp::array<CollShape*>& shapes) {
+    const float kStep = 0.001f;
+    int count = shapes.m_length;
+    for (int i = 0; i != count; i++) {
+        CollShape* shape = shapes[i];
+        if (shape == NULL || shape->getShapeType() != CollShape::SHAPE_ORTHO_HEXAHEDRON) continue;
+        MathOrthoBox box = shape->getLocalBounds();
+        if (box.m_max.x - box.m_min.x <= kStep) continue;
+        float top = box.m_max.y;
+        for (int j = 0; j != count; j++) {
+            CollShape* other = shapes[j];
+            if (j == i || other == NULL || other->getShapeType() != CollShape::SHAPE_ORTHO_HEXAHEDRON) continue;
+            const MathOrthoBox& near = other->getLocalBounds();
+            if (near.m_max.x - near.m_min.x <= kStep) continue;
+            bool touching = fabsf(box.m_max.x - near.m_min.x) < kStep || fabsf(near.m_max.x - box.m_min.x) < kStep;
+            float above = box.m_max.y - near.m_max.y;
+            if (touching && above > 0.0f && above < kStep && near.m_max.y < top) top = near.m_max.y;
+        }
+        if (top == box.m_max.y) continue;
+        CollShape* snapped = new CollOrthoHexahedron(box.m_min.x, box.m_min.y, box.m_min.z, box.m_max.x, top, box.m_max.z);
+        snapped->m_material = shape->m_material;
+        midp::INCREF(snapped);
+        midp::DECREF(shape);
+        shapes[i] = snapped;
+        fprintf(stderr, "medecomp: карта: форма %d — верх %.6f -> %.6f, как у соседней (K11)\n", i, box.m_max.y, top);
+    }
+}
+
 extern "C" midp::InputStream* medecomp_player_map(void);
 extern "C" int medecomp_player_level_playing(void);
 void medecomp_level_supports(MEdgeMap* map, m3g::Group* group, MapPalette* palette);
@@ -745,6 +776,9 @@ void MEdgeMap::loadMap(int resId, m3g::World* world) {
         m_shapes[i] = shape;
         midp::INCREF(shape);
     }
+#ifdef MEDECOMP_PORT
+    snapFloorTops(m_shapes);
+#endif
 
     MapPalette palette(RES_LOOKUP_ARRAY[paletteIndex], m_modelSet);
     m_chunkManager.load(in, palette, m_mapGroup);

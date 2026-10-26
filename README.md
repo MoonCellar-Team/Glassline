@@ -4,15 +4,16 @@
 
 <h1 align="center">Glassline</h1>
 
-<p align="center">An unofficial port of <b>Mirror's Edge (iPad, 2010)</b> to PC and Android, by MoonCellar Team.<br>
-<a href="#how-to-play"><b>Download and install</b></a> · <a href="README.ru.md">Русская версия</a></p>
+<p align="center">An unofficial port of <b>Mirror's Edge (iPad, 2010)</b> to PC, Android and the browser, by MoonCellar Team.<br>
+<a href="https://play.mooncellar.space/glassline/"><b>Play in browser</b></a> · <a href="#how-to-play"><b>Download and install</b></a> · <a href="README.ru.md">Русская версия</a></p>
 
 > Glassline is an unofficial port by MoonCellar Team. Mirror's Edge is a trademark of Electronic Arts
 > Inc.; this project is not affiliated with or endorsed by Electronic Arts. Game assets are loaded
 > from your own copy of the game, which you choose or download yourself; the port holds no rights to
 > the game. Mirror's Edge © EA / DICE. All Rights Reserved.
 
-Glassline runs the iPad game on Linux, Windows, Steam Deck and Android. The game code was
+Glassline runs the iPad game on Linux, Windows, Steam Deck and Android, and in browsers on computers,
+phones and tablets. The game code was
 reconstructed from the iPad executable; the port replaces iOS with its own layer over SDL2, OpenGL ES,
 OpenAL and FFmpeg, adds a launcher, network play and MoonCellar online services in place of EA's,
 which are long gone. **No game files are included**: you need your own copy of the iPad version.
@@ -39,7 +40,7 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   with AMD FSR 1.0, bilinear or integer upscaling.
 - Frame rate 30 (as on iPad), 60, 120, 144 or 165 (up to what your display shows), your display's rate
   or unlimited; the game runs at the same speed at any rate. VSync, monitor and fullscreen resolution choice; windowed, fullscreen
-  or borderless (F11 or Alt+Enter in game).
+  or borderless on desktop (F11 or Alt+Enter in game).
 - Anisotropic filtering up to 16×, MSAA 2×/4×/8×, optional TAA.
 - Optional enhanced look: bloom, tone mapping, colour grading (presets or your own LUT), vignette.
   Optional effects, all off by default: ambient occlusion (SSAO, HBAO, GTAO), god rays, sun lens
@@ -55,8 +56,9 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 
 - Keyboard and gamepad everywhere, menus included; mouse and touchscreen work as touches.
 - Separate rebinding for keyboard and gamepad in the launcher, stick dead zone.
-- Tutorial hints show the keys or buttons of the device you are using instead of swipes and
-  "tilt the device".
+- Tutorial hints and the Help screen follow your input: keyboard keys, gamepad buttons, or touch gestures.
+- Touch players have an on-screen pause button; a two-finger downward swipe also pauses.
+- Combat slow motion can be switched off on the launcher's Game tab.
 - Text (names, challenge comments, room codes) is typed straight into the game.
 - Steam Deck: add the AppImage as a non-Steam game and play in Game Mode; fullscreen, Steam Input
   and the on-screen keyboard work, and the launcher is fully usable with the buttons.
@@ -78,8 +80,9 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   friend is; pop-ups say when the friend joins, is ready to start, leaves or loses the connection.
   After a race the host picks the next level with SELECT, and the friend follows.
 - The original split-screen mode is on PC too (SPLITSCREEN in the same lobby, a second gamepad; halves top and bottom, full width), and
-  player-made levels can be played together: the other player receives the level automatically. PC and
-  Android play together.
+  player-made levels can be played together: the other player receives the level automatically. Players on PC,
+  Android and browsers can race together. Both players and hazards wait until everyone is ready and the
+  countdown ends.
 
 </details>
 
@@ -91,7 +94,8 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Global leaderboards per level with downloadable ghosts; challenges to MoonCellar friends with your
   time and ghost.
 - Cloud saves: progress, achievements, ghosts, language, sound and control settings, your skins (up to
-  10 while they sync) and levels; display and graphics stay per device. On a conflict you choose which
+  10 in the cloud, with additional skins kept locally) and levels; display and graphics stay per device.
+  On a conflict you choose which
   copy to keep, the other is backed up.
 - 28 achievements with their own texts and icons, a launcher tab with progress, and your profile on
   mooncellar.space.
@@ -103,10 +107,15 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 <summary><b>Launcher</b></summary>
 
 - Tabs: Game, Display, Controls, Sound, Account, Heroine, Levels, Achievements; English or Russian.
-- Choose your game copy with Browse…, drag and drop or a path, or download it from your own HTTPS
-  link. The copy is checked at once: green — fine, yellow — a warning, red — what is wrong.
-- Game language, window size, and on Linux Wayland or X11. Works with a gamepad and with touch.
-- In the game's main menu: INFO → LAUNCHER and QUIT GAME.
+- Choose your game copy with Browse…. On desktop you can also drag and drop, enter a path, or download
+  it from your own HTTPS link. The copy is checked at once: green — fine, yellow — a warning, red — what
+  is wrong.
+- Game language, combat slow motion, desktop window settings, and on Linux Wayland or X11. Works with a
+  gamepad and with touch.
+- Setting explanations open from info buttons by hovering or tapping. Ctrl+Tab and Ctrl+Shift+Tab switch tabs.
+- In mobile browsers, the compact launcher scrolls by touch and keeps Play accessible in the bottom footer.
+- In the game's main menu: INFO → LAUNCHER; desktop and Android also have QUIT GAME. Close the tab to
+  leave the browser version.
 - Updates itself: at start the launcher checks for a new release and shows what's new; **Update**
   downloads the AppImage or the Windows zip, checks its signature and restarts on the new version. Your
   game copy, saves and settings stay. Other installs (the `.tar.gz` folder, Android) get a link to the
@@ -122,6 +131,9 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 - Faith's look with previews (lighting variants, the ghost, the rival runner, the boss).
 - Your own texture skins made from a template of your copy, and your own 3D models (glTF, GLB, VRM)
   with automatic rigging for Mixamo, Unity and VRM skeletons; all game animations work.
+- Heroine cards show whether each custom skin is in the cloud, waiting to sync, or local only.
+  Choose which skins to sync; when the cloud is full, additional skins stay on this device. Resetting
+  cloud storage preserves your local skins.
 
 </details>
 
@@ -141,8 +153,9 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
   downloaded levels.
 - BAG HUNT in the PLAY menu: collect bags alone on the original two-player arenas (Steps, Joust,
   Pinball, Maze) or on Bag collection levels within 2, 3 or 5 minutes; the best haul is kept.
-- Online level browser (PLAYER LEVELS → ONLINE): search, sort, filter by mode, rate, report, download
-  and play; MY LEVELS uploads and unpublishes your own. Every shared level has its own leaderboard and
+- Online level browser (PLAYER LEVELS → ONLINE): search, sort, filter by mode, rate with a one-to-five-star
+  picker and confirmation, report, download and play; MY LEVELS uploads and unpublishes your own. Every
+  shared level has its own leaderboard and
   can be sent to a friend as a challenge. Levels hold only the layout: models and textures come from
   each player's copy, so only levels built from scratch are shared — a copy of a chapter or arena stays
   on your device.
@@ -155,12 +168,30 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 <summary><b>Languages and audio</b></summary>
 
 - All 8 languages of the game (English, French, Italian, German, Spanish, Japanese, Korean,
-  Chinese), selectable in the launcher; texts about tapping, swiping and the iPad are replaced with
-  neutral ones, and the port's new menus are translated into all 8.
+  Chinese), selectable in the launcher; input hints adapt to your device, and the port's new menus
+  are translated into all 8.
 - Russian too, which the iPad original never had: the port's own translation of every game text and
   menu.
 - Master volume, headphone surround (HRTF), your own music folder (MP3, OGG, Opus, FLAC, WAV, M4A…)
   instead of the soundtrack, like iPod music on the iPad.
+
+</details>
+
+<details>
+<summary><b>Browser version</b></summary>
+
+- [Play at play.mooncellar.space/glassline](https://play.mooncellar.space/glassline/) in a recent Chrome,
+  Edge, Firefox or Safari 17 or newer, including Safari on iPhone and iPad. Choose your own iPad `.ipa`
+  with Browse in the launcher: the game copy stays in this browser profile and is never uploaded.
+- The loading screen shows download and preparation progress. The browser version includes sound,
+  music, MoonCellar accounts and cloud saves, leaderboards, achievements, skins and the level editor.
+- Online play works between browsers and with desktop and Android players through the room relay.
+- Touch and tilt work on phones and tablets. Allow motion access if the browser asks; Add to Home Screen
+  opens the game as a standalone app where supported.
+- Display offers Follow device, Landscape and Portrait, plus Start in fullscreen when the browser
+  supports it. Image and touch coordinates rotate even without browser orientation locking.
+- The mobile level editor has compact tools, a smaller top view and touch scrolling in long panels.
+  The web version updates when the page is reloaded.
 
 </details>
 
@@ -179,12 +210,16 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
 
 - You need the **iPad** version of Mirror's Edge, 1.1.48 or newer (1.1.48 and 1.1.52 are tested).
   The iPhone version is not supported: it has no multiplayer and a phone screen layout.
-- No macOS version. The launcher updates itself only as the AppImage or the Windows zip;
+- No native macOS release yet; use the browser version on macOS. The launcher updates itself only as the
+  AppImage or the Windows zip;
   the `.tar.gz` folder and the Android APK are updated by hand (the launcher links the release).
 - Enhanced graphics and effects need OpenGL ES 3.0; on older drivers they are switched off.
   HD texture generation needs a Vulkan GPU and up to 3 GB of disk space, takes half an hour or more and
   runs on PC only.
 - Online features depend on MoonCellar's servers.
+- The browser needs WebAssembly threads, OPFS storage and WebGL in a worker; unsupported browsers show
+  an explanation before downloading the game program. Clearing site data removes the local game copy
+  and local saves; cloud-synced data can be restored after signing in.
 - Online play is one-on-one only. Police AI runs on each machine separately: only takedowns and
   disarms are shared, and combat slow motion is off in online play.
 - The friends-only leaderboard (formerly Facebook) is empty; global leaderboards work.
@@ -196,7 +231,8 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
    an unpacked `.app` folder works too).
    An encrypted App Store copy works: the port does not use the game's executable, only its
    resources, and reads them straight from the `.ipa`.
-2. **Download a build** from the [Releases](https://github.com/MoonCellar-Team/Glassline/releases) page:
+2. **Open [Play in browser](https://play.mooncellar.space/glassline/)**, or download a build from the
+   [Releases](https://github.com/MoonCellar-Team/Glassline/releases) page:
    - Linux: `glassline-linux-x64-<version>.AppImage` (one file; make it executable and run it) or
      `glassline-linux-x64-<version>.tar.gz` (a folder with `glassline` and its libraries). Any x86-64
      Linux with glibc 2.28 or newer, X11 or Wayland; everything except the GPU driver is included.
@@ -205,9 +241,9 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
    - Android: `glassline-android-<version>.apk` — Android 9 or newer, ARM.
    - Steam Deck: in Desktop Mode add the AppImage to Steam with "Add a Non-Steam Game…", then start
      it from Game Mode.
-3. **Start it.** The launcher opens: on the **Game** tab choose your `.ipa` (Browse…, drag the file
-   onto the window, or paste an HTTPS link to your copy and press Download). When the check turns
-   green, press **Play**. The copy is remembered.
+3. **Start it.** On the launcher's **Game** tab choose your `.ipa` with **Browse…**. Desktop builds also
+   accept dropping the file onto the window or downloading your own HTTPS link. When the check turns
+   green, press **Play**. The copy is remembered; in the browser, the loading screen shows progress.
 4. **Controls** (rebind them on the launcher's **Controls** tab):
 
    | Action | Keyboard | Gamepad |
@@ -221,11 +257,15 @@ Source code, releases and the changelog: [github.com/MoonCellar-Team/Glassline](
    | Pause | Esc or P | Start |
 
    In menus: arrows or the stick move, Enter or A confirms, Esc or B goes back. The mouse and the
-   touchscreen work as touches. F11 or Alt+Enter — fullscreen, F12 — screenshot.
+   touchscreen work as touches. On desktop: F11 or Alt+Enter — fullscreen, F12 — screenshot.
+   On touchscreens: swipe left/right to run or turn, up to jump or climb, down to slide or drop; tap
+   to stop. Pause with the on-screen button or a two-finger downward swipe. Tilt to balance.
+   Browser orientation and fullscreen are selected on the launcher's Display tab.
 5. **Your data** — settings, saves, skins, levels, logs:
    - Linux: `~/.local/share/mirrors-edge` (or `$XDG_DATA_HOME/mirrors-edge`);
    - Windows: `%APPDATA%\mirrors-edge`;
-   - Android: the app's own storage.
+   - Android: the app's own storage;
+   - Browser: this site's storage in the browser profile; sign in for cloud sync.
 
    The log of the last run is `medecomp.log` in that folder (on Linux also the one before —
    `medecomp.prev.log`; started from a terminal, the log goes to the terminal), network play writes
@@ -245,6 +285,7 @@ The release builds are made by `build.sh` on a Linux x86-64 machine:
 ./build.sh linux      # build/release/: AppImage, tar.gz, linux/ — needs podman or docker
 ./build.sh windows    # build/release/: Windows zip — cross-compiled, needs clang, CMake, Python 3
 ./build.sh android    # build/release/: APK — downloads its own JDK, Android SDK, NDK and Gradle
+./build.sh web        # build/release/web and a zip: the browser version — needs emsdk, meson, ninja
 ./build.sh all 1.0    # all three, with a version number in the names
 ./run.sh              # run the Linux build (./run.sh windows — under wine)
 ```
@@ -253,6 +294,13 @@ The Linux build runs in a container on an old glibc (2.28), so it works on any n
 first run prepares the container image (about 20 minutes). The Windows build downloads its compiler
 (llvm-mingw) and libraries (MSYS2 packages) by itself. Libraries with network and audio code
 (GameNetworkingSockets, FFmpeg) are built from pinned sources.
+
+The browser version (WebAssembly) needs Emscripten (`source ~/emsdk/emsdk_env.sh`), meson and ninja;
+`tools/web_deps.py` builds the libraries Emscripten has no ports of (OpenAL Soft, cairo, pixman) from
+pinned sources. Try it locally with `./run.sh web` (the page needs the `Cross-Origin-Opener-Policy` and
+`Cross-Origin-Embedder-Policy` headers, which this server sends) and open http://localhost:8090/. The game copy
+you choose stays in the browser's storage. It runs in a recent Chrome, Edge, Firefox or Safari 17 and newer;
+WebKitGTK browsers (GNOME Web) lack WebAssembly threads, OPFS and WebGL in workers, and the page says so.
 
 For development, a build against your system's libraries (Debian or Ubuntu package names are in
 `port/src/*/apt.txt`, plus clang, CMake and Python 3):
@@ -282,6 +330,8 @@ resources belong to Electronic Arts; the license covers only MoonCellar Team's o
 Third-party code is under its own licenses: Dear ImGui (MIT, `port/third_party/imgui`), stb_image
 (MIT or public domain), GameNetworkingSockets (BSD-3-Clause), and in the release builds SDL2, OpenAL
 Soft, FFmpeg, cairo, FreeType, fontconfig, libcurl, ANGLE and others, with their license texts in the
-`licenses` folder of each build.
+`licenses` folder of each build. The Windows build also carries Microsoft's D3D shader compiler
+(`d3dcompiler_47.dll`, redistributable code of the Windows SDK, under the Windows SDK license): ANGLE builds
+shaders with it, and under Wine and Proton it is what makes floor reflections work.
 
 Changes between versions: [CHANGELOG.md](CHANGELOG.md).

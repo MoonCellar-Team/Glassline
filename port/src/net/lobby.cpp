@@ -304,7 +304,6 @@ private:
     }
 
     int netReason() {
-        if (!port::net::available()) return port::net::libraryFound() ? TEXT_SETUP : TEXT_NO_LIBRARY;
         if (!port::online::available()) return TEXT_SERVER_UNREACHABLE;
         return -1;
     }

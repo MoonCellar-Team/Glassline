@@ -91,6 +91,12 @@ void WindowStore::pointerDragged(int x, int y, int id) {
         return;
     }
     pthread_mutex_lock(&m_windowsLock);
+#ifdef MEDECOMP_PORT
+    if (thumbMoved(x, y, false)) {
+        pthread_mutex_unlock(&m_windowsLock);
+        return;
+    }
+#endif
     std::vector<Window*>::const_iterator it;
     std::vector<Window*>::const_iterator end = m_windows.end();
     for (it = m_windows.begin(); it != end; ++it) {
@@ -107,6 +113,12 @@ void WindowStore::pointerReleased(int x, int y, int id) {
         return;
     }
     pthread_mutex_lock(&m_windowsLock);
+#ifdef MEDECOMP_PORT
+    if (thumbMoved(x, y, true)) {
+        pthread_mutex_unlock(&m_windowsLock);
+        return;
+    }
+#endif
     std::vector<Window*>::const_iterator it;
     std::vector<Window*>::const_iterator end = m_windows.end();
     for (it = m_windows.begin(); it != end; ++it) {
@@ -123,6 +135,9 @@ void WindowStore::pointerPressed(int x, int y, int id) {
         return;
     }
     pthread_mutex_lock(&m_windowsLock);
+#ifdef MEDECOMP_PORT
+    thumbPressed(x, y);
+#endif
     std::vector<Window*>::const_iterator it;
     std::vector<Window*>::const_iterator end = m_windows.end();
     for (it = m_windows.begin(); it != end; ++it) {

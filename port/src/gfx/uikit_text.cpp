@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef __EMSCRIPTEN__
 #include <fontconfig/fontconfig.h>
+#endif
 
 #include <map>
 #include <mutex>
@@ -99,6 +101,12 @@ std::shared_ptr<FontData> face(const std::string& name) {
     bool italic = style.find("Oblique") != std::string::npos || style.find("Italic") != std::string::npos;
     if (spaced == "Helvetica" || spaced == "Helvetica Neue") spaced = "Nimbus Sans";
     std::shared_ptr<FontData> data;
+#ifdef __EMSCRIPTEN__
+    std::string file = std::string("/fonts/LiberationSans-") +
+                       (bold ? (italic ? "BoldItalic" : "Bold") : (italic ? "Italic" : "Regular")) + ".ttf";
+    data = fontFile(file.c_str(), 0);
+    fprintf(stderr, "medecomp: шрифт %s -> %s\n", name.c_str(), file.c_str());
+#else
     if (FcInit()) {
         FcPattern* p = FcPatternCreate();
         FcPatternAddString(p, FC_FAMILY, reinterpret_cast<const FcChar8*>(spaced.c_str()));
@@ -119,6 +127,7 @@ std::shared_ptr<FontData> face(const std::string& name) {
         }
         FcPatternDestroy(p);
     }
+#endif
     if (!data) fprintf(stderr, "medecomp: нет шрифта для %s\n", name.c_str());
     s_faces[name] = data;
     return data;
@@ -182,6 +191,9 @@ std::shared_ptr<FontData> faceFor(unsigned cp, bool bold, bool italic) {
     std::string charKey = key + "/" + std::to_string(cp);
     auto seen = s_charFonts.find(charKey);
     if (seen != s_charFonts.end()) return seen->second;
+#ifdef __EMSCRIPTEN__
+    return nullptr;
+#else
     if (!FcInit()) return nullptr;
     FcPattern* p = FcPatternCreate();
     FcCharSet* cs = FcCharSetCreate();
@@ -219,6 +231,7 @@ std::shared_ptr<FontData> faceFor(unsigned cp, bool bold, bool italic) {
     s_charFonts[charKey] = data;
     if (data && known == s_scriptFonts.end()) s_scriptFonts[key] = data;
     return data;
+#endif
 }
 
 struct GlyphRun {

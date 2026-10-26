@@ -9,7 +9,7 @@ namespace util {
 
 class TimerTask {
 public:
-    void cancel();
+    bool cancel();
 };
 
 static midp::ReferenceCounted* timerTaskRef(TimerTask* task) {

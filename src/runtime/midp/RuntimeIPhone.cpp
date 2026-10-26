@@ -47,7 +47,7 @@ extern "C" int AudioSessionGetProperty(unsigned property, unsigned* size, void* 
 extern "C" int AudioSessionSetProperty(unsigned property, unsigned size, const void* value);
 extern "C" int AudioSessionSetActive(unsigned active);
 extern "C" void* alcGetCurrentContext();
-extern "C" void alcMakeContextCurrent(void* context);
+extern "C" char alcMakeContextCurrent(void* context);
 extern "C" void alcProcessContext(void* context);
 extern "C" void alcSuspendContext(void* context);
 extern "C" int puts(const char* text);

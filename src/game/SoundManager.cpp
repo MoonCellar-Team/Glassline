@@ -116,6 +116,11 @@ void SoundManager::applyVolume(int id, int instance) {
 }
 
 void SoundManager::setVolumeGroup(int group, float volume) {
+#ifdef MEDECOMP_PORT
+    if (group < 0 || group >= m_groupVolumes.m_length) {
+        return;
+    }
+#endif
     m_groupVolumes[group] = volume;
     for (int i = 0; i < m_players.m_length; i++) {
         if (m_eventGroups[i] != group) {

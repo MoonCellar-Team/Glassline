@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>
 #include <map>
 #include <atomic>
 #include <string>
@@ -16,7 +17,9 @@
 #include "game/AppEngine.h"
 #include "game/GameScreen.h"
 #include "game/SceneGame.h"
+#include "port/net.h"
 #include "port/platform.h"
+#include "runtime/midp/Graphics.h"
 #include "runtime/midp/Runtime.h"
 
 namespace port {
@@ -34,6 +37,8 @@ const long long kMouse = -1;
 const long long kSynthTap = -10;
 const long long kSynthSwipe = -20;
 const long long kSynthCursor = -30;
+const long long kScriptFinger = -40;
+thread_local bool s_mouseCall = false;
 struct {
     int x = -1000, y = -1000, count = 0;
     Uint32 time = 0;
@@ -51,17 +56,17 @@ int tapCount(int x, int y) {
     return s_lastTap.count;
 }
 
-void deliver(int kind, int x, int y, int px, int py, int tap) {
+void deliver(int kind, int x, int y, int px, int py, int tap, bool mouse) {
     if (capture::active())
-        capture::postPointer(kind, x, y, px, py, tap);
+        capture::postPointer(kind, x, y, px, py, tap, mouse);
     else
-        pointerCall(kind, x, y, px, py, tap);
+        pointerCall(kind, x, y, px, py, tap, mouse);
 }
 
 void touchBegan(long long id, int x, int y) {
     if (s_touches.count(id)) return;
     s_touches[id] = {x, y};
-    deliver(kPointerPressed, x, y, x, y, tapCount(x, y));
+    deliver(kPointerPressed, x, y, x, y, tapCount(x, y), id == kMouse);
 }
 
 void touchMoved(long long id, int x, int y) {
@@ -69,7 +74,7 @@ void touchMoved(long long id, int x, int y) {
     if (it == s_touches.end()) return;
     int px = it->second.x, py = it->second.y;
     it->second = {x, y};
-    deliver(kPointerDragged, x, y, px, py, 0);
+    deliver(kPointerDragged, x, y, px, py, 0, id == kMouse);
 }
 
 void touchEnded(long long id, int x, int y) {
@@ -77,7 +82,7 @@ void touchEnded(long long id, int x, int y) {
     if (it == s_touches.end()) return;
     int px = it->second.x, py = it->second.y;
     s_touches.erase(it);
-    deliver(kPointerReleased, x, y, px, py, 0);
+    deliver(kPointerReleased, x, y, px, py, 0, id == kMouse);
 }
 
 void touchEnded(long long id) {
@@ -101,6 +106,11 @@ bool inGameplay() {
     if (!s || s->getState() != SceneGame::STATE_GAME) return false;
     if (s->m_gameScreens.m_length == 0) return true;
     return s->getGameScreen(0)->getState() < GameScreen::SCREEN_MENU_MAIN;
+}
+
+bool popupShown() {
+    SceneGame* s = scene();
+    return s && s->getState() == SceneGame::STATE_POPUP_BOX;
 }
 
 GameScreen* screenOf(int player) {
@@ -179,8 +189,12 @@ bool s_heldTwo;
 Uint32 s_heldNext;
 bool s_cursorOn = true;
 bool s_fromPad = false;
+std::atomic<bool> s_touchPlay(false);
 bool s_warping = false;
 Uint32 s_mouseAt;
+Uint32 s_fingerAt;
+
+bool emulatedMouse() { return s_fingerAt && SDL_GetTicks() - s_fingerAt < 800; }
 
 void gesture(const char* name) {
     const char* debug = getenv("MEDECOMP_DEBUG");
@@ -197,6 +211,42 @@ void hideCursor() {
     if (!s_cursorOn) return;
     SDL_ShowCursor(SDL_DISABLE);
     s_cursorOn = false;
+}
+
+const int kPauseSize = 72;
+const int kPauseInset = 24;
+const int kPauseReach = 12;
+
+bool pauseShown(GameScreen* g) {
+    SceneGame* s = scene();
+    return s_touchPlay && g && s && s->getState() == SceneGame::STATE_GAME && g->isInGameState();
+}
+
+void pauseCorner(GameScreen* g, int* x, int* y) {
+    int extra = wideExtra();
+#ifndef MEDECOMP_SPLIT_STACKED
+    if (g->m_type != GameScreen::TYPE_SINGLE) extra = 0;
+#endif
+    *x = kPauseInset - extra;
+    *y = kPauseInset;
+    if (*x + kPauseSize > 0 && port::net::pingBottom() > 0) *y = port::net::pingBottom() + kPauseInset / 2;
+}
+
+bool pauseButton(float fx, float fy) {
+    SceneGame* s = scene();
+    for (int p = 0; s && p < s->m_gameScreens.m_length; p++) {
+        GameScreen* g = s->getGameScreen(p);
+        int lx, ly, x, y;
+        if (!pauseShown(g) || !g->calcLocalCoordinates(int(floorf(fx)), int(floorf(fy)), lx, ly)) continue;
+        pauseCorner(g, &x, &y);
+        if (lx < x - kPauseReach || ly < y - kPauseReach || lx >= x + kPauseSize + kPauseReach ||
+            ly >= y + kPauseSize + kPauseReach)
+            continue;
+        gesture("пауза (кнопка)");
+        pause(p);
+        return true;
+    }
+    return false;
 }
 
 void keyTilt() {
@@ -260,7 +310,7 @@ bool key(const SDL_KeyboardEvent& k, bool down) {
     }
     if (action == bindings::ActTap) {
         if (k.repeat) return true;
-        if (inGameplay()) {
+        if (inGameplay() || popupShown()) {
             if (down) gesture("тап");
             down ? tapDown(0) : tapUp(0);
         } else if (menu) {
@@ -349,6 +399,7 @@ Action actionOfButton(int button) {
 
 void padButton(Pad& p, int button, bool down) {
     s_fromPad = true;
+    s_touchPlay = false;
     hideCursor();
     bool game = inGameplay();
     bool menu = !game && menuFocusActive();
@@ -361,6 +412,10 @@ void padButton(Pad& p, int button, bool down) {
             menuFocusPost(MenuFocusBack);
             return;
         }
+    }
+    if (popupShown()) {
+        down ? tapDown(p.player) : tapUp(p.player);
+        return;
     }
     if (!menu && !game && button == SDL_CONTROLLER_BUTTON_A) {
         int x, y;
@@ -413,6 +468,7 @@ void padSticks(Pad& p, float dt) {
         if (!p.flicked && mag > flick) {
             p.flicked = true;
             s_fromPad = true;
+            s_touchPlay = false;
             hideCursor();
             int dx = 0, dy = 0;
             if (fabsf(lx) > fabsf(ly)) dx = lx < 0 ? -1 : 1;
@@ -446,6 +502,7 @@ void padSticks(Pad& p, float dt) {
     }
     if (rmag < zone) return;
     s_fromPad = true;
+    s_touchPlay = false;
     hideCursor();
     float speed = 1100.0f * (rmag - zone) / (1.0f - zone) * (rmag - zone) / (1.0f - zone) / rmag;
     p.cursorX += rx * speed * dt;
@@ -488,6 +545,38 @@ void loadScript() {
 std::atomic<bool> s_scriptFinish(false);
 std::atomic<int> s_scriptAchievement(-1);
 
+SDL_Joystick* s_scriptPad;
+struct PadRelease {
+    Uint32 at;
+    int button;
+};
+std::vector<PadRelease> s_padReleases;
+
+SDL_Joystick* scriptPad() {
+    if (s_scriptPad) return s_scriptPad;
+    int device = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, SDL_CONTROLLER_AXIS_MAX,
+                                           SDL_CONTROLLER_BUTTON_MAX, 0);
+    if (device >= 0) s_scriptPad = SDL_JoystickOpen(device);
+    if (!s_scriptPad) fprintf(stderr, "medecomp: сценарий: геймпада нет: %s\n", SDL_GetError());
+    return s_scriptPad;
+}
+
+void scriptPadStep(const std::string& what) {
+    SDL_Joystick* pad = scriptPad();
+    if (!pad) return;
+    size_t eq = what.find('=');
+    if (eq != std::string::npos) {
+        SDL_GameControllerAxis a = SDL_GameControllerGetAxisFromString(what.substr(0, eq).c_str());
+        float v = SDL_clamp(float(atof(what.c_str() + eq + 1)), -1.0f, 1.0f);
+        if (a != SDL_CONTROLLER_AXIS_INVALID) SDL_JoystickSetVirtualAxis(pad, a, Sint16(v * 32767));
+        return;
+    }
+    SDL_GameControllerButton b = SDL_GameControllerGetButtonFromString(what.c_str());
+    if (b == SDL_CONTROLLER_BUTTON_INVALID) return;
+    SDL_JoystickSetVirtualButton(pad, b, 1);
+    s_padReleases.push_back({SDL_GetTicks() + 100, b});
+}
+
 void runStep(const std::string& action) {
     fprintf(stderr, "medecomp: сценарий: %s\n", action.c_str());
     if (action == "shot") {
@@ -505,6 +594,10 @@ void runStep(const std::string& action) {
     }
     if (action.compare(0, 12, "achievement:") == 0) {
         s_scriptAchievement = atoi(action.c_str() + 12);
+        return;
+    }
+    if (action.compare(0, 4, "pad:") == 0) {
+        scriptPadStep(action.substr(4));
         return;
     }
     if (action.compare(0, 6, "wheel:") == 0) {
@@ -531,6 +624,21 @@ void runStep(const std::string& action) {
         s_releases.push_back({SDL_GetTicks() + 100, kSynthCursor - 8});
         return;
     }
+    size_t at = action.find('@');
+    bool mouse = action.compare(0, 5, "mouse") == 0;
+    if (at != std::string::npos && (mouse || action.compare(0, 6, "finger") == 0)) {
+        std::string verb = action.substr(mouse ? 5 : 6, at - (mouse ? 5 : 6));
+        long long id = mouse ? kMouse : kScriptFinger;
+        int x = atoi(action.c_str() + at + 1);
+        size_t slash = action.find('/');
+        int y = slash == std::string::npos ? 0 : atoi(action.c_str() + slash + 1);
+        if (verb == "down" && !mouse && pauseButton(float(x), float(y))) return;
+        if (verb == "down") s_touchPlay = !mouse;
+        if (verb == "down") touchBegan(id, SDL_clamp(x, 0, kScreenWidth - 1), SDL_clamp(y, 0, kScreenHeight - 1));
+        if (verb == "move") touchMoved(id, x, y);
+        if (verb == "up") touchEnded(id, x, y);
+        return;
+    }
     SDL_Keycode code = SDL_GetKeyFromName(action.c_str());
     if (code == SDLK_UNKNOWN) {
         fprintf(stderr, "medecomp: сценарий: нет клавиши %s\n", action.c_str());
@@ -550,7 +658,7 @@ void runStep(const std::string& action) {
 
 }
 
-int pointerCall(int kind, int x, int y, int px, int py, int tap) {
+int pointerCall(int kind, int x, int y, int px, int py, int tap, bool mouse) {
     midp::Runtime* rt = runtime();
     const midp::Runtime::PointerState* first = rt->getPointerStatus(0);
     const midp::Runtime::PointerState* second = rt->getPointerStatus(1);
@@ -564,7 +672,9 @@ int pointerCall(int kind, int x, int y, int px, int py, int tap) {
                   : second->m_down && (pointerAt(second, px, py) || pointerAt(second, x, y)) ? 1
                                                                                              : 2;
     }
+    s_mouseCall = mouse;
     pointerApply(kind, x, y, pointer, tap);
+    s_mouseCall = false;
     return pointer;
 }
 
@@ -587,22 +697,24 @@ bool inputEvent(const SDL_Event& e) {
     if (capture::replaying() && e.type != SDL_CONTROLLERDEVICEADDED && e.type != SDL_CONTROLLERDEVICEREMOVED) return true;
     switch (e.type) {
     case SDL_MOUSEBUTTONDOWN:
-        if (e.button.which == SDL_TOUCH_MOUSEID || e.button.button != SDL_BUTTON_LEFT) return true;
+        if (e.button.which == SDL_TOUCH_MOUSEID || emulatedMouse() || e.button.button != SDL_BUTTON_LEFT) return true;
         showCursor();
         menuFocusPointer();
         s_fromPad = false;
+        s_touchPlay = false;
         s_mouseAt = SDL_GetTicks();
         toScreen(e.button.x, e.button.y, &x, &y);
         touchBegan(kMouse, x, y);
         return true;
     case SDL_MOUSEMOTION:
-        if (e.motion.which == SDL_TOUCH_MOUSEID) return true;
+        if (e.motion.which == SDL_TOUCH_MOUSEID || emulatedMouse()) return true;
         if (s_warping) {
             s_warping = false;
         } else {
             showCursor();
             menuFocusPointer();
             s_fromPad = false;
+            s_touchPlay = false;
             s_mouseAt = SDL_GetTicks();
         }
         if (!(e.motion.state & SDL_BUTTON_LMASK)) return true;
@@ -610,7 +722,7 @@ bool inputEvent(const SDL_Event& e) {
         touchMoved(kMouse, x, y);
         return true;
     case SDL_MOUSEBUTTONUP:
-        if (e.button.which == SDL_TOUCH_MOUSEID || e.button.button != SDL_BUTTON_LEFT) return true;
+        if (e.button.which == SDL_TOUCH_MOUSEID || emulatedMouse() || e.button.button != SDL_BUTTON_LEFT) return true;
         toScreen(e.button.x, e.button.y, &x, &y);
         touchEnded(kMouse, x, y);
         return true;
@@ -623,15 +735,25 @@ bool inputEvent(const SDL_Event& e) {
             menuFocusScroll(int(y * kWheelPx), steps);
         }
         return true;
-    case SDL_FINGERDOWN:
+    case SDL_FINGERDOWN: {
+        s_fingerAt = SDL_GetTicks();
+        float fx, fy;
+        int w, h;
+        windowSize(&w, &h);
+        toFrame(e.tfinger.x * w, e.tfinger.y * h, &fx, &fy);
+        if (pauseButton(fx, fy)) return true;
+        s_touchPlay = true;
         fingerPoint(e.tfinger, &x, &y);
         touchBegan(e.tfinger.fingerId, x, y);
         return true;
+    }
     case SDL_FINGERMOTION:
+        s_fingerAt = SDL_GetTicks();
         fingerPoint(e.tfinger, &x, &y);
         touchMoved(e.tfinger.fingerId, x, y);
         return true;
     case SDL_FINGERUP:
+        s_fingerAt = SDL_GetTicks();
         fingerPoint(e.tfinger, &x, &y);
         touchEnded(e.tfinger.fingerId, x, y);
         return true;
@@ -640,6 +762,7 @@ bool inputEvent(const SDL_Event& e) {
         return true;
     case SDL_KEYDOWN:
     case SDL_KEYUP:
+        if (e.type == SDL_KEYDOWN && e.key.keysym.sym != SDLK_AC_BACK) s_touchPlay = false;
         if (textInputActive() || textLineActive()) {
             if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_BACKSPACE) textKey(kKeyBackspace);
             if (e.type == SDL_KEYDOWN && (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER))
@@ -729,6 +852,14 @@ void inputUpdate() {
             i++;
         }
     }
+    for (size_t i = 0; i < s_padReleases.size();) {
+        if (int(now - s_padReleases[i].at) >= 0) {
+            SDL_JoystickSetVirtualButton(s_scriptPad, s_padReleases[i].button, 0);
+            s_padReleases.erase(s_padReleases.begin() + long(i));
+        } else {
+            i++;
+        }
+    }
     for (Pad& p : s_pads) padSticks(p, dt);
     if ((s_heldDx || s_heldDy) && inGameplay() && int(now - s_heldNext) >= 0) {
         swipe(0, s_heldDx, s_heldDy, s_heldTwo);
@@ -748,4 +879,35 @@ void inputReset() {
 }
 
 }
+}
+
+extern "C" int medecomp_pointer_mouse(void) { return port::platform::s_mouseCall; }
+
+extern "C" void medecomp_pause_button(midp::Graphics* g, GameScreen* screen) {
+    using namespace port::platform;
+    if (!pauseShown(screen)) return;
+    int x, y;
+    pauseCorner(screen, &x, &y);
+    const int r = kPauseSize / 2;
+    auto circle = [&](int dx, int dy) {
+        int cx, cy;
+        screen->calcGlobalCoordinates(x + r + dx, y + r + dy, cx, cy);
+        g->fillArc(cx, cy, kPauseSize, kPauseSize, 0, 360);
+    };
+    auto bar = [&](int bx) {
+        int x0, y0, x1, y1;
+        screen->calcGlobalCoordinates(x + r + bx, y + r - 14, x0, y0);
+        screen->calcGlobalCoordinates(x + r + bx + 9, y + r + 14, x1, y1);
+        g->fillRect(std::min(x0, x1), std::min(y0, y1), abs(x1 - x0), abs(y1 - y0));
+    };
+    const int clipX = g->getClipX(), clipY = g->getClipY(), clipW = g->getClipWidth(), clipH = g->getClipHeight();
+    g->setClip(x, y, kPauseSize + 8, kPauseSize + 8);
+    g->setColor(0, 0, 0, 80);
+    circle(3, 5);
+    g->setColor(236, 0, 0, 230);
+    circle(0, 0);
+    g->setColor(255, 255, 255, 255);
+    bar(-12);
+    bar(3);
+    g->setClip(clipX, clipY, clipW, clipH);
 }

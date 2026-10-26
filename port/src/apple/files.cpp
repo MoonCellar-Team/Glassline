@@ -1,4 +1,5 @@
 #include "port/files.h"
+#include "../platform/process.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -245,9 +246,8 @@ std::string findApp(const std::string& dir) {
 }
 
 std::string exeDir() {
-    char exe[4096];
-    ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
-    std::string dir = n > 0 ? std::string(exe, size_t(n)) : std::string(".");
+    std::string dir = port::platform::process::selfPath();
+    if (dir.empty()) dir = ".";
     size_t slash = dir.rfind('/');
     return slash == std::string::npos ? std::string(".") : dir.substr(0, slash);
 }
@@ -256,8 +256,12 @@ Game* game() {
     if (s_game) return s_game;
     std::string error;
     for (const char* var : {"MEDECOMP_GAME", "MEDECOMP_BUNDLE"})
-        if (const char* v = getenv(var))
+        if (const char* v = getenv(var)) {
             if (*v && port::files::openGame(v, &error)) return s_game;
+#ifndef __EMSCRIPTEN__
+            if (*v) fprintf(stderr, "medecomp: %s=%s не открыть: %s\n", var, v, error.c_str());
+#endif
+        }
     std::string dir = exeDir();
     for (int i = 0; i < 8 && !s_game; i++) {
         std::string app = findApp(dir + "/orig");
@@ -267,7 +271,9 @@ Game* game() {
         dir.resize(slash);
     }
     if (!s_game) {
+#ifndef __EMSCRIPTEN__
         fprintf(stderr, "medecomp: игра не указана — путь к .ipa в MEDECOMP_GAME или в лаунчере\n");
+#endif
         static Game empty;
         empty.bundle = port::files::dataDir() + "/mirrorsedge_ipad.app";
         empty.nodes[""].dir = true;

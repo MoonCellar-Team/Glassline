@@ -5,8 +5,11 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 option(MEDECOMP_M32 "32-битная сборка" ON)
-if(ANDROID)
+if(ANDROID OR APPLE OR EMSCRIPTEN)
     set(MEDECOMP_M32 OFF CACHE BOOL "32-битная сборка" FORCE)
+endif()
+if(EMSCRIPTEN AND MEDECOMP_WEB_SYSROOT)
+    set(ENV{PKG_CONFIG_LIBDIR} "${MEDECOMP_WEB_SYSROOT}/lib/pkgconfig:$ENV{EMSDK}/upstream/emscripten/cache/sysroot/lib/pkgconfig")
 endif()
 
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${ROOT}/src/*.cpp)
@@ -37,7 +40,7 @@ macro(medecomp_pkg module)
     endif()
     string(MAKE_C_IDENTIFIER "${module}" _id)
     pkg_check_modules(PKG_${_id} REQUIRED ${module})
-    if(ANDROID)
+    if(ANDROID OR EMSCRIPTEN)
         list(APPEND MEDECOMP_LINK_FLAGS ${PKG_${_id}_STATIC_LDFLAGS})
     else()
         list(APPEND MEDECOMP_LINK_FLAGS ${PKG_${_id}_LDFLAGS})
@@ -85,6 +88,9 @@ set(STUB_SYSTEM_FLAGS --flag=-lm --flag=-lpthread)
 if(ANDROID)
     set(STUB_SYSTEM_FLAGS --flag=--target=${CMAKE_CXX_COMPILER_TARGET} --flag=-static-libstdc++ --flag=-shared
         --flag=-Wl,--no-undefined --flag=-lm --flag=-llog --flag=-landroid --flag=-lOpenSLES)
+elseif(EMSCRIPTEN)
+    set(STUB_SYSTEM_FLAGS --flag=-pthread --flag=-sWASMFS --flag=-sFULL_ES2 --flag=-sMAX_WEBGL_VERSION=2
+        --flag=-fexceptions --flag=-sFETCH)
 endif()
 add_custom_command(
     OUTPUT ${STUBS}
@@ -102,6 +108,38 @@ if(ANDROID)
     set_target_properties(medecomp PROPERTIES OUTPUT_NAME main)
 else()
     add_executable(medecomp $<TARGET_OBJECTS:medecomp_game> ${STUBS})
+endif()
+if(EMSCRIPTEN)
+    set(_web_link_flags)
+    foreach(flag IN LISTS MEDECOMP_LINK_FLAGS)
+        if(flag MATCHES "^-L(.+)$")
+            target_link_directories(medecomp PRIVATE "${CMAKE_MATCH_1}")
+        else()
+            list(APPEND _web_link_flags "${flag}")
+        endif()
+    endforeach()
+    set(MEDECOMP_LINK_FLAGS ${_web_link_flags})
+    set_target_properties(medecomp PROPERTIES SUFFIX ".html")
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/web/manifest.webmanifest ${CMAKE_BINARY_DIR}/manifest.webmanifest COPYONLY)
+    foreach(icon app-icon-256.png app-icon-512.png)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/branding/${icon} ${CMAKE_BINARY_DIR}/icons/${icon} COPYONLY)
+    endforeach()
+    target_link_options(medecomp PRIVATE -pthread -fexceptions -sPROXY_TO_PTHREAD -sWASMFS -sALLOW_MEMORY_GROWTH
+        -sMAXIMUM_MEMORY=2GB -sSTACK_SIZE=8MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB -sPTHREAD_POOL_SIZE=8
+        -sFULL_ES2 -sMAX_WEBGL_VERSION=2 -sOFFSCREENCANVAS_SUPPORT -sGL_ENABLE_GET_PROC_ADDRESS -sINVOKE_RUN=0
+        -O2 --profiling-funcs
+        -sFETCH
+        -sASYNCIFY "-sASYNCIFY_ONLY=@${CMAKE_CURRENT_SOURCE_DIR}/web/asyncify.json"
+        -sEXPORTED_RUNTIME_METHODS=callMain,ENV,UTF8ToString,stringToUTF8,lengthBytesUTF8
+        "SHELL:--shell-file \"${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html\""
+        "SHELL:--pre-js \"${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js\""
+        "SHELL:--preload-file \"${MEDECOMP_WEB_SYSROOT}/share/fonts@/fonts\""
+        "SHELL:--preload-file \"${ROOT}/config/string_overrides.tsv@/config/string_overrides.tsv\""
+        "SHELL:--preload-file \"${ROOT}/config/strings_ru.tsv@/config/strings_ru.tsv\""
+        "SHELL:--preload-file \"${ROOT}/config/achievements@/config/achievements\""
+        "SHELL:--preload-file \"${CMAKE_BINARY_DIR}/branding@/branding\"")
+    set_property(TARGET medecomp APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js ${CMAKE_CURRENT_SOURCE_DIR}/web/asyncify.json)
 endif()
 if(WIN32)
     enable_language(RC)

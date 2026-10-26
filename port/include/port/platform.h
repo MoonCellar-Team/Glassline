@@ -1,9 +1,14 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
 struct SDL_Window;
+
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+#define MEDECOMP_ONE_PROCESS 1
+#endif
 
 namespace midp {
 class Display;
@@ -40,6 +45,7 @@ void releaseContext();
 bool inBackground();
 void surfaceDestroying();
 bool toScreen(float windowX, float windowY, int* x, int* y);
+void toFrame(float windowX, float windowY, float* x, float* y);
 void windowSize(int* w, int* h);
 void warpPointer(int x, int y);
 void toggleFullscreen();
@@ -97,8 +103,10 @@ float ssrStrengthSetting();
 void setSsrSetting(bool on, float strength);
 #ifdef _WIN32
 bool underWine();
+bool nativeShaderCompiler();
 #else
 inline bool underWine() { return false; }
+inline bool nativeShaderCompiler() { return true; }
 #endif
 bool lensFlareSetting();
 void setLensFlareSetting(bool on);
@@ -116,13 +124,22 @@ void perfFrame(double workMs);
 void requestScreenshot(const std::string& path);
 void requestFrameShot(const std::string& path);
 bool takeScriptFinish();
+#ifdef __EMSCRIPTEN__
+void webStartup();
+void webGameSelected();
+void webGameStep(std::function<bool()> step);
+void webGameFrame();
+#endif
 #ifdef __ANDROID__
 void androidStartup();
 int androidDisplayRotation();
 std::string androidPickFile(const std::string& dir, const char* mime);
-bool takeEditorRequest(std::string* id);
 void androidRestart();
 std::string androidSaveToDownloads(const std::string& path, const std::string& name, const char* mime);
+#endif
+#ifdef MEDECOMP_ONE_PROCESS
+bool takeEditorRequest(std::string* id);
+void appRestart();
 #endif
 bool presentSplash();
 int takeScriptAchievement();
@@ -152,6 +169,7 @@ void menuFocusScroll(int px, int steps);
 bool menuFocusActive();
 void menuFocusApply();
 const void* menuFocusTarget();
+void menuFocusSet(const void* target);
 
 void setTilt(float tilt);
 float tilt();

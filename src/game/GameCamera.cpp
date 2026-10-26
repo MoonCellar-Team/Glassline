@@ -37,6 +37,10 @@ static bool sameBits(float a, float b) {
     return ua.i == ub.i;
 }
 
+#ifdef MEDECOMP_PORT
+static float s_shakeShare = 1.0f;
+#endif
+
 void GameCamera::setClipping(float nearClip, float farClip) {
     m_nearClip = nearClip;
     m_farClip = farClip;
@@ -150,9 +154,15 @@ void GameCamera::recalcCameraTransform() {
     float shakeZ = m_shakeZ.getFilteredValue() * shake;
     float bump = m_verticalBump.getFilteredValue();
 
+#ifdef MEDECOMP_PORT
+    float fromX = m_lookFrom.x + shakeX * s_shakeShare;
+    float fromY = m_lookFrom.y + (shakeY + bump) * s_shakeShare;
+    float fromZ = m_lookFrom.z + shakeZ * s_shakeShare;
+#else
     float fromX = m_lookFrom.x + shakeX;
     float fromY = m_lookFrom.y + shakeY + bump;
     float fromZ = m_lookFrom.z + shakeZ;
+#endif
     float atX = m_lookAtX.getFilteredValue();
     float atY = m_lookAtY.getFilteredValue();
     float atZ = m_lookAtZ.getFilteredValue();
@@ -335,7 +345,13 @@ void GameCamera::update(int dt, float screenRotation) {
         m_lookFrom = pos + m_lookFromVelocity * t;
     }
 
+#ifdef MEDECOMP_PORT
+    s_shakeShare = dt < 33 ? dt / 34.0f : 1.0f;
     recalcCameraTransform();
+    s_shakeShare = 1.0f;
+#else
+    recalcCameraTransform();
+#endif
     m_transform.postRotate(screenRotation, 0.0f, 0.0f, 1.0f);
     m_camera->setTransform(&m_transform);
     m_lastTargetX = m_target->m_position.x;

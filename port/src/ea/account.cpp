@@ -44,9 +44,11 @@ bool openLib(const char* const* names, void** lib) {
 }
 
 std::string serverUrl() {
-    std::string url = settings::get("online_server", kDefaultServer);
+    const char* env = getenv("MEDECOMP_ONLINE_SERVER");
+    const std::string fallback = env && *env ? env : kDefaultServer;
+    std::string url = settings::get("online_server", fallback);
     while (!url.empty() && url.back() == '/') url.pop_back();
-    return url.empty() ? kDefaultServer : url;
+    return url.empty() ? fallback : url;
 }
 
 std::string token() { return settings::get("online_token", ""); }
@@ -249,10 +251,11 @@ bool decodeImage(const std::string& bytes, int* width, int* height, std::vector<
         stbi_image_free(px);
         return true;
     }
+    if (bytes.size() < 12 || bytes.compare(0, 4, "RIFF") != 0 || bytes.compare(8, 4, "WEBP") != 0) return false;
     static std::mutex mu;
     static bool tried;
     static struct {
-        void* (*loaderNew)();
+        void* (*loaderNew)(const char*, void**);
         int (*write)(void*, const unsigned char*, size_t, void**);
         int (*close)(void*, void**);
         void* (*pixbuf)(void*);
@@ -275,7 +278,7 @@ bool decodeImage(const std::string& bytes, int* width, int* height, std::vector<
                     const char* name;
                     void** slot;
                 } syms[] = {
-                    {"gdk_pixbuf_loader_new", (void**)&gdk.loaderNew},
+                    {"gdk_pixbuf_loader_new_with_type", (void**)&gdk.loaderNew},
                     {"gdk_pixbuf_loader_write", (void**)&gdk.write},
                     {"gdk_pixbuf_loader_close", (void**)&gdk.close},
                     {"gdk_pixbuf_loader_get_pixbuf", (void**)&gdk.pixbuf},
@@ -292,7 +295,7 @@ bool decodeImage(const std::string& bytes, int* width, int* height, std::vector<
         }
     }
     if (!ok || bytes.empty()) return false;
-    void* loader = gdk.loaderNew();
+    void* loader = gdk.loaderNew("webp", nullptr);
     if (!loader) return false;
     bool done = gdk.write(loader, reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), nullptr);
     done = gdk.close(loader, nullptr) && done;

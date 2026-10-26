@@ -12,6 +12,10 @@ android)
 	[ -n "$APK" ] || { echo "нет APK в build/release — ./build.sh android" >&2; exit 1; }
 	adb install -r "$APK"
 	exec adb shell monkey -p space.mooncellar.rooftops -c android.intent.category.LAUNCHER 1 ;;
+web)
+	shift
+	[ -f build/release/web/index.html ] || { echo "нет build/release/web — ./build.sh web" >&2; exit 1; }
+	exec python3 -I tools/web_serve.py --dir build/release/web --proxy-game "$@" ;;
 esac
 
 NAME=$(sed -n 's/^#define MEDECOMP_PORT_NAME "\(.*\)"$/\1/p' port/include/port/brand.h)

@@ -243,6 +243,7 @@ extern "C" {
 
 void glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height,
                             GLint border, GLsizei imageSize, const void* data) {
+    MEDECOMP_GL_GUARD();
     if (isPVRTC(internalformat)) {
         static auto tex = reinterpret_cast<TexImage>(port::gfx::glProc("glTexImage2D"));
         std::vector<uint8_t> rgba;
@@ -264,6 +265,7 @@ void glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, G
 
 void glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
                                GLsizei height, GLenum format, GLsizei imageSize, const void* data) {
+    MEDECOMP_GL_GUARD();
     if (isPVRTC(format)) {
         static auto sub = reinterpret_cast<TexSubImage>(port::gfx::glProc("glTexSubImage2D"));
         std::vector<uint8_t> rgba;

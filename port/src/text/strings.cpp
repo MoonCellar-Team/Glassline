@@ -16,6 +16,8 @@
 #include "runtime/midp/ReferenceCounted.h"
 #include "runtime/midp/String.h"
 #include "../platform/bindings.h"
+#include "../platform/process.h"
+#include "../platform/touch_device.h"
 
 namespace {
 
@@ -39,7 +41,8 @@ struct Hint {
 
 std::vector<Hint> g_hints;
 unsigned char g_hintId[8192] = {};
-std::atomic<int> g_pad(0);
+std::atomic<int> g_input(0);
+std::atomic<Uint32> g_fingerAt(0);
 bool g_watch = false;
 
 struct Shown {
@@ -51,17 +54,45 @@ struct Shown {
 
 std::vector<Shown> g_shown;
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
 const int kInputTexts[] = {0x0812, 0x0813, 0x085e, 0x096b};
 
 bool inputText(int id, const std::string& text) {
     for (int t : kInputTexts)
         if (t == id) return true;
-    for (const char* token : {"{up}", "{down}", "{left}", "{right}", "{tilt}", "{pause}"})
+    for (const char* token : {"{up}", "{down}", "{left}", "{right}", "{tilt}", "{tap}", "{pause}"})
         if (text.find(token) != std::string::npos) return true;
     return false;
 }
 #endif
+
+std::string touchRussian(int id, std::string text) {
+    if (id == 0x0813) return "Коснитесь экрана";
+    if (id == 0x085e) return "Проведите в обратную сторону, чтобы развернуться на ходу.";
+    if (id == 0x096b) return "Коснитесь места в таблице, чтобы сразиться с призраком этого игрока.";
+    const std::pair<const char*, const char*> replacements[] = {
+        {"Нажмите {left} или {right}", "Проведите влево или вправо"},
+        {"нажмите {left} или {right}", "проведите влево или вправо"},
+        {"Нажмите {up}", "Проведите вверх"}, {"нажмите {up}", "проведите вверх"},
+        {"Нажмите {down}", "Проведите вниз"}, {"нажмите {down}", "проведите вниз"},
+        {"Нажмите {tap}", "Коснитесь экрана"}, {"нажмите {tap}", "коснитесь экрана"},
+        {"Нажмите {pause}", "Проведите вниз двумя пальцами"},
+        {"нажмите в обратную сторону", "проведите в обратную сторону"},
+        {"Нажмите в сторону", "Проведите в сторону"}, {"нажмите в сторону", "проведите в сторону"},
+        {"{left}", "свайп влево"}, {"{right}", "свайп вправо"},
+        {"{up}", "свайп вверх"}, {"{down}", "свайп вниз"},
+        {"{tap}", "касание экрана"}, {"{pause}", "свайп вниз двумя пальцами"},
+        {"{tilt}", "наклоняйте устройство"},
+    };
+    for (const auto& replacement : replacements) {
+        size_t pos = 0;
+        while ((pos = text.find(replacement.first, pos)) != std::string::npos) {
+            text.replace(pos, strlen(replacement.first), replacement.second);
+            pos += strlen(replacement.second);
+        }
+    }
+    return text;
+}
 
 void rememberHint(int id, const std::string& lang, const std::string& text) {
     if (id >= 0 && id < 8192)
@@ -75,14 +106,25 @@ void rememberHint(int id, const std::string& lang, const std::string& text) {
 
 int onInputEvent(void*, SDL_Event* e) {
     if (e->type == SDL_KEYDOWN && !e->key.repeat && e->key.keysym.sym != SDLK_UNKNOWN)
-        g_pad.store(0, std::memory_order_relaxed);
+        g_input.store(0, std::memory_order_relaxed);
     else if (e->type == SDL_CONTROLLERBUTTONDOWN)
-        g_pad.store(1, std::memory_order_relaxed);
+        g_input.store(1, std::memory_order_relaxed);
     else if (e->type == SDL_CONTROLLERAXISMOTION) {
         int v = e->caxis.value;
         if (v > 8000 || v < -8000)
-            g_pad.store(1, std::memory_order_relaxed);
+            g_input.store(1, std::memory_order_relaxed);
     }
+    else if (e->type == SDL_FINGERDOWN || e->type == SDL_FINGERMOTION || e->type == SDL_FINGERUP) {
+        g_fingerAt.store(SDL_GetTicks(), std::memory_order_relaxed);
+        g_input.store(2, std::memory_order_relaxed);
+    }
+#ifdef __EMSCRIPTEN__
+    else if ((e->type == SDL_MOUSEBUTTONDOWN && e->button.which != SDL_TOUCH_MOUSEID) ||
+             (e->type == SDL_MOUSEMOTION && e->motion.which != SDL_TOUCH_MOUSEID)) {
+        const Uint32 fingerAt = g_fingerAt.load(std::memory_order_relaxed);
+        if (!fingerAt || SDL_GetTicks() - fingerAt >= 800) g_input.store(0, std::memory_order_relaxed);
+    }
+#endif
     return 0;
 }
 
@@ -90,9 +132,10 @@ void ensureWatch() {
     if (g_watch)
         return;
     g_watch = true;
+    if (port::platform::defaultTouchInput()) g_input.store(2, std::memory_order_relaxed);
     const char* env = getenv("MEDECOMP_HINT_PAD");
     if (env != NULL && env[0] == '1')
-        g_pad.store(1, std::memory_order_relaxed);
+        g_input.store(1, std::memory_order_relaxed);
     SDL_AddEventWatch(onInputEvent, NULL);
 }
 
@@ -140,6 +183,11 @@ std::string token(const std::string& name, bool pad, const std::string& lang) {
         return dirLabel(bindings::ActLeft, pad, "←", "Left");
     if (name == "right")
         return dirLabel(bindings::ActRight, pad, "→", "Right");
+    if (name == "tap") {
+        if (pad)
+            return bindings::button(bindings::ActTap) < 0 ? "A" : bindings::buttonLabel(bindings::ActTap);
+        return bindings::keyLabel(bindings::ActTap);
+    }
     if (name == "pause") {
         if (pad)
             return bindings::button(bindings::ActPause) < 0 ? "Start" : bindings::buttonLabel(bindings::ActPause);
@@ -214,19 +262,20 @@ std::string tablePath() {
     const char* env = getenv("MEDECOMP_STRINGS");
     if (env != NULL && env[0] != '\0')
         return env;
-    std::string dirs[6];
+    std::string dirs[7];
     int count = 0;
     dirs[count++] = ".";
-#if defined(__linux__) || defined(_WIN32)
-    char buf[4096];
-    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (n > 0) {
-        buf[n] = '\0';
-        std::string dir(buf);
+#if defined(__linux__) || defined(_WIN32) || defined(__APPLE__)
+    std::string self = port::platform::process::selfPath();
+    if (!self.empty()) {
+        std::string dir(self);
         std::string::size_type slash = dir.find_last_of('/');
         if (slash != std::string::npos)
             dir.erase(slash);
-        for (int i = 0; i < 5 && count < 6 && !dir.empty(); i++) {
+#ifdef __APPLE__
+        dirs[count++] = dir + "/../Resources";
+#endif
+        for (int i = 0; i < 5 && count < 7 && !dir.empty(); i++) {
             dirs[count++] = dir;
             slash = dir.find_last_of('/');
             if (slash == std::string::npos || slash == 0)
@@ -313,8 +362,11 @@ void readTable(const std::string& path) {
         row.lang = tab2 + 1;
         row.text = tab3 + 1;
         g_rows.push_back(row);
-        if (row.text.find('{') != std::string::npos)
-            rememberHint(id, row.lang, row.text);
+        if (row.text.find('{') != std::string::npos
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+            || inputText(id, row.text)
+#endif
+        ) rememberHint(id, row.lang, row.text);
     }
     fclose(f);
 }
@@ -360,7 +412,7 @@ void applyStringOverrides(int pool, midp::array<midp::ReferenceCountedPointer<mi
     if (locale == NULL)
         return;
     int needed = strings.m_length;
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
     const int poolSize = strings.m_length;
 #endif
     for (size_t i = 0; i < g_rows.size(); i++)
@@ -387,7 +439,7 @@ void applyStringOverrides(int pool, midp::array<midp::ReferenceCountedPointer<mi
         const Row& row = g_rows[i];
         if (row.pool != pool || !locale->equals(row.lang.c_str()))
             continue;
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
         if (row.index < poolSize && inputText((row.pool << 11) | row.index, row.text))
             continue;
 #endif
@@ -423,10 +475,19 @@ midp::String* withInputHints(int textId, midp::String* raw, midp::String* locale
     if (hint == NULL)
         return raw;
     ensureWatch();
-    bool pad = g_pad.load(std::memory_order_relaxed) != 0;
+    const int device = g_input.load(std::memory_order_relaxed);
+    bool pad = device == 1;
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+    const bool touch =
 #ifdef __ANDROID__
-    if (!pad)
+        !pad;
+#else
+        device == 2;
+#endif
+    if (touch && inputText(textId, hint->text)) {
+        if (hint->lang == "ru") return internHint(textId, hint->lang, touchRussian(textId, hint->text));
         return raw;
+    }
 #endif
     std::string text = expand(hint->text, pad, hint->lang);
     static int logged = -1;

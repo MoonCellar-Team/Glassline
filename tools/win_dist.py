@@ -21,6 +21,13 @@ README = """{port} — PC-порт для Mirror's Edge (iPad) от MoonCellar T
 Нужна Windows 10 или 11 (64 бита). Сторонние библиотеки и их лицензии — в папке licenses.
 """
 
+D3DCOMPILER_NOTE = """d3dcompiler_47.dll — Microsoft D3D shader compiler, redistributable code of the Windows SDK
+(listed in REDIST.TXT): Redist\\D3D\\x64\\d3dcompiler_47.dll from the Microsoft.Windows.SDK.CPP package on nuget.org.
+It is used by ANGLE (libGLESv2.dll) to build shaders; under Wine and Proton the game loads this copy instead of
+the one Wine provides. Copyright (c) Microsoft Corporation. Distributed under the Microsoft Software License Terms
+for the Windows SDK: sdk_license.rtf in this folder (https://aka.ms/WinSDKLicenseURL).
+"""
+
 def port_name():
     text = open("port/include/port/brand.h", encoding="utf-8").read()
     found = re.search(r'^#define MEDECOMP_PORT_NAME "(.*)"$', text, re.M)
@@ -86,6 +93,18 @@ def main():
         for lic in glob.glob(os.path.join(args.build, "lib", "*-LICENSE.txt")):
             os.makedirs(os.path.join(out, "licenses"), exist_ok=True)
             shutil.copy2(lic, os.path.join(out, "licenses"))
+
+    d3d = os.path.join(args.sysroot, "d3dcompiler")
+    if os.path.exists(os.path.join(d3d, "d3dcompiler_47.dll")):
+        shutil.copy2(os.path.join(d3d, "d3dcompiler_47.dll"), out)
+        dlls.add("d3dcompiler_47.dll")
+        lic = os.path.join(out, "licenses", "d3dcompiler_47")
+        os.makedirs(lic, exist_ok=True)
+        shutil.copy2(os.path.join(d3d, "sdk_license.rtf"), lic)
+        with open(os.path.join(lic, "README.txt"), "w", newline="\r\n") as f:
+            f.write(D3DCOMPILER_NOTE)
+    else:
+        print(f"нет {d3d}/d3dcompiler_47.dll — под Wine отражений не будет (python3 -I tools/win_deps.py)", file=sys.stderr)
 
     shutil.copytree(os.path.join(args.sysroot, "clang64", "etc", "fonts"), os.path.join(out, "etc", "fonts"))
     os.makedirs(os.path.join(out, "config"))
