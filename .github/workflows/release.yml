@@ -42,7 +42,7 @@ jobs:
       - name: Free disk space
         # The Android SDK with the NDK and the build take about 12 GB; the runner's own SDKs are not used
         run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e  # v10.3.2
       - name: Release signing key
         env:
           KEYSTORE: ${{ secrets.GLASSLINE_ANDROID_KEYSTORE }}
