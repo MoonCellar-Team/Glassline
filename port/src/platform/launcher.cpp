@@ -277,23 +277,29 @@ void finishDownload(char* buf, size_t size, Check* status, const std::string& ch
 
 void downloadSection(float scale) {
     ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    launcherHelp(L("Или скачать по ссылке на .ipa (https://): ссылку указываете вы — в порте ни одной нет. "
-                               "Скачанное проверяется так же, как выбранный файл; не подошло — удаляется.",
-                               "Or download from a link to the .ipa (https://): you give the link — the port has none. "
-                               "The download is checked like a chosen file; if it does not fit, it is deleted."));
-    ImGui::PopStyleColor();
+    const char* help = L("Или скачать по ссылке на .ipa (https://): ссылку указываете вы — в порте ни одной нет. "
+                         "Скачанное проверяется так же, как выбранный файл; не подошло — удаляется.",
+                         "Or download from a link to the .ipa (https://): you give the link — the port has none. "
+                         "The download is checked like a chosen file; if it does not fit, it is deleted.");
     const char* get = L("Скачать", "Download");
     const char* stop = L("Отмена", "Cancel");
     float button = std::max(ImGui::CalcTextSize(get).x, ImGui::CalcTextSize(stop).x) + ImGui::GetStyle().FramePadding.x * 2;
     bool busy = s_download.busy;
-    ImGui::SetNextItemWidth(-button - ImGui::GetStyle().ItemSpacing.x);
+    ImGui::SetNextItemWidth(-button - port::platform::launcherHelpButtonSize() - ImGui::GetStyle().ItemSpacing.x * 2);
     ImGui::BeginDisabled(busy);
     ImGui::InputTextWithHint("##url", "https://…", s_url, sizeof s_url);
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (busy) {
         if (ImGui::Button(stop, ImVec2(button, 0))) s_download.cancel = true;
+    } else {
+        ImGui::BeginDisabled(strncmp(s_url, "https://", 8) != 0);
+        if (ImGui::Button(get, ImVec2(button, 0))) startDownload(s_url);
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    launcherHelp(help);
+    if (busy) {
         long long got = s_download.got, total = s_download.total;
         mcui::ProgressBar(total > 0 ? float(double(got) / double(total)) : 0.0f, ImVec2(-1.0f, 6.0f * scale));
         if (total > 0)
@@ -301,10 +307,6 @@ void downloadSection(float scale) {
                                 double(total) / 1048576.0, L("МБ", "MB"));
         else
             ImGui::TextDisabled("%s %.1f %s", L("Скачано", "Downloaded"), double(got) / 1048576.0, L("МБ", "MB"));
-    } else {
-        ImGui::BeginDisabled(strncmp(s_url, "https://", 8) != 0);
-        if (ImGui::Button(get, ImVec2(button, 0))) startDownload(s_url);
-        ImGui::EndDisabled();
     }
     if (!s_downloadNote.empty()) {
         ImGui::PushStyleColor(ImGuiCol_Text, mcui::Color(s_downloadOk ? mcui::tokens::kColorPositive : mcui::tokens::kColorNegative));
@@ -1674,6 +1676,29 @@ void levelsTab(const char* game) {
     for (const std::string& id : port::files::list(dir))
         if (port::files::stat(dir + "/" + id + "/level.json").exists) ids.push_back(id);
     std::sort(ids.begin(), ids.end());
+    const bool signedIn = !port::online::token().empty();
+#ifdef __ANDROID__
+    std::string help = L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
+                               "(.glevel) — «Экспорт в файл» в меню ⋯ (в «Загрузки»), «Импорт уровня…» — с этого устройства.",
+                               "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
+                               "(.glevel): Export to a file in the ⋯ menu (to Downloads), Import level… from this device.");
+#elif defined(__EMSCRIPTEN__)
+    std::string help = L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS.",
+                               "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS.");
+#else
+    std::string help = L("Редактор открывается отдельным окном; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
+                               "(.glevel) — «Экспорт в файл» в меню ⋯, «Импорт уровня…» или перетащите файл на окно.",
+                               "The editor opens in its own window; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
+                               "(.glevel): Export to a file in the ⋯ menu, Import level… or drop the file on this window.");
+#endif
+    if (!signedIn) {
+        help += "\n\n";
+        help += L("Выкладывать и снимать с сервера — после входа во вкладке «Аккаунт».",
+                  "Sign in on the Account tab to upload or unpublish.");
+    }
+    help += "\n\n";
+    help += L("Папка уровней:\n", "Levels folder:\n");
+    help += dir;
     const float scale = mcui::Scale();
     {
         mcui::SectionTitle(L("Свои уровни", "My levels"));
@@ -1682,12 +1707,16 @@ void levelsTab(const char* game) {
         ImGui::PushFont(nullptr, mcui::kTextBody + 1.0f);
         ImGui::TextDisabled("· %zu", ids.size());
         ImGui::PopFont();
+        ImGui::SameLine();
+        port::platform::launcherHelpContent("levels-help", [&] { ImGui::TextWrapped("%s", help.c_str()); }, false);
+        const float headingRight = ImGui::GetItemRectMax().x - ImGui::GetWindowPos().x;
         const char* importLabel = L("Импорт уровня…", "Import level…");
         const char* createLabel = L("Создать уровень", "Create level");
         const ImGuiStyle& style = ImGui::GetStyle();
         const float both = ImGui::CalcTextSize(importLabel).x + ImGui::CalcTextSize(createLabel).x + 4 * style.FramePadding.x + style.ItemSpacing.x;
-        ImGui::SameLine(std::max(ImGui::GetCursorPosX() + style.ItemSpacing.x, ImGui::GetContentRegionMax().x - both));
-        const float buttonsY = titleY + (titleH - ImGui::GetFrameHeight()) / 2;
+        const bool sameRow = headingRight + style.ItemSpacing.x + both <= ImGui::GetContentRegionMax().x;
+        if (sameRow) ImGui::SameLine(ImGui::GetContentRegionMax().x - both);
+        const float buttonsY = sameRow ? titleY + (titleH - ImGui::GetFrameHeight()) / 2 : ImGui::GetCursorScreenPos().y;
         ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, buttonsY));
         ImGui::BeginDisabled(port::platform::dialog::busy());
         if (mcui::Button(importLabel)) port::platform::dialog::pick(port::platform::dialog::LevelFile, std::string(), L("Файл уровня", "Level file"));
@@ -1696,10 +1725,6 @@ void levelsTab(const char* game) {
         ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, buttonsY));
         if (mcui::Button(createLabel, mcui::ButtonKind::Accent)) edit("");
     }
-    bool signedIn = !port::online::token().empty();
-    if (!signedIn && !ids.empty())
-        launcherHelp(L("Выкладывать и снимать с сервера — после входа во вкладке «Аккаунт»",
-                                    "Sign in on the Account tab to upload or unpublish"));
     if (static bool once = false; !once) {
         once = true;
         if (const char* test = getenv("MEDECOMP_LAUNCHER_LEVEL")) {
@@ -1893,24 +1918,6 @@ void levelsTab(const char* game) {
         else if (!s_publish.message.empty()) ImGui::TextWrapped("%s", s_publish.message.c_str());
     }
     if (!s_fileMessage.empty()) ImGui::TextWrapped("%s", s_fileMessage.c_str());
-    ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-#ifdef __ANDROID__
-    launcherHelp(L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
-                               "(.glevel) — «Экспорт в файл» в меню ⋯ (в «Загрузки»), «Импорт уровня…» — с этого устройства.",
-                               "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
-                               "(.glevel): Export to a file in the ⋯ menu (to Downloads), Import level… from this device."));
-#elif defined(__EMSCRIPTEN__)
-    launcherHelp(L("Редактор открывается вместо лаунчера; играть — в игре: EXTRAS, PLAYER LEVELS.",
-                               "The editor opens in place of the launcher; play in the game: EXTRAS, PLAYER LEVELS."));
-#else
-    launcherHelp(L("Редактор открывается отдельным окном; играть — в игре: EXTRAS, PLAYER LEVELS. Уровень одним файлом "
-                               "(.glevel) — «Экспорт в файл» в меню ⋯, «Импорт уровня…» или перетащите файл на окно.",
-                               "The editor opens in its own window; play in the game: EXTRAS, PLAYER LEVELS. A level as one file "
-                               "(.glevel): Export to a file in the ⋯ menu, Import level… or drop the file on this window."));
-#endif
-    launcherHelp(dir.c_str());
-    ImGui::PopStyleColor();
     if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
 }
 
@@ -2411,7 +2418,7 @@ bool runWindow(std::string* path) {
         scale = std::max(1.0f, std::min(scale, fit));
     }
 #ifdef __ANDROID__
-    scale = std::max(1.0f, std::min(port::platform::displayScale(window, pixelW),
+    scale = 0.8f * std::max(1.0f, std::min(port::platform::displayScale(window, pixelW),
                                     std::min(std::max(pixelW, pixelH) / 900.0f, std::min(pixelW, pixelH) / 600.0f)));
 #elif defined(__EMSCRIPTEN__)
     scale = 0.8f * std::max(1.0f, std::min(createW / 900.0f, createH / 600.0f));
@@ -2545,6 +2552,12 @@ bool runWindow(std::string* path) {
 #endif
             do {
                 port::platform::turn::event(&e);
+#ifdef __ANDROID__
+                if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && e.key.keysym.sym == SDLK_AC_BACK) {
+                    e.key.keysym.sym = SDLK_ESCAPE;
+                    e.key.keysym.scancode = SDL_SCANCODE_ESCAPE;
+                }
+#endif
                 bool mouseFromBrowser = false;
 #ifdef __EMSCRIPTEN__
                 if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP)
@@ -2633,8 +2646,13 @@ bool runWindow(std::string* path) {
         }
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(io.DisplaySize);
+#ifdef __ANDROID__
+        const bool fullScroll = true;
+        bool fixedFooter = true;
+#else
         const bool fullScroll = io.DisplaySize.y < 600 * scale || io.DisplaySize.x < 720 * scale;
         bool fixedFooter = false;
+#endif
         float safeBottom = 0;
 #ifdef __EMSCRIPTEN__
         fixedFooter = fullScroll;
@@ -2795,6 +2813,7 @@ bool runWindow(std::string* path) {
                 }
 #endif
                 ImGui::EndDisabled();
+                ImGui::SameLine();
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 #ifdef __ANDROID__
                 launcherHelp(L("Файл .ipa Mirror's Edge для iPad, версия 1.1.48 или новее. Ресурсы игры порт читает из "
@@ -2911,6 +2930,14 @@ bool runWindow(std::string* path) {
         float bottom = ImGui::GetWindowHeight() - ImGui::GetStyle().WindowPadding.y - buttonHeight;
         if (!fullScroll && ImGui::GetCursorPosY() < bottom) ImGui::SetCursorPosY(bottom);
         bool canPlay = status.ok && !port::platform::dialog::busy();
+#ifdef __EMSCRIPTEN__
+        const bool browserPlayRequest = MAIN_THREAD_EM_ASM_INT({
+            const pending = !!Module.medecompPlayPending;
+            Module.medecompPlayPending = false;
+            return pending;
+        }) != 0;
+        if (browserPlayRequest && canPlay && !s_aboutOpen && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) play = true;
+#endif
         ImGui::BeginDisabled(!canPlay);
         if (mcui::Button(L("Играть", "Play"), mcui::ButtonKind::Accent, ImVec2(playWidth, buttonHeight))) play = true;
 #ifdef __EMSCRIPTEN__
@@ -2928,7 +2955,7 @@ bool runWindow(std::string* path) {
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-#ifndef __EMSCRIPTEN__
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
         if (mcui::Button(L("Выход", "Quit"), mcui::ButtonKind::Default, ImVec2(120 * scale, buttonHeight))) quit = true;
 #endif
         if (fixedFooter ? stackFooter : ImGui::GetContentRegionAvail().x < 400 * scale) ImGui::NewLine();
@@ -3105,7 +3132,7 @@ bool runWindow(std::string* path) {
     }
     cancelSignIn();
 #ifdef __EMSCRIPTEN__
-    MAIN_THREAD_EM_ASM({ Module.medecompBrowseRect = null; Module.medecompPlayRect = null; Module.medecompPlayFocused = false; Module.medecompInLauncher = false; });
+    MAIN_THREAD_EM_ASM({ Module.medecompBrowseRect = null; Module.medecompPlayRect = null; Module.medecompPlayFocused = false; Module.medecompPlayPending = false; Module.medecompInLauncher = false; });
 #endif
     if (s_download.thread.joinable()) {
         s_download.cancel = true;

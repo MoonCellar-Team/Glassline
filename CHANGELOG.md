@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 — 2026-10-26
+
+- **Android launcher:** reduced interface scale and added a fixed Play footer. Settings scroll above it, keeping the last item accessible.
+- **Android level editor:** compact mobile layout with a collapsed level card, toolbars that fit the screen, bounded panels, and a smaller top view.
+- **Launcher:** combined Levels help into one info button beside the heading. Game-copy help buttons stay beside Browse and Download instead of overlapping the game status.
+- **Fixed:** entering browser fullscreen now starts the game on the first Play press, including when the canvas resizes.
+
 ## 1.3 — 2026-10-26
 
 - **Browser version:** play with your own iPad game copy, stored locally in the browser. Includes audio, MoonCellar services, skin previews, the level editor, and online races with desktop players.

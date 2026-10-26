@@ -662,7 +662,9 @@ class Editor {
 public:
     Editor(const char* argv0, float scale, SDL_Renderer* renderer) : m_argv0(argv0), m_scale(scale), m_renderer(renderer) {
         m_touchSeen = port::platform::defaultTouchInput();
-#ifdef __EMSCRIPTEN__
+#ifdef __ANDROID__
+        m_levelOpen = false;
+#elif defined(__EMSCRIPTEN__)
         if (scale < 1.0f) m_levelOpen = false;
 #endif
     }
@@ -1043,8 +1045,10 @@ public:
         return out;
     }
 
-    bool compactWeb() const {
-#ifdef __EMSCRIPTEN__
+    bool compactMobile() const {
+#ifdef __ANDROID__
+        return true;
+#elif defined(__EMSCRIPTEN__)
         return ImGui::GetIO().DisplaySize.x < 900 || ImGui::GetIO().DisplaySize.y < 620;
 #else
         return false;
@@ -1069,7 +1073,7 @@ public:
                          (editing ? ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse : 0));
         if (editing) ImGui::PopStyleVar();
         if (!editing) {
-            if (compactWeb()) port::platform::panelTouchScroll(m_scale);
+            if (compactMobile()) port::platform::panelTouchScroll(m_scale);
             levelList(quit);
         }
         else editorView();
@@ -2316,10 +2320,10 @@ private:
                               {Tool::Music, &ic.music, text, L(" — невидимая", " — invisible")},
                               {Tool::Piece, &ic.piece, text, L(" — видимая модель из главы уровня", " — a visible model from the level's chapter")}};
         const size_t count = sizeof items / sizeof items[0];
-        const float gap = (compactWeb() ? 2 : 6) * s;
+        const float gap = (compactMobile() ? 2 : 6) * s;
         const float fitButton = (ImGui::GetContentRegionAvail().y - 28 * s - (count + 1) * gap) / (count + 1);
-        const float b = compactWeb() ? std::min(44 * s, std::max(20.0f, fitButton)) : 44 * s;
-        const bool scrollRail = compactWeb() && fitButton < 20;
+        const float b = compactMobile() ? std::min(44 * s, std::max(20.0f, fitButton)) : 44 * s;
+        const bool scrollRail = compactMobile() && fitButton < 20;
         ImGui::PushStyleColor(ImGuiCol_ChildBg, mcui::Color(mcui::tokens::kColorBgSecondary));
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2((w - b) / 2, 12 * s));
@@ -2425,10 +2429,10 @@ private:
                   "Looks only: the blocks and ramps you run on stay as they are. Game versions before this one do not show such a piece."));
     }
     bool depthShown() const { return showDepth && showGraphics && doc.open && view.size.x >= 232 * m_scale && view.size.y >= 360 * m_scale; }
-    float depthHeight() const { return compactWeb() ? std::min(120 * m_scale, view.size.y * .18f) : 120 * m_scale; }
+    float depthHeight() const { return compactMobile() ? std::min(120 * m_scale, view.size.y * .18f) : 120 * m_scale; }
     float viewBarReserve() const { return std::max(56 * m_scale, m_viewBarH + 12 * m_scale); }
     float depthReserve() const {
-        return depthShown() ? viewBarReserve() + depthHeight() + 12 * m_scale : compactWeb() ? viewBarReserve() : 0.0f;
+        return depthShown() ? viewBarReserve() + depthHeight() + 12 * m_scale : compactMobile() ? viewBarReserve() : 0.0f;
     }
     void depthStrip() {
         if (!depthShown()) return;
@@ -2685,7 +2689,7 @@ private:
 
     void beginFloat(const char* id, ImVec2 pos, ImVec2 pivot, float width, float pad, float height = 0, bool through = false, float maxHeight = 0) {
         const float s = m_scale;
-        const bool compact = compactWeb();
+        const bool compact = compactMobile();
         const float edge = 16 * s, maxW = std::max(1.0f, view.size.x - 2 * edge), maxH = std::max(1.0f, std::min(view.size.y - 2 * edge, maxHeight > 0 ? maxHeight : FLT_MAX));
         if (compact) {
             width = width > 0 ? std::min(width, maxW) : 0;
@@ -2802,7 +2806,7 @@ private:
 
     void actionsBar() {
         const float s = m_scale, h = 36 * s;
-        const bool stacked = compactWeb() && view.size.x < 560 * s;
+        const bool stacked = compactMobile() && view.size.x < 560 * s;
         const float top = stacked ? m_levelBottom + 8 * s : view.origin.y + 16 * s;
         beginFloat("##actions", ImVec2(view.origin.x + view.size.x - 16 * s, top), ImVec2(1, 0), 0, 6);
         ImGui::BeginDisabled(doc.undo.empty());
@@ -2818,7 +2822,7 @@ private:
         endFloat();
         if (doc.status.empty() || doc.status == m_statusClosed) return;
         beginFloat("##status", ImVec2(view.origin.x + view.size.x - 16 * s, m_actionsBottom + 8 * s), ImVec2(1, 0), 0, 10);
-        const float statusWidth = compactWeb() ? std::min(320 * s, std::max(1.0f, view.size.x - 82 * s - ImGui::GetStyle().ItemSpacing.x)) : 320 * s;
+        const float statusWidth = compactMobile() ? std::min(320 * s, std::max(1.0f, view.size.x - 82 * s - ImGui::GetStyle().ItemSpacing.x)) : 320 * s;
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + statusWidth);
         ImGui::TextUnformatted(doc.status.c_str());
         ImGui::PopTextWrapPos();
@@ -2944,7 +2948,7 @@ private:
         ImVec2 lo, hi;
         selBounds(&lo, &hi);
         const float x0 = view.origin.x + edge;
-        const float y0 = compactWeb() ? std::max(m_levelBottom, m_actionsBottom) + 8 * s : view.origin.y + edge;
+        const float y0 = compactMobile() ? std::max(m_levelBottom, m_actionsBottom) + 8 * s : view.origin.y + edge;
         const float x1 = std::max(x0, view.origin.x + view.size.x - edge - w),
                     y1 = std::max(y0, view.origin.y + view.size.y - edge - h - depthReserve());
         const float cx = (lo.x + hi.x - w) / 2, cy = (lo.y + hi.y - h) / 2;
@@ -2958,7 +2962,7 @@ private:
         }
         const bool ghost = ImGui::GetIO().KeyCtrl && !ImGui::GetIO().WantTextInput;
         if (ghost) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.25f);
-        const float maxHeight = compactWeb() ? std::max(1.0f, view.origin.y + view.size.y - viewBarReserve() - y0) : 0;
+        const float maxHeight = compactMobile() ? std::max(1.0f, view.origin.y + view.size.y - viewBarReserve() - y0) : 0;
         beginFloat("##inspector", pos, ImVec2(0, 0), w, 14, 0, ghost, maxHeight);
         inspectorBody();
         m_inspectorH = ImGui::GetWindowSize().y;
@@ -3074,11 +3078,11 @@ private:
         area(a);
         ImVec2 top = view.toScreen((a[0] + a[2]) / 2, a[3]), bottom = view.toScreen((a[0] + a[2]) / 2, a[1]);
         const bool above = top.y - 60 * s > view.origin.y + 16 * s;
-        const float width = compactWeb() ? std::min(650 * s, std::max(1.0f, view.size.x - 32 * s)) : 0;
+        const float width = compactMobile() ? std::min(650 * s, std::max(1.0f, view.size.x - 32 * s)) : 0;
         beginFloat("##area", above ? ImVec2(top.x, top.y - 12 * s) : ImVec2(bottom.x, bottom.y + 12 * s), ImVec2(0.5f, above ? 1.0f : 0.0f), width, 8);
         auto next = [&](const char* label, float fixedWidth = 0) {
             const float needed = fixedWidth > 0 ? fixedWidth : ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2 + 4 * s;
-            if (!compactWeb() || ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + needed <= ImGui::GetCurrentWindow()->WorkRect.Max.x)
+            if (!compactMobile() || ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + needed <= ImGui::GetCurrentWindow()->WorkRect.Max.x)
                 ImGui::SameLine();
         };
         ImGui::AlignTextToFramePadding();
@@ -3126,11 +3130,11 @@ private:
         const float fullWidth = buttonWidth(L("Формы", "Shapes")) + buttonWidth(L("Графика", "Graphics")) +
                                 buttonWidth(L("Объекты", "Objects")) + buttonWidth(L("Сверху", "Top")) +
                                 zoomWidth + 4 * s + gap * 5 + 12 * s;
-        const float width = compactWeb() ? std::min(fullWidth, std::max(1.0f, view.size.x - 32 * s)) : 0;
+        const float width = compactMobile() ? std::min(fullWidth, std::max(1.0f, view.size.x - 32 * s)) : 0;
         beginFloat("##viewbar", ImVec2(view.origin.x + view.size.x / 2, view.origin.y + view.size.y - 16 * s), ImVec2(0.5f, 1.0f), width, 6);
         bool hasItem = false;
         auto pill = [&](const char* label, bool* on) {
-            if (hasItem && (!compactWeb() || ImGui::GetItemRectMax().x + gap + buttonWidth(label) <= ImGui::GetCurrentWindow()->WorkRect.Max.x))
+            if (hasItem && (!compactMobile() || ImGui::GetItemRectMax().x + gap + buttonWidth(label) <= ImGui::GetCurrentWindow()->WorkRect.Max.x))
                 ImGui::SameLine();
             if (mcui::Button(label, *on ? mcui::ButtonKind::Accent : mcui::ButtonKind::Default, ImVec2(0, h))) *on = !*on;
             hasItem = true;
@@ -3139,7 +3143,7 @@ private:
         pill(L("Графика", "Graphics"), &showGraphics);
         pill(L("Объекты", "Objects"), &showObjects);
         pill(L("Сверху", "Top"), &showDepth);
-        if (compactWeb() && ImGui::GetItemRectMax().x + gap * 2 + 4 * s + zoomWidth > ImGui::GetCurrentWindow()->WorkRect.Max.x) {
+        if (compactMobile() && ImGui::GetItemRectMax().x + gap * 2 + 4 * s + zoomWidth > ImGui::GetCurrentWindow()->WorkRect.Max.x) {
             ImGui::Spacing();
         } else {
             ImGui::SameLine();
@@ -3157,7 +3161,7 @@ private:
         ImGui::SameLine();
         if (mcui::Button(L("Вписать", "Fit"), mcui::ButtonKind::Default, ImVec2(0, h))) fit();
         if (m_piecesChild) {
-            if (!compactWeb() || ImGui::GetItemRectMax().x + gap + 200 * s <= ImGui::GetCurrentWindow()->WorkRect.Max.x) ImGui::SameLine();
+            if (!compactMobile() || ImGui::GetItemRectMax().x + gap + 200 * s <= ImGui::GetCurrentWindow()->WorkRect.Max.x) ImGui::SameLine();
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (h - ImGui::GetFrameHeight()) / 2);
             previewProgress(200 * s);
         }
@@ -3168,12 +3172,12 @@ private:
 
     void piecesFlyout() {
         const float s = m_scale, edge = 16 * s;
-        const float panelBottom = compactWeb() && view.size.x < 560 * s ? std::max(m_levelBottom, m_actionsBottom) : m_levelBottom;
+        const float panelBottom = compactMobile() && view.size.x < 560 * s ? std::max(m_levelBottom, m_actionsBottom) : m_levelBottom;
         const float top = std::max(view.origin.y + edge, panelBottom) + 12 * s;
-        const float h = view.origin.y + view.size.y - edge - (compactWeb() ? viewBarReserve() : 64 * s) - top;
+        const float h = view.origin.y + view.size.y - edge - (compactMobile() ? viewBarReserve() : 64 * s) - top;
         if (h < 140 * s) return;
         beginFloat("##pieces", ImVec2(view.origin.x + edge, top), ImVec2(0, 0), kPaletteWidth * s, 14, h);
-        if (!compactWeb()) port::platform::panelTouchScroll(m_scale);
+        if (!compactMobile()) port::platform::panelTouchScroll(m_scale);
         ImGui::PushFont(mcui::GetFonts().bold, 0.0f);
         ImGui::TextUnformatted(L("Куски палитры", "Palette pieces"));
         ImGui::PopFont();
@@ -4035,7 +4039,8 @@ int run(const std::string& id, const char* argv0) {
     SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH);
     float scale = port::platform::displayScale(window, pixelW);
 #ifdef __ANDROID__
-    scale = std::max(1.0f, std::min(scale, std::min(pixelW / float(kWidth), pixelH / float(kHeight))));
+    scale = 0.8f * std::max(1.0f, std::min(scale,
+        std::min(std::max(pixelW, pixelH) / float(kWidth), std::min(pixelW, pixelH) / float(kHeight))));
 #elif defined(__EMSCRIPTEN__)
     scale = webEditorScale(float(createW), float(createH));
 #else

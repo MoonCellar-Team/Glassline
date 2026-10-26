@@ -363,11 +363,17 @@ $("canvas").addEventListener("pointercancel", () => { playPointer = null; }, tru
 $("canvas").addEventListener("pointerup", (e) => {
   const play = playPointer && playPointer.id === e.pointerId && inCanvasRect(e, Module.medecompPlayRect);
   playPointer = null;
-  if (play) Module.medecompLaunchDisplay();
+  if (play) {
+    // Fullscreen может изменить размер и фокус до обработки SDL mouseup: намерение запуска не зависит от него.
+    Module.medecompPlayPending = true;
+    Module.medecompLaunchDisplay();
+  }
 }, true);
 window.addEventListener("keydown", (e) => {
-  if (!e.repeat && Module.medecompPlayFocused && Module.medecompPlayRect && (e.key === "Enter" || e.key === " "))
+  if (!e.repeat && Module.medecompPlayFocused && Module.medecompPlayRect && (e.key === "Enter" || e.key === " ")) {
+    Module.medecompPlayPending = true;
     Module.medecompLaunchDisplay();
+  }
 }, true);
 
 Module.medecompPickFile = () => {
