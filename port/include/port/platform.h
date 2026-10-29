@@ -127,6 +127,7 @@ bool takeScriptFinish();
 #ifdef __EMSCRIPTEN__
 void webStartup();
 void webGameSelected();
+SDL_Window* webTakeLauncherWindow();
 void webGameStep(std::function<bool()> step);
 void webGameFrame();
 #endif
@@ -172,6 +173,7 @@ const void* menuFocusTarget();
 void menuFocusSet(const void* target);
 
 void setTilt(float tilt);
+bool preciseInput();
 float tilt();
 void runAccelerometer();
 void accelerate(float tilt);

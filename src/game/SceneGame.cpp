@@ -44,6 +44,7 @@
 #include "game/UI/WindowStore.h"
 #ifdef MEDECOMP_PORT
 #include "port/net.h"
+#include "port/platform.h"
 #include "../../port/src/platform/settings.h"
 extern "C" int medecomp_solo_bags(void);
 extern "C" void medecomp_solo_bags_result(int collected, int total, int timeLeft);
@@ -662,6 +663,18 @@ void SceneGame::updateAccelerometer(int dt) {
     float z = 0.0f;
     accel->getRawXYZ(&x, &y, &z);
     m_tiltFilter.setTargetValue(atan2f(y, sqrtf(x * x + z * z)) * (-1.0 / 1.570796f));
+#ifdef MEDECOMP_PORT
+    {
+        LevelData* levels = AppEngine::getLevelData();
+        bool direct = port::platform::preciseInput() && levels && !levels->isMultiplayerMode();
+        float cutoff = direct ? 50.0f : 300.0f;
+        if (m_tiltFilter.m_numInputTaps == 1 && m_tiltFilter.m_numFeedbackTaps == 1) {
+            float k = expf(logf(0.1f) * 30.0f / cutoff);
+            m_tiltFilter.m_feedbackCoeffs[0] = -k;
+            m_tiltFilter.m_inputCoeffs[0] = 1.0f - k;
+        }
+    }
+#endif
     float prev = m_tiltFilter.getFilteredValue();
     m_tiltFilter.update(dt);
     if (dt > 0) {

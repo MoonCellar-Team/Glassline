@@ -35,11 +35,49 @@
 #include "game/SoundSequencer.h"
 #include "m3g/KeyframeSequence.h"
 #ifdef MEDECOMP_PORT
+#include "port/platform.h"
 namespace m3g {
 class Node;
 }
 extern "C" int medecomp_player_model(int levelModel);
 extern "C" void medecomp_dress_player(m3g::Node* root);
+
+namespace {
+const int kWallJumpMs = 400;
+struct WallJump {
+    const GameObjectPlayer* who = nullptr;
+    int age = 0;
+    bool armed = false;
+};
+WallJump s_wallJump[2];
+
+WallJump* wallJump(const GameObjectPlayer* p) {
+    for (WallJump& h : s_wallJump)
+        if (h.who == p) return &h;
+    for (WallJump& h : s_wallJump)
+        if (!h.armed) {
+            h.who = p;
+            h.age = 0;
+            return &h;
+        }
+    s_wallJump[0] = WallJump{p, 0, false};
+    return &s_wallJump[0];
+}
+
+bool armWallJump(GameObjectPlayer* p) {
+    if (!port::platform::preciseInput()) return false;
+    WallJump* h = wallJump(p);
+    h->who = p;
+    h->armed = true;
+    h->age = 0;
+    return true;
+}
+
+void disarmWallJump(const GameObjectPlayer* p) {
+    for (WallJump& h : s_wallJump)
+        if (h.who == p) h.armed = false;
+}
+}
 #endif
 #include "m3g/Node.h"
 #include "m3g/Transform.h"
@@ -90,6 +128,9 @@ void GameObjectPlayer::incNumCollectablesCollected() {
 }
 
 void GameObjectPlayer::resetCommon() {
+#ifdef MEDECOMP_PORT
+    m_wallClimbJump.reset();
+#endif
     m_gestures = 0;
     m_lastCollidedObject = NULL;
     m_collisionCooldown = 0;
@@ -170,6 +211,9 @@ void GameObjectPlayer::deinitStateBalanceFell() {
 }
 
 void GameObjectPlayer::initStateFalling(PlayerState prev) {
+#ifdef MEDECOMP_PORT
+    m_wallClimbJump.reset();
+#endif
     m_landingRollTimer = 0;
     m_jumpVariant = false;
 }
@@ -1227,6 +1271,9 @@ void GameObjectPlayer::stateTransition(PlayerState state) {
     PlayerState prev = m_state;
     m_state = state;
     m_stateTime = 0;
+#ifdef MEDECOMP_PORT
+    if (state != STATE_FALLING_FORWARDS) m_wallClimbJump.reset();
+#endif
 
     if (isCrouchState(state)) {
         m_shape = m_shapeCrouch;
@@ -1509,6 +1556,18 @@ void GameObjectPlayer::updateStateScaleJump(int dt) {
 }
 
 void GameObjectPlayer::updateStateWallRun(int dt) {
+#ifdef MEDECOMP_PORT
+    WallJump* held = wallJump(this);
+    if (held->armed && held->who == this) {
+        held->age += dt;
+        bool ending = m_stateTime >= 1000 || !checkWallrun();
+        if (ending || held->age >= kWallJumpMs) {
+            held->armed = false;
+            playerJump(false, true);
+            return;
+        }
+    }
+#endif
     m_achievementData->registerWallRunDist(midp::Math::abs(m_lastPosition.x - m_position.x));
     if (isAnyGestureSet(GESTURE_DOWN) ||
         (isAnyGestureSet(GESTURE_ANY_LEFT) && getFacingDir() == FACING_RIGHT) ||
@@ -1881,8 +1940,12 @@ bool GameObjectPlayer::checkWallAction(FacingDir dir, bool wallClimb, int flags)
     if (!(flags & WALL_CLIMB_SLIDE)) {
         return false;
     }
-    if (tMax > 0.5f && tMax - tMin >= 1.0f && m_prevVelocity.x * getFacingDir() > 5.0f &&
-        getUpVelocity() > 0.0f) {
+    bool canClimb = getUpVelocity() > 0.0f;
+#ifdef MEDECOMP_PORT
+    canClimb = canClimb || (m_state == STATE_FALLING_FORWARDS &&
+                           m_wallClimbJump.allows(m_position.x, getUpVelocity()));
+#endif
+    if (tMax > 0.5f && tMax - tMin >= 1.0f && m_prevVelocity.x * getFacingDir() > 5.0f && canClimb) {
         stateTransition(STATE_WALL_CLIMB);
         return true;
     }
@@ -1973,6 +2036,9 @@ void GameObjectPlayer::playerSwingLaunch() {
     setForwardVelocity(getFacingDir() * 7.5f);
     setUpVelocity(5.0f);
     stateTransition(STATE_FALLING_FORWARDS);
+#ifdef MEDECOMP_PORT
+    m_wallClimbJump.start(m_position.x);
+#endif
 
     SoundSequencer& sequencer = AppEngine::getCanvas()->getSceneGame()->getSoundSequencer();
     switch (getType()) {
@@ -2598,6 +2664,14 @@ void GameObjectPlayer::applyGestureUp() {
         stateTransition(STATE_RUNNING);
         break;
     case STATE_WALL_RUN:
+#ifdef MEDECOMP_PORT
+        if (armWallJump(this)) {
+            clearGesture(GESTURE_UP);
+            break;
+        }
+#endif
+        playerJump(false, true);
+        break;
     case STATE_RAMP_RUN_UP:
         playerJump(false, true);
         break;
@@ -2795,6 +2869,12 @@ void GameObjectPlayer::update(int dt) {
     if (m_state == STATE_NONE) {
         return;
     }
+#ifdef MEDECOMP_PORT
+    if (m_state != STATE_WALL_RUN) disarmWallJump(this);
+#endif
+#ifdef MEDECOMP_PORT
+    m_wallClimbJump.update(dt);
+#endif
     if (m_disarmTimer > 0) {
         m_disarmTimer -= dt;
     }

@@ -15,12 +15,17 @@
 #include <vector>
 
 #include "game/AppEngine.h"
+#include "game/GameObjectPlayer.h"
 #include "game/GameScreen.h"
+#include "game/LevelData.h"
 #include "game/SceneGame.h"
+#include "game/TextManager.h"
 #include "port/net.h"
 #include "port/platform.h"
 #include "runtime/midp/Graphics.h"
+#include "runtime/midp/ReferenceCountedPointer.h"
 #include "runtime/midp/Runtime.h"
+#include "runtime/midp/String.h"
 
 namespace port {
 namespace platform {
@@ -184,12 +189,14 @@ void cursorPoint(int* x, int* y) {
 
 float s_keyTilt;
 bool s_keyTiltLeft, s_keyTiltRight;
+bool s_arrowTiltLeft, s_arrowTiltRight;
 int s_heldDx, s_heldDy;
 bool s_heldTwo;
 Uint32 s_heldNext;
 bool s_cursorOn = true;
 bool s_fromPad = false;
 std::atomic<bool> s_touchPlay(false);
+std::atomic<bool> s_precise(false);
 bool s_warping = false;
 Uint32 s_mouseAt;
 Uint32 s_fingerAt;
@@ -250,8 +257,20 @@ bool pauseButton(float fx, float fy) {
 }
 
 void keyTilt() {
-    s_keyTilt = (s_keyTiltRight ? kKeyTilt : 0.0f) - (s_keyTiltLeft ? kKeyTilt : 0.0f);
+    bool left = s_keyTiltLeft || s_arrowTiltLeft;
+    bool right = s_keyTiltRight || s_arrowTiltRight;
+    s_keyTilt = (right ? kKeyTilt : 0.0f) - (left ? kKeyTilt : 0.0f);
     setTilt(s_keyTilt);
+}
+
+bool onBalance(int player) {
+    if (player != 0 || !inGameplay()) return false;
+    AppEngine* app = AppEngine::getCanvas();
+    if (!app || !app->getLevelData() || app->getLevelData()->isMultiplayerMode()) return false;
+    GameScreen* g = screenOf(0);
+    if (!g || !g->m_player) return false;
+    GameObjectPlayer::PlayerState st = g->m_player->getState();
+    return st == GameObjectPlayer::STATE_BALANCE_RUNNING || st == GameObjectPlayer::STATE_ZIPLINE;
 }
 
 using bindings::Action;
@@ -301,11 +320,18 @@ void hold(int dx, int dy, bool two) {
 bool key(const SDL_KeyboardEvent& k, bool down) {
     Action action = actionOf(k.keysym.sym);
     if (action == bindings::ActCount) return false;
+    if (inGameplay()) s_precise.store(true);
     bool menu = !inGameplay() && menuFocusActive();
     if (action == bindings::ActTiltLeft || action == bindings::ActTiltRight) {
         (action == bindings::ActTiltLeft ? s_keyTiltLeft : s_keyTiltRight) = down;
         keyTilt();
         if (down) gesture(action == bindings::ActTiltLeft ? "наклон влево" : "наклон вправо");
+        return true;
+    }
+    if ((action == bindings::ActLeft || action == bindings::ActRight) && onBalance(0)) {
+        (action == bindings::ActLeft ? s_arrowTiltLeft : s_arrowTiltRight) = down;
+        keyTilt();
+        if (down) gesture(action == bindings::ActLeft ? "баланс влево" : "баланс вправо");
         return true;
     }
     if (action == bindings::ActTap) {
@@ -403,6 +429,7 @@ void padButton(Pad& p, int button, bool down) {
     hideCursor();
     bool game = inGameplay();
     bool menu = !game && menuFocusActive();
+    if (game) s_precise.store(true);
     if (menu && down) {
         if (button == SDL_CONTROLLER_BUTTON_A || button == bindings::button(bindings::ActTap)) {
             menuFocusPost(MenuFocusActivate);
@@ -424,6 +451,12 @@ void padButton(Pad& p, int button, bool down) {
         return;
     }
     Action action = actionOfButton(button);
+    if (game && p.player == 0 && (action == bindings::ActLeft || action == bindings::ActRight) && onBalance(0)) {
+        s_precise.store(true);
+        (action == bindings::ActLeft ? s_arrowTiltLeft : s_arrowTiltRight) = down;
+        keyTilt();
+        return;
+    }
     if (action == bindings::ActTap) {
         if (down) gesture("тап");
         down ? tapDown(p.player) : tapUp(p.player);
@@ -458,7 +491,10 @@ void padSticks(Pad& p, float dt) {
     float tilt = axis(p, SDL_CONTROLLER_AXIS_RIGHTX);
     if (fabsf(tilt) < zone) tilt = 0;
     else tilt = (tilt > 0 ? tilt - zone : tilt + zone) / (1.0f - zone);
-    if (p.player == 0) setTilt(tilt != 0 ? tilt * kStickTilt : s_keyTilt);
+    if (p.player == 0) {
+        if (tilt != 0) s_precise.store(true);
+        setTilt(tilt != 0 ? tilt * kStickTilt : s_keyTilt);
+    }
     float mag = sqrtf(lx * lx + ly * ly);
     float flick = zone + 0.35f;
     if (flick < 0.5f) flick = 0.5f;
@@ -474,8 +510,11 @@ void padSticks(Pad& p, float dt) {
             if (fabsf(lx) > fabsf(ly)) dx = lx < 0 ? -1 : 1;
             else dy = ly < 0 ? -1 : 1;
             if (game) {
-                gesture("свайп");
-                swipe(p.player, dx, dy, false);
+                if (!(onBalance(p.player) && dx != 0)) {
+                    gesture("свайп");
+                    s_precise.store(true);
+                    swipe(p.player, dx, dy, false);
+                }
             } else
                 menuFocusPost(focusDir(dx, dy));
         } else if (p.flicked && mag < back) {
@@ -702,6 +741,7 @@ bool inputEvent(const SDL_Event& e) {
         menuFocusPointer();
         s_fromPad = false;
         s_touchPlay = false;
+        s_precise.store(false);
         s_mouseAt = SDL_GetTicks();
         toScreen(e.button.x, e.button.y, &x, &y);
         touchBegan(kMouse, x, y);
@@ -743,6 +783,7 @@ bool inputEvent(const SDL_Event& e) {
         toFrame(e.tfinger.x * w, e.tfinger.y * h, &fx, &fy);
         if (pauseButton(fx, fy)) return true;
         s_touchPlay = true;
+        s_precise.store(false);
         fingerPoint(e.tfinger, &x, &y);
         touchBegan(e.tfinger.fingerId, x, y);
         return true;
@@ -861,6 +902,10 @@ void inputUpdate() {
         }
     }
     for (Pad& p : s_pads) padSticks(p, dt);
+    if (!onBalance(0) && (s_arrowTiltLeft || s_arrowTiltRight)) {
+        s_arrowTiltLeft = s_arrowTiltRight = false;
+        keyTilt();
+    }
     if ((s_heldDx || s_heldDy) && inGameplay() && int(now - s_heldNext) >= 0) {
         swipe(0, s_heldDx, s_heldDy, s_heldTwo);
         s_heldNext = now + kRepeatMs;
@@ -877,6 +922,8 @@ void inputReset() {
     s_touches.clear();
     s_releases.clear();
 }
+
+bool preciseInput() { return s_precise.load(); }
 
 }
 }
@@ -909,5 +956,64 @@ extern "C" void medecomp_pause_button(midp::Graphics* g, GameScreen* screen) {
     g->setColor(255, 255, 255, 255);
     bar(-12);
     bar(3);
+    g->setClip(clipX, clipY, clipW, clipH);
+}
+
+extern "C" void medecomp_balance_meter(midp::Graphics* g, GameScreen* screen) {
+    using namespace port::platform;
+    if (!screen || screen->m_type != GameScreen::TYPE_SINGLE || !onBalance(0) || screen != screenOf(0)) return;
+    if (!screen->m_player) return;
+    float lean = screen->m_player->getAccelerometerTilt(true);
+    if (lean < -1) lean = -1;
+    if (lean > 1) lean = 1;
+
+    const int bw = 220, bh = 10;
+    int x0 = screen->m_width / 2 - bw / 2;
+    int y0 = screen->m_height - 48;
+    auto bounds = [&](int x, int y, int w, int h, int* ox, int* oy, int* ow, int* oh) {
+        int ax, ay, bx, by;
+        screen->calcGlobalCoordinates(x, y, ax, ay);
+        screen->calcGlobalCoordinates(x + w, y + h, bx, by);
+        *ox = std::min(ax, bx);
+        *oy = std::min(ay, by);
+        *ow = std::abs(bx - ax);
+        *oh = std::abs(by - ay);
+        if (*ow < 1) *ow = 1;
+        if (*oh < 1) *oh = 1;
+    };
+    int rx, ry, rw, rh;
+    bounds(x0, y0, bw, bh, &rx, &ry, &rw, &rh);
+    const int clipX = g->getClipX(), clipY = g->getClipY(), clipW = g->getClipWidth(), clipH = g->getClipHeight();
+    AppEngine* app = AppEngine::getCanvas();
+    if (app) g->setClip(0, 0, app->getWidth(), app->getHeight());
+    g->setColor(0, 0, 0, 160);
+    g->fillRect(rx, ry, rw, rh);
+    int danger = bw * 8 / 100;
+    int dx, dy, dw, dh;
+    bounds(x0, y0, danger, bh, &dx, &dy, &dw, &dh);
+    g->setColor(236, 0, 0, 220);
+    g->fillRect(dx, dy, dw, dh);
+    bounds(x0 + bw - danger, y0, danger, bh, &dx, &dy, &dw, &dh);
+    g->fillRect(dx, dy, dw, dh);
+    int mark = x0 + bw / 2 + int(lean * (bw / 2 - 4));
+    bounds(mark - 2, y0 - 3, 4, bh + 6, &dx, &dy, &dw, &dh);
+    g->setColor(255, 255, 255, 255);
+    g->fillRect(dx, dy, dw, dh);
+
+    using bindings::Action;
+    std::string side = std::string(bindings::keyLabel(Action(bindings::ActLeft))) + "/" +
+                       bindings::keyLabel(Action(bindings::ActRight));
+    std::string tilt = std::string(bindings::keyLabel(Action(bindings::ActTiltLeft))) + "/" +
+                       bindings::keyLabel(Action(bindings::ActTiltRight));
+    std::string text = side == tilt ? side : side + "  " + tilt;
+    static std::string cached;
+    static midp::ReferenceCountedPointer<midp::String> label;
+    if (text != cached) {
+        cached = text;
+        label = new midp::String(cached.c_str());
+    }
+    int tx, ty;
+    screen->calcGlobalCoordinates(x0, y0 - 6, tx, ty);
+    if (app && app->getTextManager()) app->getTextManager()->drawString(g, label, 14, tx, ty, 0x41);
     g->setClip(clipX, clipY, clipW, clipH);
 }

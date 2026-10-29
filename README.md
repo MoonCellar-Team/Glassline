@@ -279,7 +279,15 @@ game straight away (with the last copy), `--launcher` always shows the launcher.
 
 ## Building from source
 
-The release builds are made by `build.sh` on a Linux x86-64 machine:
+The release builds are made by `build.sh` on a Linux x86-64 machine.
+If the host lacks build tools (for example, on SteamOS), the script checks existing Distrobox
+containers and builds in the first suitable one. Use `MEDECOMP_DISTROBOX=Archlinux ./build.sh windows`
+to select a container, or `./build.sh --check all` to check the tools without building.
+The project must be accessible at the same path inside the container. No containers or system
+packages are installed automatically; checking a stopped container may start it.
+Linux releases keep using the dedicated manylinux container through Podman or Docker.
+
+Targets:
 
 ```sh
 ./build.sh linux      # build/release/: AppImage, tar.gz, linux/ — needs podman or docker
@@ -288,7 +296,20 @@ The release builds are made by `build.sh` on a Linux x86-64 machine:
 ./build.sh web        # build/release/web and a zip: the browser version — needs emsdk, meson, ninja
 ./build.sh all 1.0    # all three, with a version number in the names
 ./run.sh              # run the Linux build (./run.sh windows — under wine)
+./run.sh android-emulator  # start the emulator, install a compatible APK and launch Glassline
 ```
+
+Android commands use an existing suitable Distrobox if the SDK tools cannot run on the host.
+Use `MEDECOMP_DISTROBOX=Archlinux ./run.sh android-emulator` to select one explicitly.
+`--check` checks the tools and acceleration without starting the emulator; `--list-avds` lists
+virtual devices. Pass an AVD name after `android-emulator`, or emulator arguments after `--`.
+Without an existing AVD, the installed Android 35 x86_64 image is used to create a project AVD
+in `build/android/avd`. Missing SDK packages are not downloaded automatically.
+The command waits for Android to boot, then installs the newest compatible APK from `build/release`
+or `build/android` and launches Glassline. It reuses the selected AVD if already running.
+`--no-app` starts only the emulator. `./run.sh android --apk <path> --serial <serial>` installs
+and launches an APK on a connected device. An x86_64 emulator needs an APK built with x86_64 support
+(`android/build.sh x86_64`); missing APKs are not built automatically.
 
 The Linux build runs in a container on an old glibc (2.28), so it works on any newer Linux; the
 first run prepares the container image (about 20 minutes). The Windows build downloads its compiler

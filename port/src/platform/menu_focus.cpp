@@ -10,6 +10,7 @@
 
 #include "game/AppEngine.h"
 #include "game/GameScreen.h"
+#include "game/LevelData.h"
 #include "game/MenuMain.h"
 #include "game/MenuMainSubMenu.h"
 #include "game/MenuPause.h"
@@ -50,6 +51,7 @@
 #include "game/UI/UploadConfirmationWindow.h"
 #include "game/UI/WindowStore.h"
 #include "levels.h"
+#include "port/net.h"
 #include "runtime/midp/Graphics.h"
 
 extern "C" {
@@ -560,6 +562,30 @@ void placeFrame(const std::vector<Target>& ts, int index) {
     s_frameTint = cur.kind != KButton && cur.kind != KGame;
 }
 
+bool startChapter(const Target& t) {
+    if (t.kind != KNotch || !t.owner) return false;
+    auto* w = static_cast<UI::Window*>(t.owner);
+    UI::MajorButton* start = nullptr;
+    if (auto* c = asChapters(w)) {
+        if (t.ptr != &c->m_chapters) return false;
+        if (!c->m_chapters.getSelectedItem()) return true;
+        start = &c->m_startButton;
+    } else if (auto* m = one<UI::ChapterSelectMultiplayerWindow>(w, _ZTVN2UI30ChapterSelectMultiplayerWindowE)) {
+        auto* chapters = m->isRaceMode() ? &m->m_raceScroller : &m->m_timedScroller;
+        if (t.ptr != chapters) return false;
+        if (!chapters->getSelectedItem()) return true;
+        start = &m->m_startButton;
+    } else {
+        return false;
+    }
+    if (!start->m_enabled) return true;
+    int x = start->getX() + start->getWidth() / 2;
+    int y = start->getY() + start->getHeight() / 2;
+    w->pointerPressed(x, y, 0);
+    w->pointerReleased(x, y, 0);
+    return true;
+}
+
 void activate(const Target& t) {
     int cx = t.x + t.w / 2, cy = t.y + t.h / 2;
     if (t.kind == KUser) {
@@ -567,6 +593,7 @@ void activate(const Target& t) {
         if (c->m_users.m_list->pointerReleased(0, t.extra * kUserRow + kUserRow / 2, 0)) c->close(UI::RESULT_OK);
         return;
     }
+    if (startChapter(t)) return;
     if (t.kind == KButton || t.kind == KCheck || t.kind == KNotch) {
         auto* w = static_cast<UI::Window*>(t.owner);
         w->pointerPressed(cx, cy, 0);
@@ -738,12 +765,30 @@ void followModeChange(const std::vector<Target>& ts) {
     s_modeWindow = nullptr;
 }
 
+void* preferred(const std::vector<Target>& ts) {
+    if (ts.empty() || !ts[0].owner) return nullptr;
+    auto* e = asEndLevel(static_cast<UI::Window*>(ts[0].owner));
+    if (!e || port::net::raceTogether() || port::net::raceHostChooses()) return nullptr;
+    LevelData* levels = AppEngine::getLevelData();
+    if (levels && levels->isMultiplayerMode()) return nullptr;
+    for (const Target& t : ts)
+        if (t.ptr == &e->m_next) return t.ptr;
+    return nullptr;
+}
+
+void preferFresh(const std::vector<Target>& ts) {
+    for (const Target& t : ts)
+        if (t.ptr == s_focus) return;
+    if (void* p = preferred(ts)) s_focus = p;
+}
+
 void applyTargets(std::vector<Target>& ts, int cmd) {
     std::sort(ts.begin(), ts.end(), [](const Target& a, const Target& b) {
         if (a.y != b.y) return a.y < b.y;
         return a.x < b.x;
     });
     followModeChange(ts);
+    preferFresh(ts);
     int index = 0;
     for (int i = 0; i < int(ts.size()); i++)
         if (ts[i].ptr == s_focus) index = i;

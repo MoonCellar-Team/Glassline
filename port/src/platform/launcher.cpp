@@ -53,10 +53,15 @@
 #include "port/files.h"
 #include "port/online.h"
 #include "port/platform.h"
+#include "port/touch.h"
 #include "settings.h"
 #include "turn.h"
 
 namespace {
+
+#ifdef __EMSCRIPTEN__
+SDL_Window* s_webLauncherWindow = nullptr;
+#endif
 
 using port::platform::launcherHelp;
 
@@ -2029,14 +2034,43 @@ void accountTab(float scale) {
     ImGui::TextDisabled(L("Сервер: %s", "Server: %s"), flow.server.c_str());
 }
 
+void touchControls() {
+    namespace touch = port::platform::touch;
+    touch::Config value = touch::config();
+    auto sliderWidth = [](const char* label) {
+        ImGui::SetNextItemWidth(std::max(80.0f, ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(label).x -
+                                               port::platform::launcherHelpButtonSize() - ImGui::GetStyle().ItemSpacing.x * 3));
+    };
+    const char* distanceLabel = L("Длина свайпа", "Swipe distance");
+    sliderWidth(distanceLabel);
+    bool changed = ImGui::SliderInt(distanceLabel, &value.distance, 15, 80);
+    hint(L("Увеличьте, если короткие движения вызывают случайные действия. Длина указана в точках игрового экрана.",
+           "Increase this if short movements trigger accidental actions. Distance is measured in game screen units."));
+    const char* sectorsLabel = L("Секторы вверх и вниз", "Up and down sectors");
+    sliderWidth(sectorsLabel);
+    changed |= ImGui::SliderInt(sectorsLabel, &value.verticalSector, 40, 90, "%d°");
+    hint(L("90° — четыре равных направления. Уменьшите угол, если диагональные свайпы вызывают прыжок вместо бега.",
+           "90° gives four equal directions. Lower the angle if diagonal swipes trigger a jump instead of running."));
+    changed |= ImGui::Checkbox(L("Одно направление на касание", "One direction per touch"), &value.lockDirection);
+    hint(L("Защищает от прыжка при загибе свайпа вверх. Для нового жеста отпустите палец. Отключите, чтобы бежать и прыгать одним движением.",
+           "Prevents a swipe curving upward from triggering a jump. Lift your finger before the next gesture. Turn off to run and jump in one continuous motion."));
+    if (changed) touch::setConfig(value);
+    if (ImGui::Button(L("Сбросить настройки тача", "Reset touch controls"))) touch::reset();
+    ImGui::Spacing();
+}
+
 void controlsTab() {
     using port::platform::bindings::Action;
     mcui::SectionTitle(L("Управление", "Controls"));
     if (port::platform::defaultTouchInput()) {
         ImGui::TextWrapped("%s", L("Проводите пальцем в нужную сторону: вверх — прыжок, вниз — подкат или спуск, влево и вправо — бег. Касание экрана останавливает Фейт. Пауза — кнопкой в углу или свайпом вниз двумя пальцами. Наклоняйте устройство для равновесия.",
                                   "Swipe in the direction you need: up to jump, down to slide or drop, left and right to run. Tap the screen to stop Faith. Pause with the corner button or a two-finger downward swipe. Tilt the device to balance."));
+        touchControls();
         if (!ImGui::CollapsingHeader(L("Клавиатура и геймпад", "Keyboard and gamepad"))) return;
+    } else if (ImGui::CollapsingHeader(L("Сенсорное управление", "Touch controls"), ImGuiTreeNodeFlags_DefaultOpen)) {
+        touchControls();
     }
+    if (!port::platform::defaultTouchInput()) mcui::SectionTitle(L("Клавиатура и геймпад", "Keyboard and gamepad"));
     launcherHelp(L("Нажмите клетку и клавишу или кнопку. Esc — отмена. Стрелки, Enter и P работают вместе с "
           "назначенным. Shift со свайпом влево или вправо — двумя пальцами. Крестовина и стик — "
           "направления всегда. В меню стрелки и крестовина ходят по кнопкам, Enter и A подтверждают, "
@@ -2899,7 +2933,7 @@ bool runWindow(std::string* path) {
                 }
                 mcui::SectionTitle(L("Сохранения", "Saves"));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                launcherHelp((port::files::dataDir() + "/Documents").c_str());
+                ImGui::TextWrapped("%s", (port::files::dataDir() + "/Documents").c_str());
                 ImGui::PopStyleColor();
                 break;
             }
@@ -3154,7 +3188,12 @@ bool runWindow(std::string* path) {
     ImGui::DestroyContext();
     port::platform::turn::release(renderer);
     SDL_DestroyRenderer(renderer);
+#ifdef __EMSCRIPTEN__
+    if (play && status.ok) s_webLauncherWindow = window;
+    else SDL_DestroyWindow(window);
+#else
     SDL_DestroyWindow(window);
+#endif
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
     port::platform::hd::stop(true);
     if (port::platform::update::status().stage == port::platform::update::Stage::Ready) {
@@ -3432,6 +3471,14 @@ bool takeEditorRequest(std::string* id) {
     s_editorPending = false;
     *id = s_editorId;
     return true;
+}
+#endif
+
+#ifdef __EMSCRIPTEN__
+SDL_Window* webTakeLauncherWindow() {
+    SDL_Window* window = s_webLauncherWindow;
+    s_webLauncherWindow = nullptr;
+    return window;
 }
 #endif
 

@@ -69,6 +69,10 @@ void CachedStringRenderer::bufferedDrawString(midp::Graphics* g, midp::String* s
     int left, right, top, bottom;
     m_renderer->getStringTexturePadding(left, right, top, bottom);
     int height = fullHeight - leading;
+#ifdef MEDECOMP_PORT
+    if (leading > 0)
+        bottom += leading;
+#endif
     if (width <= 0 || height <= 0) {
         return;
     }

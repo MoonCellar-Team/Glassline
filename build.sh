@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")"
+cd -- "$(dirname -- "$0")"
 
 usage() {
-	echo "./build.sh [linux|windows|windows-check|android|mac|web|all] [номер] — например: ./build.sh windows или ./build.sh all 1.0" >&2
+	echo "./build.sh [--check] [linux|windows|windows-check|android|mac|web|all] [номер] — например: ./build.sh windows или ./build.sh all 1.0" >&2
 	exit 1
 }
 
+CHECK_ONLY=0
+if [ "${1:-}" = --check ]; then CHECK_ONLY=1; shift; fi
+[ "$#" -le 2 ] || usage
 TARGET=${1:-linux}
 NUMBER=${2:-}
 case "$TARGET" in linux | windows | windows-check | android | mac | web | all) ;; *) usage ;; esac
@@ -14,7 +17,7 @@ case "$TARGET" in linux | windows | windows-check | android | mac | web | all) ;
 LABEL=${NUMBER:-dev}
 SUFFIX=${NUMBER:+-$NUMBER}
 OUT=build/release
-mkdir -p "$OUT"
+[ "$CHECK_ONLY" = 1 ] || mkdir -p "$OUT"
 NAME=$(sed -n 's/^#define MEDECOMP_PORT_NAME "\(.*\)"$/\1/p' port/include/port/brand.h)
 [ -n "$NAME" ] || { echo "нет MEDECOMP_PORT_NAME в port/include/port/brand.h" >&2; exit 1; }
 FILE=$(echo "$NAME" | tr 'A-Z' 'a-z')
@@ -32,12 +35,15 @@ gcc_flag() {
 	for d in $(ls -d /usr/lib/gcc/x86_64-linux-gnu/* 2>/dev/null | sort -rV); do
 		if [ -e "$d/libstdc++.so" ] && clang++ --gcc-install-dir="$d" "$tmp/t.cpp" -o "$tmp/t" 2>/dev/null; then
 			echo "--gcc-install-dir=$d"
-			break
+			rm -rf "$tmp"
+			return
 		fi
 	done
 	rm -rf "$tmp"
+	return 1
 }
-FLAG=$(gcc_flag)
+FLAG=
+source tools/distrobox_build.sh
 
 linux() {
 	echo "== Linux ($LABEL)"
@@ -120,15 +126,70 @@ web() {
 	echo "-> $OUT/web, $OUT/$FILE-web$SUFFIX.zip"
 }
 
-case "$TARGET" in
-linux) linux ;;
-windows) windows ;;
-windows-check) windows && tools/win_check.sh ;;
-android) android ;;
-mac) mac ;;
-web) web ;;
-all) linux && windows && android ;;
-esac
+check_tools() {
+	local target=$1 tool tmp
+	local tools=()
+	MISSING=()
+	case "$target" in
+	linux)
+		tools=(tar sha256sum)
+		command -v podman > /dev/null || command -v docker > /dev/null || MISSING+=(podman/docker)
+		;;
+	windows|windows-check) tools=(python3 cmake make git pkg-config clang clang++) ;;
+	android) tools=(python3 cmake make git pkg-config cc c++ perl uvx) ;;
+	mac) tools=(python3 cmake make git pkg-config openssl) ;;
+	web) tools=(python3 cmake make git pkg-config c++ emcc em++ emar emranlib emmake emconfigure meson ninja zip) ;;
+	esac
+	if [ "$target" = windows-check ]; then tools+=(wine wineboot wineserver gamescope); fi
+	for tool in "${tools[@]}"; do
+		command -v "$tool" > /dev/null || MISSING+=("$tool")
+	done
+	if [ "${#MISSING[@]}" = 0 ]; then
+		case "$target" in
+		windows|windows-check)
+			if ! FLAG=$(gcc_flag); then MISSING+=("clang++ с заголовками и библиотекой C++"); fi
+			;;
+		android|web)
+			tmp=$(mktemp -d)
+			printf '#include <string>\nint main() { return std::string("x").size() - 1; }\n' > "$tmp/t.cpp"
+			if ! c++ "$tmp/t.cpp" -o "$tmp/t" > /dev/null 2>&1; then
+				MISSING+=("c++ с заголовками и библиотекой C++")
+			fi
+			rm -rf "$tmp"
+			;;
+		esac
+	fi
+}
+
+build_target() {
+	local target=$1
+	local args=()
+	check_tools "$target"
+	if [ "${#MISSING[@]}" = 0 ] && { [ -z "${MEDECOMP_DISTROBOX:-${PORT_DISTROBOX:-}}" ] || [ "${PORT_BUILD_IN_DISTROBOX:-}" = 1 ] || [ -n "${CONTAINER_ID:-}" ] || [ "$target" = linux ]; }; then
+		if [ "$CHECK_ONLY" = 1 ]; then
+			echo "$target: базовые инструменты найдены (${CONTAINER_ID:-текущее окружение})"
+			return
+		fi
+		case "$target" in
+		windows-check) windows; tools/win_check.sh ;;
+		*) "$target" ;;
+		esac
+		return
+	fi
+	if [ "${#MISSING[@]}" != 0 ]; then echo "$target: не хватает: ${MISSING[*]}" >&2; fi
+	[ "$target" != linux ] || return 1
+	args=("$target")
+	[ -z "$NUMBER" ] || args+=("$NUMBER")
+	PORT_DISTROBOX=${MEDECOMP_DISTROBOX:-${PORT_DISTROBOX:-}} distrobox_build "$CHECK_ONLY" \
+		bash ./build.sh --check "$target" -- bash ./build.sh "${args[@]}"
+}
+
+if [ "$TARGET" = all ]; then
+	for part in linux windows android; do build_target "$part"; done
+else
+	build_target "$TARGET"
+fi
+[ "$CHECK_ONLY" = 0 ] || exit 0
 
 [ -f tools/release-notes.md ] || exit 0
 sed -e "s/{version}/$LABEL/g" -e "s/{suffix}/$SUFFIX/g" -e "s/{name}/$NAME/g" -e "s/{file}/$FILE/g" tools/release-notes.md \

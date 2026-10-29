@@ -32,9 +32,12 @@
 #include "runtime/midp/String.h"
 #ifdef MEDECOMP_PORT
 #include "port/net.h"
+#include "runtime/midp/StringBuffer.h"
 #endif
 #ifdef MEDECOMP_SPLIT_STACKED
 #include "game/QuadGroup.h"
+#endif
+#ifdef MEDECOMP_PORT
 #include "game/QuadMesh.h"
 #endif
 
@@ -44,12 +47,15 @@ extern "C" void medecomp_sky_follow(m3g::Node* dome);
 extern "C" int medecomp_player_level_playing(void);
 extern "C" int medecomp_player_level_best(void);
 extern "C" void medecomp_pause_button(midp::Graphics* g, GameScreen* screen);
+extern "C" void medecomp_balance_meter(midp::Graphics* g, GameScreen* screen);
+extern "C" int medecomp_touch_swipe(int dx, int dy, int previous);
 #endif
 
 static const int MESH_COLLECTABLES = 70;
 static const int MESH_COLLECTABLES_RIVAL = 71;
 #ifdef MEDECOMP_PORT
 static const int TEXT_THEIR_BAGS = 0x946;
+static const int BAG_HUD_OFFSET_Y = 24;
 #endif
 static const int MESH_LOCATOR = 72;
 static const int MESH_RACE_TIMER = 77;
@@ -355,6 +361,18 @@ void GameScreen::renderMenuMain3D(midp::Graphics* g, m3g::Graphics3D* g3d) {
     }
 }
 
+#ifdef MEDECOMP_PORT
+static void renderLowerBagHud(QuadManager& quads, m3g::Graphics3D* g3d) {
+    QuadMesh* bag = quads.getMesh(MESH_COLLECTABLES);
+    const float y = bag->m_y;
+    bag->m_y = y + BAG_HUD_OFFSET_Y;
+    quads.updateMesh(bag);
+    quads.render(g3d, 0x100);
+    bag->m_y = y;
+    quads.updateMesh(bag);
+}
+#endif
+
 void GameScreen::renderHud3D(m3g::Graphics3D* g3d) {
     QuadManager& quads = AppEngine::getCanvas()->getQuadManager();
     int mode = AppEngine::getLevelData()->getGameMode();
@@ -362,7 +380,7 @@ void GameScreen::renderHud3D(m3g::Graphics3D* g3d) {
     if (mode == LevelData::GAME_MODE_MULTIPLAYER_TIMED && m_type == TYPE_SINGLE) {
         bool results = m_scene->getState() == SceneGame::STATE_LEVEL_COMPLETE_MULTIPLAYER;
         quads.setMeshVisible(MESH_COLLECTABLES, !results);
-        quads.render(g3d, 0x100);
+        renderLowerBagHud(quads, g3d);
         quads.setMeshVisible(MESH_COLLECTABLES, false);
         return;
     }
@@ -378,6 +396,12 @@ void GameScreen::renderHud3D(m3g::Graphics3D* g3d) {
     } else if (mode == LevelData::GAME_MODE_STORY) {
         quads.setMeshVisible(MESH_COLLECTABLES, m_collectHudTimer > 0);
     }
+#ifdef MEDECOMP_PORT
+    if (m_type == TYPE_SINGLE) {
+        renderLowerBagHud(quads, g3d);
+        return;
+    }
+#endif
     quads.render(g3d, 0x100);
 }
 
@@ -430,6 +454,54 @@ void GameScreen::initRaceStart() {
     }
 }
 
+#ifdef MEDECOMP_PORT
+static void drawRunBagCount(midp::Graphics* g, int font, int textId, int count, int total, int x, int y,
+                            int anchor) {
+    AppEngine* canvas = AppEngine::getCanvas();
+    TextManager* text = canvas->getTextManager();
+    midp::StringBuffer* buffer = textId == 0x800 ? text->clearStringBuffer() : canvas->getStatLabel(textId);
+    if (textId != 0x800) {
+        buffer->append(' ');
+    }
+    canvas->appendStatValue(buffer, AppEngine::STAT_OF, (count << 16) | total);
+    midp::ReferenceCountedPointer<midp::String> label(buffer->toString());
+    int width = text->getStringWidth(label, font);
+    int height = text->getLineHeight(font);
+    if (width > 0 && height > 0) {
+        const int padX = 6;
+        const int padY = 4;
+        const int shadow = 4;
+        int left = x;
+        int top = y;
+        if ((anchor & 2) != 0) {
+            left -= width / 2;
+        } else if ((anchor & 4) != 0) {
+            left -= width;
+        }
+        if ((anchor & 16) != 0) {
+            top -= height / 2;
+        } else if ((anchor & 32) != 0) {
+            top -= height;
+        } else if ((anchor & 64) != 0) {
+            top -= text->getBaseline(font);
+        }
+        left -= padX;
+        top -= padY + 2;
+        int plateW = width + padX * 2 + shadow;
+        int plateH = height + padY * 2;
+        midp::GraphicsIPhoneGLES* gles = static_cast<midp::GraphicsIPhoneGLES*>(g);
+        int x0 = gles->m_xAxisX * left + gles->m_yAxisX * top + gles->m_originX;
+        int y0 = gles->m_xAxisY * left + gles->m_yAxisY * top + gles->m_originY;
+        int x1 = gles->m_xAxisX * (left + plateW) + gles->m_yAxisX * (top + plateH) + gles->m_originX;
+        int y1 = gles->m_xAxisY * (left + plateW) + gles->m_yAxisY * (top + plateH) + gles->m_originY;
+        g->setColor(155, 155, 155, 200);
+        g->fillRect(midp::Math::min(x0, x1), midp::Math::min(y0, y1), midp::Math::abs(x1 - x0),
+                    midp::Math::abs(y1 - y0));
+    }
+    canvas->drawOfStatString(g, font, textId, count, total, x, y, anchor);
+}
+#endif
+
 void GameScreen::renderInverseHud2D(midp::Graphics* g) {
     if (!m_showInverseCount) {
         return;
@@ -440,7 +512,11 @@ void GameScreen::renderInverseHud2D(midp::Graphics* g) {
     int total = m_scene->getMap().getNumCollectablesTotal();
     int x = m_width - quads.getMeshX(MESH_COLLECTABLES_RIVAL);
     int y = m_height + 5 - quads.getMeshTop(MESH_COLLECTABLES_RIVAL);
+#ifdef MEDECOMP_PORT
+    drawRunBagCount(g, 8, 0x800, count, total, x, y, 10);
+#else
     canvas->drawOfStatString(g, 8, 0x800, count, total, x, y, 10);
+#endif
 }
 
 void GameScreen::renderHud2D(midp::Graphics* g) {
@@ -460,11 +536,12 @@ void GameScreen::renderHud2D(midp::Graphics* g) {
                 return;
             }
             int total = m_scene->getMap().getNumCollectablesTotal();
-            int y = quads.getMeshBottom(MESH_COLLECTABLES) + 10;
-            canvas->drawOfStatString(g, 8, 0x800, m_player->getNumCollectablesCollected(), total, m_width - 66, y, 10);
+            int y = quads.getMeshBottom(MESH_COLLECTABLES) + BAG_HUD_OFFSET_Y + 10;
+            int x = quads.getMeshX(MESH_COLLECTABLES);
+            drawRunBagCount(g, 8, 0x800, m_player->getNumCollectablesCollected(), total, x, y, 10);
             if (port::net::rivalsNetwork()) {
-                canvas->drawOfStatString(g, 8, TEXT_THEIR_BAGS, port::net::rivalsRemoteBags(), total, m_width - 20,
-                                         y + 30, 12);
+                drawRunBagCount(g, 8, TEXT_THEIR_BAGS, port::net::rivalsRemoteBags(), total, m_width - 20,
+                                y + 30, 12);
             }
             return;
         }
@@ -474,7 +551,11 @@ void GameScreen::renderHud2D(midp::Graphics* g) {
             int total = m_scene->getMap().getNumCollectablesTotal();
             int x = quads.getMeshX(MESH_COLLECTABLES_RIVAL);
             int y = quads.getMeshBottom(MESH_COLLECTABLES_RIVAL) + 5;
+#ifdef MEDECOMP_PORT
+            drawRunBagCount(g, 8, 0x800, count, total, x, y, 10);
+#else
             canvas->drawOfStatString(g, 8, 0x800, count, total, x, y, 10);
+#endif
         }
     } else if (mode == LevelData::GAME_MODE_SPEEDRUN || mode == LevelData::GAME_MODE_CHALLENGE) {
         const Level* level = levelData->getCurrentLevelObject();
@@ -505,7 +586,14 @@ void GameScreen::renderHud2D(midp::Graphics* g) {
         int y = quads.getMeshBottom(MESH_COLLECTABLES) + 10;
         int count = m_player->getNumCollectablesCollected();
         int total = m_scene->getMap().getNumCollectablesTotal();
+#ifdef MEDECOMP_PORT
+        if (m_type == TYPE_SINGLE) {
+            y += BAG_HUD_OFFSET_Y;
+        }
+        drawRunBagCount(g, 8, 0x800, count, total, quads.getMeshX(MESH_COLLECTABLES), y, 10);
+#else
         canvas->drawOfStatString(g, 7, 0x800, count, total, m_width - 66, y, 10);
+#endif
     }
 }
 
@@ -1076,12 +1164,20 @@ bool GameScreen::pointerDragged(int x, int y, int id, int canvasWidth, int canva
 
     int dx = localX - pointer->m_x;
     int dy = localY - pointer->m_y;
+#ifdef MEDECOMP_PORT
+    int swipe = medecomp_touch_swipe(dx, dy, pointer->m_swipeDir);
+    dx = swipe == GameScreenPointer::SWIPE_LEFT ? -SWIPE_MIN_DIST
+         : swipe == GameScreenPointer::SWIPE_RIGHT ? SWIPE_MIN_DIST : 0;
+    dy = swipe == GameScreenPointer::SWIPE_UP ? -SWIPE_MIN_DIST
+         : swipe == GameScreenPointer::SWIPE_DOWN ? SWIPE_MIN_DIST : 0;
+#else
     if (iabs(dx) <= iabs(dy)) {
         dx = 0;
     }
     if (iabs(dy) <= iabs(dx)) {
         dy = 0;
     }
+#endif
     int bit = (pointer == &m_pointer2) ? INPUT_SWIPE2_LEFT : INPUT_SWIPE_LEFT;
     int dir = pointer->m_swipeDir;
     bool moved = true;
@@ -1357,6 +1453,7 @@ void GameScreen::render(midp::Graphics* g) {
         g3d->releaseTarget();
 #ifdef MEDECOMP_PORT
         medecomp_pause_button(g, this);
+        medecomp_balance_meter(g, this);
 #endif
 #ifndef MEDECOMP_SPLIT_STACKED
         if (AppEngine::getLevelData()->getGameMode() == LevelData::GAME_MODE_MULTIPLAYER_TIMED) {

@@ -748,8 +748,16 @@ bool createWindow(const char* title) {
 #else
     const bool hidden = false;
 #endif
-    s_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED_DISPLAY(screen), SDL_WINDOWPOS_CENTERED_DISPLAY(screen),
-                                forced ? forcedW : kScreenWidth, forced ? forcedH : kScreenHeight, flags);
+#ifdef __EMSCRIPTEN__
+    s_window = webTakeLauncherWindow();
+    if (s_window) {
+        SDL_SetWindowTitle(s_window, title);
+        SDL_SetWindowSize(s_window, forced ? forcedW : kScreenWidth, forced ? forcedH : kScreenHeight);
+    }
+#endif
+    if (!s_window)
+        s_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED_DISPLAY(screen), SDL_WINDOWPOS_CENTERED_DISPLAY(screen),
+                                    forced ? forcedW : kScreenWidth, forced ? forcedH : kScreenHeight, flags);
     if (!s_window) {
         fprintf(stderr, "medecomp: окно: %s\n", SDL_GetError());
         return false;

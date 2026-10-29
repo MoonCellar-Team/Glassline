@@ -33,6 +33,7 @@ for abi in $ABIS; do
 	P=$A/sysroot/$abi
 	export PKG_CONFIG_LIBDIR=$P/lib/pkgconfig:$P/share/pkgconfig
 	unset PKG_CONFIG_PATH
+	python3 -I tools/cmake_cache.py port "$b" --sysroot "$P"
 	cmake -S port -B "$b" -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
 		-DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-$API -DANDROID_STL=c++_static -DMEDECOMP_M32=OFF \
 		"-DMEDECOMP_VERSION=${NUMBER:-dev}" "-DMEDECOMP_HOST_CXX_FLAGS=$HOST_FLAG" > /dev/null

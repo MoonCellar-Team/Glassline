@@ -42,6 +42,17 @@ int SystemStringRendererIPhone::stringWidth(midp::String* str) const {
 
 void SystemStringRendererIPhone::getStringTexturePadding(int& left, int& right, int& top, int& bottom) {
     m_font->getLayoutPadding(left, right, top, bottom);
+#ifdef MEDECOMP_PORT
+    if (m_fallbackFont) {
+        int fallbackLeft, fallbackRight, fallbackTop, fallbackBottom;
+        m_fallbackFont->getLayoutPadding(fallbackLeft, fallbackRight, fallbackTop, fallbackBottom);
+        if (fallbackLeft > left) left = fallbackLeft;
+        if (fallbackRight > right) right = fallbackRight;
+        if (fallbackTop > top) top = fallbackTop;
+        int extraBottom = m_fallbackFont->getHeight() + fallbackBottom - m_font->getHeight();
+        if (extraBottom > bottom) bottom = extraBottom;
+    }
+#endif
     if (m_dropShadow) {
         addShadowPadding(m_shadowX, m_shadowBlur, left, right);
         addShadowPadding(m_shadowY, m_shadowBlur, bottom, top);

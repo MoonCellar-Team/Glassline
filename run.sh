@@ -1,17 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")"
+cd -- "$(dirname -- "$0")"
+
+android_run() {
+	local mode=$1 platform=$2 reason probe ready=0
+	shift 2
+	if reason=$(python3 -I tools/android_run.py "$mode" --check "$@" 2>&1); then ready=1; fi
+	if [ "$ready" = 1 ] &&
+		{ [ -z "${MEDECOMP_DISTROBOX:-${PORT_DISTROBOX:-}}" ] || [ "${PORT_BUILD_IN_DISTROBOX:-}" = 1 ] || [ -n "${CONTAINER_ID:-}" ]; }; then
+		exec python3 -I tools/android_run.py "$mode" "$@"
+	fi
+	if [ "$ready" = 0 ]; then printf '%s\n' "$reason" >&2; fi
+	source tools/distrobox_build.sh
+	printf -v probe '%q ' python3 -I tools/android_run.py "$mode" --check "$@"
+	PORT_DISTROBOX=${MEDECOMP_DISTROBOX:-${PORT_DISTROBOX:-}} PORT_DISTROBOX_ACTION="Запуск" distrobox_build 0 \
+		bash -c "$probe" -- bash ./run.sh "$platform" "$@"
+	exit $?
+}
 
 PLATFORM=linux
 case "${1:-}" in
 linux | windows) PLATFORM=$1; shift ;;
 windows-check) exec tools/win_check.sh ;;
 android)
-	eval "$(python3 -I tools/android_deps.py)"
-	APK=$(ls build/release/*-android*.apk 2>/dev/null | head -1)
-	[ -n "$APK" ] || { echo "нет APK в build/release — ./build.sh android" >&2; exit 1; }
-	adb install -r "$APK"
-	exec adb shell monkey -p space.mooncellar.rooftops -c android.intent.category.LAUNCHER 1 ;;
+	shift
+	if [ "${1:-}" = --emulator ]; then shift; android_run emulator android-emulator "$@"; fi
+	android_run device android "$@" ;;
+android-emulator) shift; android_run emulator android-emulator "$@" ;;
 web)
 	shift
 	[ -f build/release/web/index.html ] || { echo "нет build/release/web — ./build.sh web" >&2; exit 1; }

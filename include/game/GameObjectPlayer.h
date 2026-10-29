@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef MEDECOMP_PORT
+#include "port/wall_climb.h"
+#endif
+
 #include "game/GameObjectRunner.h"
 #include "game/InterpolationTimed.h"
 #include "game/SignalFilter.h"
@@ -363,4 +367,7 @@ public:
     float m_health;
     AchievementData* m_achievementData;
     int m_lyingTimer;
+#ifdef MEDECOMP_PORT
+    port::WallClimbJump m_wallClimbJump;
+#endif
 };
