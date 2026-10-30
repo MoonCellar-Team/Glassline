@@ -1942,10 +1942,14 @@ bool GameObjectPlayer::checkWallAction(FacingDir dir, bool wallClimb, int flags)
     }
     bool canClimb = getUpVelocity() > 0.0f;
 #ifdef MEDECOMP_PORT
-    canClimb = canClimb || (m_state == STATE_FALLING_FORWARDS &&
-                           m_wallClimbJump.allows(m_position.x, getUpVelocity()));
+    bool swingClimb = false;
+    swingClimb = m_state == STATE_FALLING_FORWARDS && m_wallClimbJump.allows(m_position.x, getUpVelocity());
+    canClimb = canClimb || swingClimb;
 #endif
     if (tMax > 0.5f && tMax - tMin >= 1.0f && m_prevVelocity.x * getFacingDir() > 5.0f && canClimb) {
+#ifdef MEDECOMP_PORT
+        if (swingClimb) m_wallClimbJump.take(m_position.x, getUpVelocity());
+#endif
         stateTransition(STATE_WALL_CLIMB);
         return true;
     }
@@ -2205,7 +2209,15 @@ void GameObjectPlayer::updateMovementLinearInterpolation(int dt) {
         return;
     }
     m_shape->setPosition(m_position);
-    if (m_map->intersects(m_shape, 0)) {
+    bool blocked = m_map->intersects(m_shape, 0);
+#ifdef MEDECOMP_PORT
+    if (m_state == STATE_WALL_CLIMB && blocked) {
+        const MathOrthoBox& bounds = m_shape->getLocalBounds();
+        MathVector headCentre(m_position.x, m_position.y + bounds.m_max.y, m_position.z);
+        blocked = port::wallClimbBlockedByOverhead(blocked, m_map->intersects(headCentre, 0));
+    }
+#endif
+    if (blocked) {
         if (m_lastPosition.y < m_position.y) {
             hitHead();
         }

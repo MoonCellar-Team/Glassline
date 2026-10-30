@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2 — 2026-10-30
+
+- **Fixed:** wall climbing no longer stops immediately after jumping onto a wall, making the final vertical section of 2-2 reliable with touch controls.
+
 ## 1.4.1 — 2026-10-29
 
 - **Touch controls:** added swipe distance, direction-sector and one-direction-per-touch settings to help prevent accidental jumps.
